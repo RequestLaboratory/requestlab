@@ -1,24 +1,41 @@
 import React, { useState } from 'react';
 import { encodeJsonToUrl, copyToClipboard } from '../utils/urlUtils';
-import { Link, Copy, Check } from 'lucide-react';
+import { Link, Check } from 'lucide-react';
 import { toast } from 'react-toastify';
 
 interface ShareLinkProps {
   leftJson: string;
   rightJson: string;
+  leftCurl: string;
+  rightCurl: string;
+  mode: 'json' | 'curl';
   isValid: boolean;
 }
 
-const ShareLink: React.FC<ShareLinkProps> = ({ leftJson, rightJson, isValid }) => {
+const ShareLink: React.FC<ShareLinkProps> = ({ 
+  leftJson, 
+  rightJson, 
+  leftCurl, 
+  rightCurl, 
+  mode,
+  isValid 
+}) => {
   const [copied, setCopied] = useState(false);
 
   const handleCopyLink = async () => {
     if (!isValid) {
-      toast.error('Please enter valid JSON in both panels first');
+      toast.error('Please enter valid content in both panels first');
       return;
     }
 
-    const shareUrl = encodeJsonToUrl(leftJson, rightJson);
+    const shareUrl = encodeJsonToUrl({
+      leftJson,
+      rightJson,
+      leftCurl: mode === 'curl' ? leftCurl : undefined,
+      rightCurl: mode === 'curl' ? rightCurl : undefined,
+      mode
+    });
+    
     const success = await copyToClipboard(shareUrl);
 
     if (success) {

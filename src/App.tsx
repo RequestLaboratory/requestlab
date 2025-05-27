@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useJsonComparison } from './hooks/useJsonComparison';
 import { useCurlComparison } from './hooks/useCurlComparison';
 import JsonInput from './components/JsonInput';
@@ -8,6 +8,7 @@ import ShareLink from './components/ShareLink';
 import ExampleButton from './components/ExampleButton';
 import ModeSwitcher, { ComparisonMode } from './components/ModeSwitcher';
 import Layout from './components/Layout';
+import { decodeJsonFromUrl } from './utils/urlUtils';
 
 const leftExample = JSON.stringify({
   name: "Product A",
@@ -77,6 +78,28 @@ function App() {
     executeLeftCurl,
     executeRightCurl,
   } = curlComparison;
+
+  // Load data from URL on initial render
+  useEffect(() => {
+    const data = decodeJsonFromUrl();
+    if (data.mode) {
+      setMode(data.mode);
+    }
+    if (data.leftJson) {
+      updateLeftJson(data.leftJson);
+    }
+    if (data.rightJson) {
+      updateRightJson(data.rightJson);
+    }
+    if (data.mode === 'curl') {
+      if (data.leftCurl) {
+        setCurlLeftInput(data.leftCurl);
+      }
+      if (data.rightCurl) {
+        setCurlRightInput(data.rightCurl);
+      }
+    }
+  }, []);
 
   const handleLeftExample = () => {
     if (mode === 'json') {
@@ -157,6 +180,9 @@ function App() {
         <ShareLink 
           leftJson={mode === 'json' ? jsonLeftInput : leftResponse} 
           rightJson={mode === 'json' ? jsonRightInput : rightResponse} 
+          leftCurl={mode === 'curl' ? curlLeftInput : ''}
+          rightCurl={mode === 'curl' ? curlRightInput : ''}
+          mode={mode}
           isValid={mode === 'json' ? (leftValid && rightValid && !!jsonLeftInput && !!jsonRightInput) : (!!leftResponse && !!rightResponse)} 
         />
 

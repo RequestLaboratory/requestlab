@@ -4,16 +4,17 @@ import { compareJson } from '../utils/jsonDiff';
 import { JsonDiff } from '../types';
 
 export const useCurlComparison = () => {
-  const [leftInput, setLeftInput] = useState('');
-  const [rightInput, setRightInput] = useState('');
-  const [leftResponse, setLeftResponse] = useState('');
-  const [rightResponse, setRightResponse] = useState('');
+  const [leftInput, setLeftInput] = useState<string>('');
+  const [rightInput, setRightInput] = useState<string>('');
+  const [leftResponse, setLeftResponse] = useState<string>('');
+  const [rightResponse, setRightResponse] = useState<string>('');
   const [diff, setDiff] = useState<JsonDiff | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLeftLoading, setIsLeftLoading] = useState(false);
   const [isRightLoading, setIsRightLoading] = useState(false);
 
   const executeLeftCurl = async () => {
+    if (!leftInput) return;
     setIsLeftLoading(true);
     try {
       const response = await executeCurl(leftInput);
@@ -37,6 +38,7 @@ export const useCurlComparison = () => {
   };
 
   const executeRightCurl = async () => {
+    if (!rightInput) return;
     setIsRightLoading(true);
     try {
       const response = await executeCurl(rightInput);
