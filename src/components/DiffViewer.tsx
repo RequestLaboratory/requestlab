@@ -120,6 +120,14 @@ const DiffViewer: React.FC<DiffViewerProps> = ({ diff, error, leftJson, rightJso
     return { fieldDiff: isFieldDiff, valueDiff: isValueDiff };
   };
 
+  // Get response status from the response object
+  const getResponseStatus = (obj: any): string => {
+    if (obj?.status) {
+      return `Status: ${obj.status}`;
+    }
+    return '';
+  };
+
   return (
     <div className="overflow-y-auto p-4 bg-white dark:bg-gray-800 rounded-md shadow-inner border border-gray-200 dark:border-gray-700">
       <div className="font-medium text-xl mb-4 text-gray-800 dark:text-white">Field Name Differences</div>
@@ -128,7 +136,10 @@ const DiffViewer: React.FC<DiffViewerProps> = ({ diff, error, leftJson, rightJso
         {/* Left Panel */}
         <div className="relative">
           <div className="absolute top-0 left-0 right-0 bg-gray-100 dark:bg-gray-700 p-2 rounded-t-md border-b border-gray-200 dark:border-gray-600">
-            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Original</span>
+            <div className="flex justify-between items-center">
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Original</span>
+              <span className="text-sm text-gray-600 dark:text-gray-400">{getResponseStatus(leftObj)}</span>
+            </div>
           </div>
           <div className="mt-10">
             <SyntaxHighlighter
@@ -162,7 +173,10 @@ const DiffViewer: React.FC<DiffViewerProps> = ({ diff, error, leftJson, rightJso
         {/* Right Panel */}
         <div className="relative">
           <div className="absolute top-0 left-0 right-0 bg-gray-100 dark:bg-gray-700 p-2 rounded-t-md border-b border-gray-200 dark:border-gray-600">
-            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Modified</span>
+            <div className="flex justify-between items-center">
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Modified</span>
+              <span className="text-sm text-gray-600 dark:text-gray-400">{getResponseStatus(rightObj)}</span>
+            </div>
           </div>
           <div className="mt-10">
             <SyntaxHighlighter
