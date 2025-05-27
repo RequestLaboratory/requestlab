@@ -1,9 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useJsonComparison } from './hooks/useJsonComparison';
+import { useCurlComparison } from './hooks/useCurlComparison';
 import JsonInput from './components/JsonInput';
+import CurlInput from './components/CurlInput';
 import DiffViewer from './components/DiffViewer';
 import ShareLink from './components/ShareLink';
 import ExampleButton from './components/ExampleButton';
+import ModeSwitcher, { ComparisonMode } from './components/ModeSwitcher';
 import Layout from './components/Layout';
 
 const leftExample = JSON.stringify({
@@ -42,25 +45,53 @@ const rightExample = JSON.stringify({
 }, null, 2);
 
 function App() {
+  const [mode, setMode] = useState<ComparisonMode>('json');
+  
+  const jsonComparison = useJsonComparison();
+  const curlComparison = useCurlComparison();
+
   const {
-    leftInput,
-    rightInput,
-    diff,
-    error,
+    leftInput: jsonLeftInput,
+    rightInput: jsonRightInput,
+    diff: jsonDiff,
+    error: jsonError,
     leftValid,
     rightValid,
     updateLeftJson,
     updateRightJson,
     formatLeftJson,
     formatRightJson,
-  } = useJsonComparison();
+  } = jsonComparison;
+
+  const {
+    leftInput: curlLeftInput,
+    rightInput: curlRightInput,
+    leftResponse,
+    rightResponse,
+    diff: curlDiff,
+    error: curlError,
+    isLeftLoading,
+    isRightLoading,
+    setLeftInput: setCurlLeftInput,
+    setRightInput: setCurlRightInput,
+    executeLeftCurl,
+    executeRightCurl,
+  } = curlComparison;
 
   const handleLeftExample = () => {
-    updateLeftJson(leftExample);
+    if (mode === 'json') {
+      updateLeftJson(leftExample);
+    } else {
+      setCurlLeftInput('curl -X GET "https://api.example.com/data" -H "Content-Type: application/json"');
+    }
   };
 
   const handleRightExample = () => {
-    updateRightJson(rightExample);
+    if (mode === 'json') {
+      updateRightJson(rightExample);
+    } else {
+      setCurlRightInput('curl -X GET "https://api.example.com/data" -H "Content-Type: application/json" -H "Authorization: Bearer token123"');
+    }
   };
 
   return (
@@ -71,48 +102,71 @@ function App() {
             JSON Difference Viewer
           </h1>
           <p className="text-center text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
-            Compare two JSON objects side by side, visualize the differences, and share the results with a unique URL.
+            Compare two JSON objects or cURL responses side by side, visualize the differences, and share the results with a unique URL.
           </p>
         </div>
 
+        <ModeSwitcher mode={mode} onModeChange={setMode} />
         <ExampleButton onLeftExample={handleLeftExample} onRightExample={handleRightExample} />
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 h-80 md:h-96 overflow-hidden">
-            <JsonInput
-              value={leftInput}
-              onChange={updateLeftJson}
-              onFormat={formatLeftJson}
-              isValid={leftValid}
-              label="Left JSON"
-              placeholder="Paste your JSON here..."
-            />
+            {mode === 'json' ? (
+              <JsonInput
+                value={jsonLeftInput}
+                onChange={updateLeftJson}
+                onFormat={formatLeftJson}
+                isValid={leftValid}
+                label="Left JSON"
+                placeholder="Paste your JSON here..."
+              />
+            ) : (
+              <CurlInput
+                value={curlLeftInput}
+                onChange={setCurlLeftInput}
+                onExecute={executeLeftCurl}
+                isLoading={isLeftLoading}
+                label="Left cURL"
+                placeholder="Enter your cURL command here..."
+              />
+            )}
           </div>
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 h-80 md:h-96 overflow-hidden">
-            <JsonInput
-              value={rightInput}
-              onChange={updateRightJson}
-              onFormat={formatRightJson}
-              isValid={rightValid}
-              label="Right JSON"
-              placeholder="Paste your JSON here..."
-            />
+            {mode === 'json' ? (
+              <JsonInput
+                value={jsonRightInput}
+                onChange={updateRightJson}
+                onFormat={formatRightJson}
+                isValid={rightValid}
+                label="Right JSON"
+                placeholder="Paste your JSON here..."
+              />
+            ) : (
+              <CurlInput
+                value={curlRightInput}
+                onChange={setCurlRightInput}
+                onExecute={executeRightCurl}
+                isLoading={isRightLoading}
+                label="Right cURL"
+                placeholder="Enter your cURL command here..."
+              />
+            )}
           </div>
         </div>
 
         <ShareLink 
-          leftJson={leftInput} 
-          rightJson={rightInput} 
-          isValid={leftValid && rightValid && !!leftInput && !!rightInput} 
+          leftJson={mode === 'json' ? jsonLeftInput : leftResponse} 
+          rightJson={mode === 'json' ? jsonRightInput : rightResponse} 
+          isValid={mode === 'json' ? (leftValid && rightValid && !!jsonLeftInput && !!jsonRightInput) : (!!leftResponse && !!rightResponse)} 
         />
 
         <div className="mt-6 bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden">
           <div className="h-[calc(100vh-600px)] min-h-[400px] overflow-y-auto">
             <DiffViewer 
-              diff={diff} 
-              error={error || undefined} 
-              leftJson={leftInput}
-              rightJson={rightInput}
+              diff={mode === 'json' ? jsonDiff : curlDiff} 
+              error={mode === 'json' ? jsonError : curlError} 
+              leftJson={mode === 'json' ? jsonLeftInput : leftResponse}
+              rightJson={mode === 'json' ? jsonRightInput : rightResponse}
             />
           </div>
         </div>
@@ -121,4 +175,4 @@ function App() {
   );
 }
 
-export default App
+export default App;
