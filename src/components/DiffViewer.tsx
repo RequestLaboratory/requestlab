@@ -63,27 +63,61 @@ const DiffViewer: React.FC<DiffViewerProps> = ({ diff, error, leftJson, rightJso
     return fields;
   };
 
+  // Function to get value differences
+  const getValueDifferences = (obj1: any, obj2: any, prefix: string = ''): Set<string> => {
+    const differences = new Set<string>();
+    
+    if (typeof obj1 === 'object' && obj1 !== null && typeof obj2 === 'object' && obj2 !== null) {
+      Object.keys(obj1).forEach(key => {
+        const fieldName = prefix ? `${prefix}.${key}` : key;
+        
+        if (key in obj2) {
+          if (typeof obj1[key] === 'object' && obj1[key] !== null && 
+              typeof obj2[key] === 'object' && obj2[key] !== null) {
+            const nestedDiffs = getValueDifferences(obj1[key], obj2[key], fieldName);
+            nestedDiffs.forEach(diff => differences.add(diff));
+          } else if (JSON.stringify(obj1[key]) !== JSON.stringify(obj2[key])) {
+            differences.add(fieldName);
+          }
+        }
+      });
+    }
+    
+    return differences;
+  };
+
   // Get all fields from both JSONs
   const leftFields = new Set(getAllFields(leftObj));
   const rightFields = new Set(getAllFields(rightObj));
 
-  // Find differences
+  // Find field differences
   const onlyInLeft = new Set([...leftFields].filter(x => !rightFields.has(x)));
   const onlyInRight = new Set([...rightFields].filter(x => !leftFields.has(x)));
 
+  // Find value differences
+  const valueDifferences = getValueDifferences(leftObj, rightObj);
+
   // Function to check if a line should be highlighted
-  const shouldHighlightLine = (line: string, isLeft: boolean): boolean => {
+  const shouldHighlightLine = (line: string, isLeft: boolean): { fieldDiff: boolean; valueDiff: boolean } => {
     const fieldMatch = line.match(/^\s*"([^"]+)"\s*:/);
-    if (!fieldMatch) return false;
+    if (!fieldMatch) return { fieldDiff: false, valueDiff: false };
 
     const fieldName = fieldMatch[1];
     const differences = isLeft ? onlyInLeft : onlyInRight;
     
     // Check if this field name is in the differences
-    return Array.from(differences).some(path => {
+    const isFieldDiff = Array.from(differences).some(path => {
       const lastField = path.split('.').pop();
       return lastField === fieldName;
     });
+
+    // Check if this field has a value difference
+    const isValueDiff = Array.from(valueDifferences).some(path => {
+      const lastField = path.split('.').pop();
+      return lastField === fieldName;
+    });
+
+    return { fieldDiff: isFieldDiff, valueDiff: isValueDiff };
   };
 
   return (
@@ -110,10 +144,11 @@ const DiffViewer: React.FC<DiffViewerProps> = ({ diff, error, leftJson, rightJso
               wrapLines
               lineProps={(lineNumber) => {
                 const line = leftLines[lineNumber - 1];
-                const shouldHighlight = shouldHighlightLine(line, true);
+                const { fieldDiff, valueDiff } = shouldHighlightLine(line, true);
                 return {
                   style: {
-                    backgroundColor: shouldHighlight ? 'rgba(239, 68, 68, 0.1)' : undefined,
+                    backgroundColor: fieldDiff ? 'rgba(239, 68, 68, 0.1)' : 
+                                   valueDiff ? 'rgba(156, 163, 175, 0.1)' : undefined,
                     display: 'block',
                   },
                 };
@@ -143,10 +178,11 @@ const DiffViewer: React.FC<DiffViewerProps> = ({ diff, error, leftJson, rightJso
               wrapLines
               lineProps={(lineNumber) => {
                 const line = rightLines[lineNumber - 1];
-                const shouldHighlight = shouldHighlightLine(line, false);
+                const { fieldDiff, valueDiff } = shouldHighlightLine(line, false);
                 return {
                   style: {
-                    backgroundColor: shouldHighlight ? 'rgba(34, 197, 94, 0.1)' : undefined,
+                    backgroundColor: fieldDiff ? 'rgba(34, 197, 94, 0.1)' : 
+                                   valueDiff ? 'rgba(156, 163, 175, 0.1)' : undefined,
                     display: 'block',
                   },
                 };
