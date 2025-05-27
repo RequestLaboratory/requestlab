@@ -28,29 +28,61 @@ const DiffViewer: React.FC<DiffViewerProps> = ({ diff, error, leftJson, rightJso
     );
   }
 
+  // Parse JSON strings into objects
+  let leftObj: any, rightObj: any;
+  try {
+    leftObj = JSON.parse(leftJson);
+    rightObj = JSON.parse(rightJson);
+  } catch (e) {
+    return (
+      <div className="bg-red-50 dark:bg-red-900/30 p-4 rounded-md border border-red-200 dark:border-red-800">
+        <h3 className="text-red-600 dark:text-red-400 font-medium mb-2">Error</h3>
+        <p className="text-red-700 dark:text-red-300">Invalid JSON format</p>
+      </div>
+    );
+  }
+
   const leftLines = leftJson.split('\n');
   const rightLines = rightJson.split('\n');
 
-  const isFieldNameLine = (line: string): boolean => {
-    // Check if the line contains a field name (key) in JSON
-    return /^\s*"[^"]+"\s*:/.test(line);
-  };
-
-  const getFieldNameFromLine = (line: string): string | null => {
-    const match = line.match(/^\s*"([^"]+)"\s*:/);
-    return match ? match[1] : null;
-  };
-
-  const shouldHighlightLine = (line: string, otherLines: string[]): boolean => {
-    if (!isFieldNameLine(line)) return false;
+  // Function to get all field names from a JSON object
+  const getAllFields = (obj: any, prefix: string = ''): string[] => {
+    let fields: string[] = [];
     
-    const fieldName = getFieldNameFromLine(line);
-    if (!fieldName) return false;
+    if (typeof obj === 'object' && obj !== null) {
+      Object.keys(obj).forEach(key => {
+        const fieldName = prefix ? `${prefix}.${key}` : key;
+        fields.push(fieldName);
+        
+        if (typeof obj[key] === 'object' && obj[key] !== null) {
+          fields = fields.concat(getAllFields(obj[key], fieldName));
+        }
+      });
+    }
+    
+    return fields;
+  };
 
-    // Check if this field name exists in the other JSON
-    return !otherLines.some(otherLine => {
-      const otherFieldName = getFieldNameFromLine(otherLine);
-      return otherFieldName === fieldName;
+  // Get all fields from both JSONs
+  const leftFields = new Set(getAllFields(leftObj));
+  const rightFields = new Set(getAllFields(rightObj));
+
+  // Find differences
+  const onlyInLeft = new Set([...leftFields].filter(x => !rightFields.has(x)));
+  const onlyInRight = new Set([...rightFields].filter(x => !leftFields.has(x)));
+
+  // Function to check if a line should be highlighted
+  const shouldHighlightLine = (line: string, isLeft: boolean): boolean => {
+    const fieldMatch = line.match(/^\s*"([^"]+)"\s*:/);
+    if (!fieldMatch) return false;
+
+    const fieldName = fieldMatch[1];
+    const differences = isLeft ? onlyInLeft : onlyInRight;
+    
+    // Check if this field name is in the differences
+    return Array.from(differences).some(path => {
+      const lastField = path.split('.').pop();
+      return lastField === fieldName;
     });
   };
 
@@ -78,7 +110,7 @@ const DiffViewer: React.FC<DiffViewerProps> = ({ diff, error, leftJson, rightJso
               wrapLines
               lineProps={(lineNumber) => {
                 const line = leftLines[lineNumber - 1];
-                const shouldHighlight = shouldHighlightLine(line, rightLines);
+                const shouldHighlight = shouldHighlightLine(line, true);
                 return {
                   style: {
                     backgroundColor: shouldHighlight ? 'rgba(239, 68, 68, 0.1)' : undefined,
@@ -111,7 +143,7 @@ const DiffViewer: React.FC<DiffViewerProps> = ({ diff, error, leftJson, rightJso
               wrapLines
               lineProps={(lineNumber) => {
                 const line = rightLines[lineNumber - 1];
-                const shouldHighlight = shouldHighlightLine(line, leftLines);
+                const shouldHighlight = shouldHighlightLine(line, false);
                 return {
                   style: {
                     backgroundColor: shouldHighlight ? 'rgba(34, 197, 94, 0.1)' : undefined,
