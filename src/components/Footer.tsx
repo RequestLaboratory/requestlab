@@ -11,7 +11,7 @@ const Footer: React.FC = () => {
           </p>
           <div className="flex items-center mt-2 sm:mt-0">
             <span className="text-sm text-gray-500 dark:text-gray-400 flex items-center">
-              Made with <Heart className="h-4 w-4 text-red-500 mx-1" /> by JSON enthusiasts
+              Made with <Heart className="h-4 w-4 text-red-500 mx-1" /> by Yadev Jayachandran
             </span>
           </div>
         </div>
