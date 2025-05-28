@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { executeApiRequest } from '../utils/apiTestingUtils';
 import { parseCurlCommand } from '../utils/curlParser';
 import SyntaxHighlighter from 'react-syntax-highlighter';
@@ -23,22 +23,79 @@ interface ApiResponse {
 }
 
 const ApiTesting: React.FC = () => {
-  const [requestDetails, setRequestDetails] = useState<RequestDetails>({
-    method: 'GET',
-    url: '',
-    headers: { 'header-1': '' },
-    body: '',
-    queryParams: {}
+  const [requestDetails, setRequestDetails] = useState<RequestDetails>(() => {
+    const savedState = sessionStorage.getItem('apiTestingState');
+    if (savedState) {
+      const parsed = JSON.parse(savedState);
+      return {
+        method: parsed.method || 'GET',
+        url: parsed.url || '',
+        headers: parsed.headers || { 'header-1': '' },
+        body: parsed.body || '',
+        queryParams: parsed.queryParams || {}
+      };
+    }
+    return {
+      method: 'GET',
+      url: '',
+      headers: { 'header-1': '' },
+      body: '',
+      queryParams: {}
+    };
   });
-  const [response, setResponse] = useState<ApiResponse | null>(null);
+
+  const [response, setResponse] = useState<ApiResponse | null>(() => {
+    const savedResponse = sessionStorage.getItem('apiTestingResponse');
+    return savedResponse ? JSON.parse(savedResponse) : null;
+  });
+
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'params' | 'headers' | 'body' | 'pre-request' | 'tests'>('headers');
-  const [bodyType, setBodyType] = useState<'none' | 'raw' | 'form-data' | 'x-www-form-urlencoded'>('none');
-  const [contentType, setContentType] = useState('application/json');
-  const [isResponsePanelVisible, setIsResponsePanelVisible] = useState(true);
+  const [activeTab, setActiveTab] = useState<'params' | 'headers' | 'body' | 'pre-request' | 'tests'>(() => {
+    const savedTab = sessionStorage.getItem('apiTestingActiveTab');
+    return (savedTab as any) || 'headers';
+  });
+  const [bodyType, setBodyType] = useState<'none' | 'raw' | 'form-data' | 'x-www-form-urlencoded'>(() => {
+    const savedBodyType = sessionStorage.getItem('apiTestingBodyType');
+    return (savedBodyType as any) || 'none';
+  });
+  const [contentType, setContentType] = useState(() => {
+    const savedContentType = sessionStorage.getItem('apiTestingContentType');
+    return savedContentType || 'application/json';
+  });
+  const [isResponsePanelVisible, setIsResponsePanelVisible] = useState(() => {
+    const savedVisibility = sessionStorage.getItem('apiTestingResponseVisible');
+    return savedVisibility ? JSON.parse(savedVisibility) : true;
+  });
   const [copied, setCopied] = useState(false);
   const [isResponseExpanded, setIsResponseExpanded] = useState(false);
+
+  // Save state to session storage whenever it changes
+  useEffect(() => {
+    sessionStorage.setItem('apiTestingState', JSON.stringify(requestDetails));
+  }, [requestDetails]);
+
+  useEffect(() => {
+    if (response) {
+      sessionStorage.setItem('apiTestingResponse', JSON.stringify(response));
+    }
+  }, [response]);
+
+  useEffect(() => {
+    sessionStorage.setItem('apiTestingActiveTab', activeTab);
+  }, [activeTab]);
+
+  useEffect(() => {
+    sessionStorage.setItem('apiTestingBodyType', bodyType);
+  }, [bodyType]);
+
+  useEffect(() => {
+    sessionStorage.setItem('apiTestingContentType', contentType);
+  }, [contentType]);
+
+  useEffect(() => {
+    sessionStorage.setItem('apiTestingResponseVisible', JSON.stringify(isResponsePanelVisible));
+  }, [isResponsePanelVisible]);
 
   const handleSendRequest = async () => {
     setIsLoading(true);
