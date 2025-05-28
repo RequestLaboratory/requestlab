@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { JsonDiff } from '../types';
 import SyntaxHighlighter from 'react-syntax-highlighter';
 import { vs2015 } from 'react-syntax-highlighter/dist/esm/styles/hljs';
+import { Expand, X, Copy, Check } from 'lucide-react';
 
 interface DiffViewerProps {
   diff: JsonDiff | null;
@@ -11,6 +12,21 @@ interface DiffViewerProps {
 }
 
 const DiffViewer: React.FC<DiffViewerProps> = ({ diff, error, leftJson, rightJson }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [copiedLeft, setCopiedLeft] = useState(false);
+  const [copiedRight, setCopiedRight] = useState(false);
+
+  const handleCopy = (text: string, isLeft: boolean) => {
+    navigator.clipboard.writeText(text);
+    if (isLeft) {
+      setCopiedLeft(true);
+      setTimeout(() => setCopiedLeft(false), 2000);
+    } else {
+      setCopiedRight(true);
+      setTimeout(() => setCopiedRight(false), 2000);
+    }
+  };
+
   if (error) {
     return (
       <div className="bg-red-50 dark:bg-red-900/30 p-4 rounded-md border border-red-200 dark:border-red-800">
@@ -128,86 +144,105 @@ const DiffViewer: React.FC<DiffViewerProps> = ({ diff, error, leftJson, rightJso
     return '';
   };
 
-  return (
-    <div className="overflow-y-auto p-4 bg-white dark:bg-gray-800 rounded-md shadow-inner border border-gray-200 dark:border-gray-700">
-      <div className="font-medium text-xl mb-4 text-gray-800 dark:text-white">Field Name Differences</div>
-      
-      <div className="grid grid-cols-2 gap-4">
-        {/* Left Panel */}
-        <div className="relative">
-          <div className="absolute top-0 left-0 right-0 bg-gray-100 dark:bg-gray-700 p-2 rounded-t-md border-b border-gray-200 dark:border-gray-600">
-            <div className="flex justify-between items-center">
-              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Original</span>
-              <span className="text-sm text-gray-600 dark:text-gray-400">{getResponseStatus(leftObj)}</span>
-            </div>
-          </div>
-          <div className="mt-10">
-            <SyntaxHighlighter
-              language="json"
-              style={vs2015}
-              customStyle={{
-                margin: 0,
-                borderRadius: '0.375rem',
-                fontSize: '0.875rem',
-                lineHeight: '1.5rem',
-              }}
-              showLineNumbers
-              wrapLines
-              lineProps={(lineNumber) => {
-                const line = leftLines[lineNumber - 1];
-                const { fieldDiff, valueDiff } = shouldHighlightLine(line, true);
-                return {
-                  style: {
-                    backgroundColor: fieldDiff ? 'rgba(239, 68, 68, 0.1)' : 
-                                   valueDiff ? 'rgba(156, 163, 175, 0.1)' : undefined,
-                    display: 'block',
-                  },
-                };
-              }}
+  const renderPanel = (json: string, isLeft: boolean, lines: string[]) => (
+    <div className="relative">
+      <div className="absolute top-0 left-0 right-0 bg-gray-100 dark:bg-gray-700 p-2 rounded-t-md border-b border-gray-200 dark:border-gray-600">
+        <div className="flex justify-between items-center">
+          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+            {isLeft ? 'Original' : 'Modified'}
+          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-600 dark:text-gray-400">
+              {getResponseStatus(isLeft ? leftObj : rightObj)}
+            </span>
+            <button
+              onClick={() => handleCopy(json, isLeft)}
+              className="p-1.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 transition-colors duration-200"
+              title="Copy JSON"
             >
-              {leftJson}
-            </SyntaxHighlighter>
-          </div>
-        </div>
-
-        {/* Right Panel */}
-        <div className="relative">
-          <div className="absolute top-0 left-0 right-0 bg-gray-100 dark:bg-gray-700 p-2 rounded-t-md border-b border-gray-200 dark:border-gray-600">
-            <div className="flex justify-between items-center">
-              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Modified</span>
-              <span className="text-sm text-gray-600 dark:text-gray-400">{getResponseStatus(rightObj)}</span>
-            </div>
-          </div>
-          <div className="mt-10">
-            <SyntaxHighlighter
-              language="json"
-              style={vs2015}
-              customStyle={{
-                margin: 0,
-                borderRadius: '0.375rem',
-                fontSize: '0.875rem',
-                lineHeight: '1.5rem',
-              }}
-              showLineNumbers
-              wrapLines
-              lineProps={(lineNumber) => {
-                const line = rightLines[lineNumber - 1];
-                const { fieldDiff, valueDiff } = shouldHighlightLine(line, false);
-                return {
-                  style: {
-                    backgroundColor: fieldDiff ? 'rgba(34, 197, 94, 0.1)' : 
-                                   valueDiff ? 'rgba(156, 163, 175, 0.1)' : undefined,
-                    display: 'block',
-                  },
-                };
-              }}
-            >
-              {rightJson}
-            </SyntaxHighlighter>
+              {isLeft ? (
+                copiedLeft ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />
+              ) : (
+                copiedRight ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />
+              )}
+            </button>
           </div>
         </div>
       </div>
+      <div className="mt-10">
+        <SyntaxHighlighter
+          language="json"
+          style={vs2015}
+          customStyle={{
+            margin: 0,
+            borderRadius: '0.375rem',
+            fontSize: '0.875rem',
+            lineHeight: '1.5rem',
+          }}
+          showLineNumbers
+          wrapLines
+          lineProps={(lineNumber) => {
+            const line = lines[lineNumber - 1];
+            const { fieldDiff, valueDiff } = shouldHighlightLine(line, isLeft);
+            return {
+              style: {
+                backgroundColor: fieldDiff ? 'rgba(239, 68, 68, 0.1)' : 
+                               valueDiff ? 'rgba(156, 163, 175, 0.1)' : undefined,
+                display: 'block',
+              },
+            };
+          }}
+        >
+          {json}
+        </SyntaxHighlighter>
+      </div>
     </div>
+  );
+
+  return (
+    <>
+      <div className="overflow-y-auto p-4 bg-white dark:bg-gray-800 rounded-md shadow-inner border border-gray-200 dark:border-gray-700">
+        <div className="flex justify-between items-center mb-4">
+          <div className="font-medium text-xl text-gray-800 dark:text-white">Field Name Differences</div>
+          <button
+            onClick={() => setIsExpanded(true)}
+            className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 transition-colors duration-200"
+            title="Expand view"
+          >
+            <Expand className="w-5 h-5" />
+          </button>
+        </div>
+        
+        <div className="grid grid-cols-2 gap-4">
+          {renderPanel(leftJson, true, leftLines)}
+          {renderPanel(rightJson, false, rightLines)}
+        </div>
+      </div>
+
+      {/* Expanded Modal */}
+      {isExpanded && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50">
+          <div className="relative w-full h-full max-w-7xl max-h-[90vh] bg-white dark:bg-gray-800 rounded-lg shadow-xl overflow-hidden">
+            <div className="flex justify-between items-center p-4 border-b border-gray-200 dark:border-gray-700">
+              <div className="font-medium text-xl text-gray-800 dark:text-white">Field Name Differences</div>
+              <button
+                onClick={() => setIsExpanded(false)}
+                className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 transition-colors duration-200"
+                title="Close expanded view"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-4 overflow-auto h-[calc(90vh-4rem)]">
+              <div className="grid grid-cols-2 gap-4">
+                {renderPanel(leftJson, true, leftLines)}
+                {renderPanel(rightJson, false, rightLines)}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 };
 
