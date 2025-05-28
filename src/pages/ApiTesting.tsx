@@ -3,7 +3,7 @@ import { executeApiRequest } from '../utils/apiTestingUtils';
 import { parseCurlCommand } from '../utils/curlParser';
 import SyntaxHighlighter from 'react-syntax-highlighter';
 import { vs2015 } from 'react-syntax-highlighter/dist/esm/styles/hljs';
-import { Copy, Check, Expand, X } from 'lucide-react';
+import { Copy, Check, Expand, X, Terminal } from 'lucide-react';
 
 interface RequestDetails {
   method: string;
@@ -35,10 +35,14 @@ const ApiTesting: React.FC = () => {
         queryParams: parsed.queryParams || {}
       };
     }
+    // Default GitHub API example
     return {
       method: 'GET',
-      url: '',
-      headers: { 'header-1': '' },
+      url: 'https://api.github.com/repos/vuejs/vue',
+      headers: {
+        'Accept': 'application/vnd.github.v3+json',
+        'User-Agent': 'RequestLab'
+      },
       body: '',
       queryParams: {}
     };
@@ -68,6 +72,7 @@ const ApiTesting: React.FC = () => {
     return savedVisibility ? JSON.parse(savedVisibility) : true;
   });
   const [copied, setCopied] = useState(false);
+  const [copyMessage, setCopyMessage] = useState<string | null>(null);
   const [isResponseExpanded, setIsResponseExpanded] = useState(false);
 
   // Save state to session storage whenever it changes
@@ -219,7 +224,45 @@ const ApiTesting: React.FC = () => {
       : JSON.stringify(response?.data, null, 2);
     navigator.clipboard.writeText(responseText);
     setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    setCopyMessage('Response copied to clipboard');
+    setTimeout(() => {
+      setCopied(false);
+      setCopyMessage(null);
+    }, 2000);
+  };
+
+  const handleCopyCurl = () => {
+    // Build the cURL command
+    let curlCommand = `curl '${requestDetails.url}' \\\n`;
+    
+    // Add method if not GET
+    if (requestDetails.method !== 'GET') {
+      curlCommand += `  -X ${requestDetails.method} \\\n`;
+    }
+    
+    // Add headers
+    Object.entries(requestDetails.headers).forEach(([key, value]) => {
+      if (key && value) {
+        curlCommand += `  -H '${key}: ${value}' \\\n`;
+      }
+    });
+    
+    // Add body if present
+    if (requestDetails.body) {
+      curlCommand += `  -d '${requestDetails.body}' \\\n`;
+    }
+    
+    // Remove trailing backslash and newline
+    curlCommand = curlCommand.slice(0, -3);
+    
+    // Copy to clipboard
+    navigator.clipboard.writeText(curlCommand);
+    setCopied(true);
+    setCopyMessage('cURL command copied to clipboard');
+    setTimeout(() => {
+      setCopied(false);
+      setCopyMessage(null);
+    }, 2000);
   };
 
   return (
@@ -251,6 +294,14 @@ const ApiTesting: React.FC = () => {
           className="px-4 py-2 bg-orange-500 text-white rounded hover:bg-orange-600 disabled:opacity-50"
         >
           Send
+        </button>
+        <button
+          onClick={handleCopyCurl}
+          className="flex items-center gap-1.5 px-3 py-2 text-gray-600 dark:text-gray-400 hover:text-orange-500 dark:hover:text-orange-400 transition-colors duration-200"
+          title="Copy as cURL"
+        >
+          <Terminal className="w-4 h-4" />
+          <span className="text-sm font-medium">Copy cURL</span>
         </button>
         {response && (
           <div className="relative">
@@ -684,6 +735,11 @@ const ApiTesting: React.FC = () => {
       {error && (
         <div className="fixed bottom-4 right-4 p-4 bg-red-50 dark:bg-red-900/30 rounded-md shadow-lg">
           <p className="text-red-600 dark:text-red-400">{error}</p>
+        </div>
+      )}
+      {copyMessage && (
+        <div className="fixed bottom-4 right-4 p-4 bg-green-50 dark:bg-green-900/30 rounded-md shadow-lg">
+          <p className="text-green-600 dark:text-green-400">{copyMessage}</p>
         </div>
       )}
     </div>

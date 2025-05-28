@@ -41,7 +41,7 @@ const WelcomePopup: React.FC<WelcomePopupProps> = ({ isOpen, onClose }) => {
               <h3 className="text-2xl font-semibold leading-6 text-gray-900 dark:text-white mb-2">
                 Welcome to RequestLab 🚀
               </h3>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-10">
                 Your all-in-one API playground. Let's get started!
               </p>
 
