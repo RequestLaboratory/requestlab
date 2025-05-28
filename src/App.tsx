@@ -51,6 +51,7 @@ function App() {
   const [activePage, setActivePage] = useState<'compare' | 'api-testing'>('compare');
   const [mode, setMode] = useState<ComparisonMode>('json');
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
+  const [hoverTimeout, setHoverTimeout] = useState<NodeJS.Timeout | null>(null);
   
   const jsonComparison = useJsonComparison();
   const curlComparison = useCurlComparison();
@@ -135,6 +136,29 @@ function App() {
     }
   };
 
+  const handleMouseEnter = () => {
+    if (hoverTimeout) {
+      clearTimeout(hoverTimeout);
+    }
+    setIsSidebarExpanded(true);
+  };
+
+  const handleMouseLeave = () => {
+    const timeout = setTimeout(() => {
+      setIsSidebarExpanded(false);
+    }, 300); // Add a delay before collapsing
+    setHoverTimeout(timeout);
+  };
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (hoverTimeout) {
+        clearTimeout(hoverTimeout);
+      }
+    };
+  }, [hoverTimeout]);
+
   return (
     <div className="h-screen flex bg-white dark:bg-gray-900">
       {/* Left Sidebar */}
@@ -142,8 +166,8 @@ function App() {
         className={`relative transition-all duration-300 ease-in-out ${
           isSidebarExpanded ? 'w-64' : 'w-14'
         } border-r border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 flex flex-col`}
-        onMouseEnter={() => setIsSidebarExpanded(true)}
-        onMouseLeave={() => setIsSidebarExpanded(false)}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
       >
         <div className={`flex flex-col h-full ${
           isSidebarExpanded ? 'p-0' : 'px-0 py-4'
