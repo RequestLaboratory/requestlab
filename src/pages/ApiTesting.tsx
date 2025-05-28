@@ -33,6 +33,7 @@ const ApiTesting: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'params' | 'headers' | 'body' | 'pre-request' | 'tests'>('params');
   const [bodyType, setBodyType] = useState<'none' | 'raw' | 'form-data' | 'x-www-form-urlencoded'>('none');
   const [contentType, setContentType] = useState('application/json');
+  const [isResponsePanelVisible, setIsResponsePanelVisible] = useState(true);
 
   const handleSendRequest = async () => {
     setIsLoading(true);
@@ -180,12 +181,34 @@ const ApiTesting: React.FC = () => {
         >
           Send
         </button>
+        {response && (
+          <button
+            onClick={() => setIsResponsePanelVisible(!isResponsePanelVisible)}
+            className="flex items-center px-3 py-2 text-gray-600 dark:text-gray-400 hover:text-orange-500 dark:hover:text-orange-400 transition-colors duration-200"
+          >
+            {isResponsePanelVisible ? (
+              <>
+                <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+                </svg>
+                Hide Response
+              </>
+            ) : (
+              <>
+                <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+                </svg>
+                Show Response
+              </>
+            )}
+          </button>
+        )}
       </div>
 
       {/* Main Content */}
       <div className="flex-1 flex">
         {/* Main Request Area */}
-        <div className="flex-1 flex flex-col">
+        <div className={`flex-1 flex flex-col ${response && isResponsePanelVisible ? 'w-1/2' : 'w-full'}`}>
           {/* Tabs */}
           <div className="border-b border-gray-200 dark:border-gray-700">
             <nav className="flex space-x-8 px-4">
@@ -243,7 +266,7 @@ const ApiTesting: React.FC = () => {
           </div>
 
           {/* Tab Content */}
-          <div className="flex-1 p-4 overflow-auto">
+          <div className="flex-1 py-4 pl-4 overflow-hidden">
             {activeTab === 'params' && (
               <div className="space-y-4">
                 <div className="grid grid-cols-12 gap-4 text-sm font-medium text-gray-500 dark:text-gray-400">
@@ -284,76 +307,82 @@ const ApiTesting: React.FC = () => {
             )}
 
             {activeTab === 'headers' && (
-              <div className="space-y-4">
-                <div className="grid grid-cols-12 gap-4 text-sm font-medium text-gray-500 dark:text-gray-400">
+              <div className="flex flex-col h-[calc(100vh-12rem)]">
+                <div className="grid grid-cols-12 gap-4 text-sm font-medium text-gray-500 dark:text-gray-400 mb-4">
                   <div className="col-span-4">KEY</div>
                   <div className="col-span-4">VALUE</div>
                   <div className="col-span-4">DESCRIPTION</div>
                 </div>
-                {Object.entries(requestDetails.headers).map(([key, value], index) => (
-                  <div key={index} className="grid grid-cols-12 gap-4">
-                    <input
-                      type="text"
-                      value={key}
-                      onChange={(e) => {
-                        const newKey = e.target.value;
-                        const newHeaders = { ...requestDetails.headers };
-                        delete newHeaders[key];
-                        newHeaders[newKey] = value;
-                        setRequestDetails(prev => ({
-                          ...prev,
-                          headers: newHeaders
-                        }));
-                      }}
-                      className="col-span-4 p-2 border rounded dark:bg-gray-800 dark:border-gray-700 dark:text-white"
-                      placeholder="Key"
-                    />
-                    <input
-                      type="text"
-                      value={value}
-                      onChange={(e) => handleHeaderChange(key, e.target.value)}
-                      className="col-span-4 p-2 border rounded dark:bg-gray-800 dark:border-gray-700 dark:text-white"
-                      placeholder="Value"
-                    />
-                    <div className="col-span-4 flex items-center">
-                      <input
-                        type="text"
-                        className="flex-1 p-2 border rounded dark:bg-gray-800 dark:border-gray-700 dark:text-white"
-                        placeholder="Description"
-                      />
-                      <button
-                        onClick={() => {
-                          const newHeaders = { ...requestDetails.headers };
-                          delete newHeaders[key];
-                          setRequestDetails(prev => ({
-                            ...prev,
-                            headers: newHeaders
-                          }));
-                        }}
-                        className="ml-2 p-2 text-red-500 hover:text-red-600 dark:text-red-400"
-                      >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                      </button>
-                    </div>
+                <div className="flex-1 overflow-y-auto overflow-x-hidden pr-4 min-h-0">
+                  <div className="space-y-4">
+                    {Object.entries(requestDetails.headers).map(([key, value], index) => (
+                      <div key={index} className="grid grid-cols-12 gap-4">
+                        <input
+                          type="text"
+                          value={key}
+                          onChange={(e) => {
+                            const newKey = e.target.value;
+                            const newHeaders = { ...requestDetails.headers };
+                            delete newHeaders[key];
+                            newHeaders[newKey] = value;
+                            setRequestDetails(prev => ({
+                              ...prev,
+                              headers: newHeaders
+                            }));
+                          }}
+                          className="col-span-4 p-2 border rounded dark:bg-gray-800 dark:border-gray-700 dark:text-white truncate"
+                          placeholder="Key"
+                        />
+                        <input
+                          type="text"
+                          value={value}
+                          onChange={(e) => handleHeaderChange(key, e.target.value)}
+                          className="col-span-4 p-2 border rounded dark:bg-gray-800 dark:border-gray-700 dark:text-white truncate"
+                          placeholder="Value"
+                        />
+                        <div className="col-span-4 flex items-center">
+                          <input
+                            type="text"
+                            className="flex-1 p-2 border rounded dark:bg-gray-800 dark:border-gray-700 dark:text-white truncate"
+                            placeholder="Description"
+                          />
+                          <button
+                            onClick={() => {
+                              const newHeaders = { ...requestDetails.headers };
+                              delete newHeaders[key];
+                              setRequestDetails(prev => ({
+                                ...prev,
+                                headers: newHeaders
+                              }));
+                            }}
+                            className="ml-2 p-2 text-red-500 hover:text-red-600 dark:text-red-400 flex-shrink-0"
+                          >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                ))}
-                <button
-                  onClick={() => {
-                    const newKey = `header-${Object.keys(requestDetails.headers).length + 1}`;
-                    setRequestDetails(prev => ({
-                      ...prev,
-                      headers: { ...prev.headers, [newKey]: '' }
-                    }));
-                  }}
-                  className="flex items-center text-orange-500 hover:text-orange-600 dark:text-orange-400"
-                >
-                  <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                  </svg>
-                  Add Header
-                </button>
+                </div>
+                <div className="mt-4">
+                  <button
+                    onClick={() => {
+                      const newKey = `header-${Object.keys(requestDetails.headers).length + 1}`;
+                      setRequestDetails(prev => ({
+                        ...prev,
+                        headers: { ...prev.headers, [newKey]: '' }
+                      }));
+                    }}
+                    className="flex items-center text-orange-500 hover:text-orange-600 dark:text-orange-400"
+                  >
+                    <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
+                    Add Header
+                  </button>
+                </div>
               </div>
             )}
 
@@ -444,15 +473,31 @@ const ApiTesting: React.FC = () => {
         </div>
 
         {/* Response Panel */}
-        {response && (
+        {response && isResponsePanelVisible && (
           <div className="w-1/2 border-l border-gray-200 dark:border-gray-700 flex flex-col h-[calc(100vh-4rem)]">
             <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
               <div className="flex items-center justify-between">
                 <h2 className="text-sm font-medium text-gray-700 dark:text-gray-300">Response</h2>
-                <div className="flex items-center space-x-4 text-sm text-gray-500 dark:text-gray-400">
-                  <span>Status: {response.status}</span>
-                  <span>Time: {response.time}ms</span>
-                  <span>Size: {response.size} B</span>
+                <div className="flex items-center space-x-4">
+                  <button
+                    onClick={() => {
+                      const responseText = typeof response.data === 'string' 
+                        ? response.data 
+                        : JSON.stringify(response.data, null, 2);
+                      navigator.clipboard.writeText(responseText);
+                    }}
+                    className="flex items-center px-2 py-1 text-sm text-gray-600 dark:text-gray-400 hover:text-orange-500 dark:hover:text-orange-400 transition-colors duration-200"
+                  >
+                    <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2" />
+                    </svg>
+                    Copy
+                  </button>
+                  <div className="flex items-center space-x-4 text-sm text-gray-500 dark:text-gray-400">
+                    <span>Status: {response.status}</span>
+                    <span>Time: {response.time}ms</span>
+                    <span>Size: {response.size} B</span>
+                  </div>
                 </div>
               </div>
             </div>
