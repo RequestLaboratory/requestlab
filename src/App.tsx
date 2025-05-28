@@ -175,24 +175,24 @@ function App() {
         onMouseLeave={handleMouseLeave}
       >
         <div className={`flex flex-col h-full ${
-          isSidebarExpanded ? 'p-4' : 'px-0 py-4'
+          isSidebarExpanded ? 'px-0 py-4' : 'px-0 py-4'
         }`}>
           <div className={`flex items-center mb-8 ${
             isSidebarExpanded ? 'px-2' : 'justify-center'
           }`}>
             <GitCompare className="w-8 h-8 text-blue-600 dark:text-blue-400" />
-            <h1 className={`ml-3 text-xl font-bold text-gray-900 dark:text-white transition-all duration-300 ${
-              isSidebarExpanded ? 'opacity-100' : 'opacity-0 w-0'
-            }`}>
-              JSON Tools
-            </h1>
+            {isSidebarExpanded && (
+              <h1 className="ml-3 text-xl font-bold text-gray-900 dark:text-white transition-all duration-300 truncate">
+                JSON Tools
+              </h1>
+            )}
           </div>
 
           <nav className="flex flex-col space-y-2">
             <button
               onClick={() => setActivePage('compare')}
               className={`group relative flex items-center rounded-lg ${
-                isSidebarExpanded ? 'px-3 py-2.5' : 'p-2.5'
+                isSidebarExpanded ? 'p-2.5' : 'p-2.5 mx-1'
               } ${
                 activePage === 'compare'
                   ? 'bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400'
@@ -200,7 +200,7 @@ function App() {
               } transition-colors duration-200`}
             >
               <div className={`flex items-center ${
-                isSidebarExpanded ? 'w-full' : 'w-9 h-9 justify-center'
+                isSidebarExpanded ? 'w-full' : 'w-9 justify-center'
               }`}>
                 <svg 
                   className={`w-5 h-5 ${
@@ -218,17 +218,12 @@ function App() {
                   JSON Compare
                 </span>
               </div>
-              {!isSidebarExpanded && (
-                <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-sm rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-50">
-                  JSON Compare
-                </div>
-              )}
             </button>
 
             <button
               onClick={() => setActivePage('api-testing')}
               className={`group relative flex items-center rounded-lg ${
-                isSidebarExpanded ? 'px-3 py-2.5' : 'p-2.5'
+                isSidebarExpanded ? 'p-2.5' : 'p-2.5 mx-1'
               } ${
                 activePage === 'api-testing'
                   ? 'bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400'
@@ -236,7 +231,7 @@ function App() {
               } transition-colors duration-200`}
             >
               <div className={`flex items-center ${
-                isSidebarExpanded ? 'w-full' : 'w-9 h-9 justify-center'
+                isSidebarExpanded ? 'w-full' : 'w-9 justify-center'
               }`}>
                 <svg 
                   className={`w-5 h-5 ${
@@ -254,11 +249,6 @@ function App() {
                   API Testing
                 </span>
               </div>
-              {!isSidebarExpanded && (
-                <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-sm rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-50">
-                  API Testing
-                </div>
-              )}
             </button>
           </nav>
 
