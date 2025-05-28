@@ -183,7 +183,7 @@ function App() {
             <GitCompare className="w-8 h-8 text-blue-600 dark:text-blue-400" />
             {isSidebarExpanded && (
               <h1 className="ml-3 text-xl font-bold text-gray-900 dark:text-white transition-all duration-300 truncate">
-                JSON Tools
+                RequestLab
               </h1>
             )}
           </div>
@@ -283,7 +283,7 @@ function App() {
             <div className="max-w-7xl mx-auto p-6">
               <div className="mb-8">
                 <h1 className="text-2xl font-bold text-center text-gray-900 dark:text-white mb-2">
-                  JSON Difference Viewer
+                  RequestLab
                 </h1>
                 <p className="text-center text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
                   Compare two JSON objects or cURL responses side by side, visualize the differences, and share the results with a unique URL.
