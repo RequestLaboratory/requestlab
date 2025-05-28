@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { GitCompare, Terminal } from 'lucide-react';
+import { GitCompare, Terminal, Github, Linkedin } from 'lucide-react';
 
 interface WelcomePopupProps {
   isOpen: boolean;
@@ -67,6 +67,39 @@ const WelcomePopup: React.FC<WelcomePopupProps> = ({ isOpen, onClose }) => {
                     Test APIs with a powerful interface and real-time response analysis
                   </p>
                 </button>
+              </div>
+
+              {/* Footer */}
+              <div className="mt-8 pt-4 border-t border-gray-200 dark:border-gray-700">
+                <div className="flex justify-between items-center">
+                  <a
+                    href="https://github.com/yadev64/jsoncompare"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors duration-200"
+                  >
+                    <Github className="h-5 w-5 mr-2" />
+                    <span className="text-sm">Star on GitHub ⭐</span>
+                  </a>
+                  <div className="flex items-center text-gray-500 dark:text-gray-400">
+                    <a
+                      href="https://www.linkedin.com/in/yadev-jayachandran/"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="hover:text-gray-700 dark:hover:text-gray-300 transition-colors duration-200"
+                    >
+                      <span className="text-sm mr-2">Made with ☕ by Yadev | </span>
+                    </a>
+                    <a
+                      href="https://www.linkedin.com/in/yadev-jayachandran/"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="hover:text-gray-700 dark:hover:text-gray-300 transition-colors duration-200"
+                    >
+                      <Linkedin className="h-5 w-5" />
+                    </a>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

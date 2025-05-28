@@ -285,11 +285,11 @@ function AppContent() {
               ) : (
                 <Moon className="h-5 w-5 text-gray-700" />
               )}
-              <span className={`ml-3 font-medium transition-all duration-300 whitespace-nowrap ${
-                isSidebarExpanded ? 'opacity-100' : 'opacity-0 w-0'
-              }`}>
-                {isDarkMode ? 'Light Mode' : 'Dark Mode'}
-              </span>
+              {isSidebarExpanded && (
+                <span className="ml-3 font-medium whitespace-nowrap">
+                  {isDarkMode ? 'Light Mode' : 'Dark Mode'}
+                </span>
+              )}
             </button>
           </div>
         </div>
