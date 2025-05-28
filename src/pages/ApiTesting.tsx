@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { executeApiRequest } from '../utils/apiUtils';
+import { executeApiRequest } from '../utils/apiTestingUtils';
 import { parseCurlCommand } from '../utils/curlParser';
 
 interface RequestDetails {
@@ -39,23 +39,33 @@ const ApiTesting: React.FC = () => {
     setError(null);
     try {
       const startTime = Date.now();
-      const result = await executeApiRequest(requestDetails.url, {
+      const result = await executeApiRequest({
+        url: requestDetails.url,
         method: requestDetails.method,
         headers: {
           ...requestDetails.headers,
           'Content-Type': contentType
         },
-        body: requestDetails.body || undefined
+        body: requestDetails.body || undefined,
+        followRedirects: true
       });
       const endTime = Date.now();
+
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
       
+      const responseData = result.data as { response: unknown; status: number; headers: Record<string, string> };
       setResponse({
-        status: result.status,
+        status: responseData.status,
         statusText: '',
-        headers: result.headers,
-        data: result.data,
+        headers: responseData.headers,
+        data: responseData.response,
         time: endTime - startTime,
-        size: typeof result.data === 'string' ? result.data.length : JSON.stringify(result.data).length
+        size: typeof responseData.response === 'string' 
+          ? responseData.response.length 
+          : JSON.stringify(responseData.response).length
       });
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to execute request');
