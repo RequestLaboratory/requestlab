@@ -186,7 +186,7 @@ const DiffViewer: React.FC<DiffViewerProps> = ({ diff, error, leftJson, rightJso
             const { fieldDiff, valueDiff } = shouldHighlightLine(line, isLeft);
             return {
               style: {
-                backgroundColor: fieldDiff ? 'rgba(239, 68, 68, 0.1)' : 
+                backgroundColor: fieldDiff ? (isLeft ? 'rgba(239, 68, 68, 0.1)' : 'rgba(34, 197, 94, 0.1)') : 
                                valueDiff ? 'rgba(156, 163, 175, 0.1)' : undefined,
                 display: 'block',
               },
@@ -201,8 +201,8 @@ const DiffViewer: React.FC<DiffViewerProps> = ({ diff, error, leftJson, rightJso
 
   return (
     <>
-      <div className="overflow-y-auto p-4 bg-white dark:bg-gray-800 rounded-md shadow-inner border border-gray-200 dark:border-gray-700">
-        <div className="flex justify-between items-center mb-4">
+      <div className="bg-white dark:bg-gray-800 rounded-md shadow-inner border border-gray-200 dark:border-gray-700">
+        <div className="flex justify-between items-center p-4 border-b border-gray-200 dark:border-gray-700">
           <div className="font-medium text-xl text-gray-800 dark:text-white">Field Name Differences</div>
           <button
             onClick={() => setIsExpanded(true)}
@@ -213,9 +213,31 @@ const DiffViewer: React.FC<DiffViewerProps> = ({ diff, error, leftJson, rightJso
           </button>
         </div>
         
-        <div className="grid grid-cols-2 gap-4">
-          {renderPanel(leftJson, true, leftLines)}
-          {renderPanel(rightJson, false, rightLines)}
+        <div className="relative">
+          <div className="overflow-y-auto p-4 pb-16">
+            <div className="grid grid-cols-2 gap-4">
+              {renderPanel(leftJson, true, leftLines)}
+              {renderPanel(rightJson, false, rightLines)}
+            </div>
+          </div>
+
+          {/* Color Coding Legend - Sticky to Scroll Area */}
+          <div className="sticky bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
+            <div className="flex items-center justify-center space-x-6 text-sm text-gray-600 dark:text-gray-400 py-3">
+              <div className="flex items-center">
+                <div className="w-3 h-3 rounded-sm bg-red-500/10 mr-2"></div>
+                <span>Fields missing in right JSON</span>
+              </div>
+              <div className="flex items-center">
+                <div className="w-3 h-3 rounded-sm bg-green-500/10 mr-2"></div>
+                <span>New fields in right JSON</span>
+              </div>
+              <div className="flex items-center">
+                <div className="w-3 h-3 rounded-sm bg-gray-500/10 mr-2"></div>
+                <span>Different values</span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 

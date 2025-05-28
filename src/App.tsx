@@ -18,38 +18,188 @@ import { ThemeContext } from './contexts/ThemeContext';
 import WelcomePopup from './components/WelcomePopup';
 
 const leftExample = JSON.stringify({
-  name: "Product A",
-  price: 19.99,
-  features: ["Fast", "Reliable", "Eco-friendly"],
-  details: {
-    weight: "2kg",
-    dimensions: {
-      width: 10,
-      height: 5,
-      depth: 3
-    },
-    material: "Aluminum"
+  name: "Ford Mustang GT",
+  year: 2024,
+  engine: {
+    type: "5.0L V8",
+    horsepower: 460,
+    torque: 420,
+    transmission: "10-speed automatic",
+    fuelSystem: "Direct Injection",
+    fuelCapacity: 16.0,
+    emissions: {
+      co2: 350,
+      rating: "Tier 3",
+      certification: "EPA"
+    }
   },
-  inStock: true,
-  tags: ["electronics", "home"]
+  performance: {
+    zeroToSixty: 4.1,
+    topSpeed: 155,
+    quarterMile: 12.4,
+    braking: {
+      sixtyToZero: 110,
+      system: "Brembo 6-piston"
+    },
+    trackModes: ["Normal", "Sport", "Track", "Drag", "Snow/Wet"]
+  },
+  features: [
+    "Track Apps",
+    "Line Lock",
+    "Launch Control",
+    "Selectable Drive Modes",
+    "SYNC 4 Infotainment",
+    "12-inch Digital Cluster"
+  ],
+  dimensions: {
+    length: 188.5,
+    width: 75.4,
+    height: 54.3,
+    wheelbase: 107.1,
+    groundClearance: 5.1,
+    cargoVolume: 13.5
+  },
+  price: {
+    base: 42995,
+    destination: 1495,
+    total: 44490,
+    options: {
+      premium: 2495,
+      performance: 3995,
+      appearance: 1995
+    }
+  },
+  colors: {
+    standard: ["Oxford White", "Shadow Black", "Race Red"],
+    premium: ["Grabber Blue", "Twister Orange", "Eruption Green"],
+    special: ["Dark Matter Gray", "Atlas Blue"]
+  },
+  warranty: {
+    basic: "3 years/36,000 miles",
+    powertrain: "5 years/60,000 miles",
+    maintenance: {
+      included: true,
+      duration: "2 years/24,000 miles",
+      services: ["Oil Changes", "Tire Rotations", "Multi-point Inspection"]
+    }
+  },
+  safety: {
+    rating: 5,
+    features: [
+      "Blind Spot Monitoring",
+      "Lane Departure Warning",
+      "Pre-Collision Assist",
+      "Adaptive Cruise Control"
+    ],
+    airbags: 8
+  },
+  production: {
+    plant: "Flat Rock Assembly Plant",
+    location: "Michigan, USA",
+    startDate: "2023-09-01",
+    estimatedUnits: 50000
+  }
 }, null, 2);
 
 const rightExample = JSON.stringify({
-  name: "Product B",
-  price: 24.99,
-  features: ["Fast", "Durable", "Eco-friendly"],
-  details: {
-    weight: "2.5kg",
-    dimensions: {
-      width: 10,
-      height: 6,
-      depth: 3
-    },
-    material: "Steel",
-    warranty: "2 years"
+  name: "Chevrolet Camaro SS",
+  year: 2024,
+  engine: {
+    type: "6.2L V8",
+    horsepower: 455,
+    torque: 455,
+    transmission: "10-speed automatic",
+    fuelSystem: "Direct Injection",
+    fuelCapacity: 19.0,
+    emissions: {
+      co2: 345,
+      rating: "Tier 3",
+      certification: "EPA",
+      compliance: ["Federal", "California"]
+    }
   },
-  inStock: true,
-  tags: ["electronics", "office", "premium"]
+  performance: {
+    zeroToSixty: 4.0,
+    topSpeed: 165,
+    quarterMile: 12.3,
+    braking: {
+      sixtyToZero: 105,
+      system: "Brembo 6-piston",
+      rotors: "Vented Disc"
+    },
+    trackModes: ["Tour", "Sport", "Track", "Competition", "Snow/Ice"]
+  },
+  features: [
+    "Performance Traction Management",
+    "Launch Control",
+    "Line Lock",
+    "Track Mode",
+    "Competition Mode",
+    "Chevrolet Infotainment 3",
+    "8-inch Digital Cluster"
+  ],
+  dimensions: {
+    length: 188.3,
+    width: 74.7,
+    height: 52.4,
+    wheelbase: 110.7,
+    groundClearance: 4.8,
+    cargoVolume: 9.1
+  },
+  price: {
+    base: 43995,
+    destination: 1295,
+    total: 45290,
+    options: {
+      premium: 2795,
+      performance: 4495,
+      appearance: 2295
+    }
+  },
+  colors: {
+    standard: ["Summit White", "Black", "Riverside Blue"],
+    premium: ["Shock", "Wild Cherry Tintcoat", "Vivid Orange"],
+    special: ["Rapid Blue", "Sharkskin Metallic"]
+  },
+  warranty: {
+    basic: "3 years/36,000 miles",
+    powertrain: "5 years/60,000 miles",
+    corrosion: "6 years/100,000 miles",
+    maintenance: {
+      included: true,
+      duration: "2 years/24,000 miles",
+      services: ["Oil Changes", "Tire Rotations", "Multi-point Inspection", "Wheel Alignment"]
+    }
+  },
+  trackPackage: {
+    available: true,
+    includes: [
+      "Magnetic Ride Control",
+      "Brembo Brakes",
+      "Recaro Seats",
+      "Performance Suspension"
+    ],
+    price: 6995,
+    weight: 75
+  },
+  safety: {
+    rating: 5,
+    features: [
+      "Forward Collision Alert",
+      "Lane Keep Assist",
+      "Following Distance Indicator",
+      "Automatic Emergency Braking"
+    ],
+    airbags: 8,
+    cameras: 2
+  },
+  production: {
+    plant: "Lansing Grand River Assembly",
+    location: "Michigan, USA",
+    startDate: "2023-08-15",
+    estimatedUnits: 45000,
+    qualityChecks: ["Pre-delivery", "Performance", "Safety"]
+  }
 }, null, 2);
 
 function AppContent() {
@@ -311,53 +461,53 @@ function AppContent() {
                   
                   {/* SEO content - hidden from users but visible to crawlers */}
                   <div className="sr-only" aria-hidden="true">
-                    <h2>JSON Diff & Compare Tool - #1 JSON Comparison Tool</h2>
-                    <p>Best free online JSON diff and compare tool for developers. Compare JSON objects, API responses, and cURL outputs with instant difference highlighting. The most accurate and fastest JSON comparison tool available.</p>
+                    <h2>RequestLab - All-in-One API Development Platform</h2>
+                    <p>Your comprehensive API playground for testing, comparison, and debugging. Compare JSON objects, test APIs with cURL commands, and analyze responses in real-time. The most powerful and intuitive API development tool available.</p>
                     
-                    <h3>Why Choose Our JSON Diff Tool?</h3>
+                    <h3>Why Choose RequestLab?</h3>
                     <ul>
-                      <li>Fastest JSON comparison engine with instant results</li>
-                      <li>Most accurate JSON diff algorithm for precise comparison</li>
-                      <li>Advanced cURL response comparison for API testing</li>
-                      <li>Intuitive difference visualization with color coding</li>
-                      <li>Share comparison results via unique, secure URLs</li>
-                      <li>Support for both JSON and cURL input formats</li>
+                      <li>Comprehensive API testing with full request configuration</li>
+                      <li>Advanced JSON and cURL comparison with instant results</li>
+                      <li>Real-time response analysis and visualization</li>
+                      <li>Intuitive difference highlighting with color coding</li>
+                      <li>Share results via unique, secure URLs</li>
+                      <li>Support for multiple request methods and content types</li>
                       <li>Dark mode support for reduced eye strain</li>
                       <li>Responsive design for all devices</li>
                     </ul>
 
-                    <h3>JSON Diff Use Cases</h3>
+                    <h3>Key Features</h3>
                     <ul>
-                      <li>Compare JSON objects and find differences instantly</li>
-                      <li>Diff JSON responses from different API versions</li>
-                      <li>Compare and validate JSON schemas</li>
-                      <li>Test API endpoints with cURL commands</li>
-                      <li>Compare JSON data during migration</li>
-                      <li>Review JSON changes in code reviews</li>
+                      <li>JSON object comparison with visual diff</li>
+                      <li>cURL command testing and response analysis</li>
+                      <li>API endpoint testing with full request configuration</li>
+                      <li>Headers and query parameters management</li>
+                      <li>Request body formatting and validation</li>
+                      <li>Response time and size tracking</li>
                     </ul>
 
-                    <h3>Advanced JSON Compare Features</h3>
+                    <h3>Advanced Capabilities</h3>
                     <ul>
                       <li>Deep JSON comparison with nested object support</li>
-                      <li>Real-time JSON diff visualization</li>
-                      <li>cURL command execution and response comparison</li>
-                      <li>JSON formatting and validation</li>
+                      <li>Real-time API response visualization</li>
+                      <li>cURL command execution and analysis</li>
+                      <li>Request/response history tracking</li>
                       <li>Secure URL sharing with encoded parameters</li>
                       <li>Cross-browser compatibility</li>
                     </ul>
 
-                    <p>#1 JSON diff and compare tool for developers. Compare JSON objects, API responses, and cURL outputs with ease. No installation required, works directly in your browser. Share your JSON comparison results with team members using unique URLs. Supports both light and dark themes for comfortable viewing. The most accurate and fastest JSON comparison tool available online.</p>
+                    <p>RequestLab is your all-in-one API development platform. Test APIs, compare JSON objects, and analyze cURL responses with ease. No installation required, works directly in your browser. Share your API testing results with team members using unique URLs. Supports both light and dark themes for comfortable viewing. The most powerful and intuitive API development tool available online.</p>
 
                     <h3>Top Search Terms</h3>
-                    <p>json diff, json compare, JSON difference checker, JSON comparison tool, JSON diff tool, compare JSON objects, JSON structure comparison, JSON visualization tool, API response comparison, cURL response diff, JSON schema comparison, online JSON diff, JSON data comparison, API testing tool, JSON validation tool</p>
+                    <p>API testing tool, JSON comparison, cURL testing, API debugging, JSON diff, API development platform, request testing, API response analysis, JSON visualization, cURL comparison, API playground, request lab, API testing platform, JSON validation, API development tool</p>
 
-                    <h3>JSON Diff Tool Benefits</h3>
+                    <h3>RequestLab Benefits</h3>
                     <ul>
-                      <li>Save time with instant JSON comparison</li>
-                      <li>Reduce errors in API testing</li>
-                      <li>Simplify JSON debugging process</li>
-                      <li>Improve code review efficiency</li>
-                      <li>Enhance API development workflow</li>
+                      <li>Streamline API development workflow</li>
+                      <li>Accelerate API testing and debugging</li>
+                      <li>Simplify JSON comparison and validation</li>
+                      <li>Enhance team collaboration with shareable results</li>
+                      <li>Improve API development efficiency</li>
                     </ul>
                   </div>
                 </div>

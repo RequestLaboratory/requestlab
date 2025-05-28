@@ -1,20 +1,55 @@
-# JSON Difference Viewer
+# RequestLab - API Testing & Comparison Tool
 
-A modern web application that allows users to compare two JSON objects side by side, highlighting differences in field names and values. Built with React and TypeScript, this tool provides a clean and intuitive interface for visualizing JSON differences.
+A modern web application that provides a comprehensive API development platform. Built with React and TypeScript, RequestLab offers powerful features for API testing, JSON comparison, and cURL command analysis.
 
 ## Features
 
-- **Side-by-Side Comparison**: View two JSON objects simultaneously for easy comparison
-- **Smart Difference Highlighting**:
-  - 🔴 Red highlighting for fields present in the left JSON but missing in the right
-  - 🟢 Green highlighting for fields present in the right JSON but missing in the left
-  - ⚫ Gray highlighting for fields that exist in both but have different values
-- **JSON Validation**: Real-time validation of JSON input
-- **Format JSON**: One-click JSON formatting for better readability
-- **Shareable Links**: Generate unique URLs to share your JSON comparisons
-- **Example Data**: Quick access to example JSONs for testing
-- **Responsive Design**: Works seamlessly on both desktop and mobile devices
-- **Dark Mode Support**: Automatic theme switching based on system preferences
+### API Testing
+
+- **Full Request Configuration**
+
+  - Multiple HTTP methods (GET, POST, PUT, DELETE, etc.)
+  - Headers management with key-value pairs
+  - Query parameters support
+  - Request body with multiple content types
+  - Pre-request and test scripts
+
+- **Response Analysis**
+  - Real-time response visualization
+  - Status code color coding
+  - Response time and size tracking
+  - Syntax-highlighted JSON display
+  - Copy response functionality
+
+### JSON/cURL Comparison
+
+- **Smart Difference Highlighting**
+
+  - 🔴 Red highlighting for fields present in left JSON but missing in right
+  - 🟢 Green highlighting for fields present in right JSON but missing in left
+  - ⚫ Gray highlighting for fields with different values
+
+- **Advanced Comparison Features**
+  - Deep JSON comparison with nested object support
+  - cURL command execution and response comparison
+  - Real-time diff visualization
+  - Share comparison results via unique URLs
+
+### General Features
+
+- **User Experience**
+
+  - Dark/Light mode support
+  - Responsive design for all devices
+  - Intuitive and clean interface
+  - Keyboard shortcuts support
+  - Session storage for state persistence
+
+- **Developer Tools**
+  - JSON formatting and validation
+  - cURL command parsing and execution
+  - Request/response history
+  - Shareable links with encoded parameters
 
 ## Getting Started
 
@@ -26,87 +61,80 @@ A modern web application that allows users to compare two JSON objects side by s
 ### Installation
 
 1. Clone the repository:
-   ```bash
-   git clone https://github.com/yourusername/json-diff-viewer.git
-   cd json-diff-viewer
-   ```
+
+```bash
+git clone https://github.com/yadev64/jsoncompare.git
+cd jsoncompare
+```
 
 2. Install dependencies:
-   ```bash
-   npm install
-   # or
-   yarn install
-   ```
+
+```bash
+npm install
+# or
+yarn install
+```
 
 3. Start the development server:
-   ```bash
-   npm run dev
-   # or
-   yarn dev
-   ```
+
+```bash
+npm run dev
+# or
+yarn dev
+```
 
 4. Open [http://localhost:5173](http://localhost:5173) in your browser
 
 ## Usage
 
-1. **Input JSON Data**:
-   - Paste your JSON in the left and right input panels
-   - Use the "Format" button to prettify your JSON
-   - Click "Load Example" to test with sample data
+### API Testing
 
-2. **View Differences**:
-   - Field differences are highlighted in red (left) and green (right)
-   - Value differences are highlighted in gray
-   - Scroll through the diff view to see all differences
+1. Navigate to the API Testing page
+2. Configure your request:
+   - Select HTTP method
+   - Enter URL
+   - Add headers and query parameters
+   - Configure request body
+3. Execute the request
+4. Analyze the response with syntax highlighting
 
-3. **Share Results**:
-   - Click the "Share" button to generate a unique URL
-   - Copy the URL to share your comparison with others
+### JSON/cURL Comparison
 
-## Example
+1. Choose between JSON or cURL mode
+2. Input your JSON objects or cURL commands
+3. View the differences with color-coded highlighting
+4. Share the comparison using the generated URL
 
-```json
-// Left JSON
-{
-  "name": "Product A",
-  "price": 19.99,
-  "details": {
-    "weight": "2kg",
-    "dimensions": {
-      "width": 10,
-      "height": 5
-    }
-  }
-}
+## Use Cases
 
-// Right JSON
-{
-  "name": "Product B",
-  "price": 24.99,
-  "details": {
-    "weight": "2.5kg",
-    "dimensions": {
-      "width": 10,
-      "height": 6
-    },
-    "warranty": "2 years"
-  }
-}
-```
+- **API Development**
 
-In this example:
-- `warranty` field will be highlighted in green (present only in right JSON)
-- `price` and `weight` values will be highlighted in gray (different values)
-- `height` value will be highlighted in gray (different values)
-- `name` and `width` will have no highlighting (different values but same type)
+  - Test API endpoints
+  - Debug API responses
+  - Compare API versions
+  - Validate request/response formats
+
+- **JSON Processing**
+
+  - Compare JSON objects
+  - Validate JSON schemas
+  - Format and beautify JSON
+  - Track JSON changes
+
+- **cURL Testing**
+  - Execute cURL commands
+  - Compare cURL responses
+  - Debug API calls
+  - Share API requests
 
 ## Technologies Used
 
 - React
 - TypeScript
 - Tailwind CSS
+- React Router
+- Lucide Icons
 - React Syntax Highlighter
-- React Icons
 
 ## Contributing
 
@@ -114,4 +142,17 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details. 
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## About
+
+RequestLab is developed and maintained by [Yadev Jayachandran](https://www.linkedin.com/in/yadev-jayachandran/).
+
+## Support
+
+If you find this tool helpful, please consider:
+
+- ⭐ Starring the repository
+- 🐛 Reporting bugs
+- 💡 Suggesting new features
+- 🤝 Contributing to the project
