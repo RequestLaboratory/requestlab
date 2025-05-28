@@ -243,6 +243,14 @@ function AppContent() {
     executeRightCurl,
   } = curlComparison;
 
+  const [leftCurl, setLeftCurl] = useState<string>(`curl 'https://api.github.com/repos/facebook/react' \\
+  -H 'Accept: application/vnd.github.v3+json' \\
+  -H 'User-Agent: RequestLab'`);
+
+  const [rightCurl, setRightCurl] = useState<string>(`curl 'https://api.github.com/repos/vuejs/vue' \\
+  -H 'Accept: application/vnd.github.v3+json' \\
+  -H 'User-Agent: RequestLab'`);
+
   // Load data from URL on initial render
   useEffect(() => {
     const data = decodeJsonFromUrl();
@@ -292,7 +300,7 @@ function AppContent() {
     if (mode === 'json') {
       updateLeftJson(leftExample);
     } else {
-      setCurlLeftInput('curl -X GET "https://api.example.com/data" -H "Content-Type: application/json"');
+      setCurlLeftInput(leftCurl);
     }
   };
 
@@ -300,7 +308,7 @@ function AppContent() {
     if (mode === 'json') {
       updateRightJson(rightExample);
     } else {
-      setCurlRightInput('curl -X GET "https://api.example.com/data" -H "Content-Type: application/json" -H "Authorization: Bearer token123"');
+      setCurlRightInput(rightCurl);
     }
   };
 

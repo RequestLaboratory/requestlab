@@ -47,22 +47,36 @@ const CurlInput: React.FC<CurlInputProps> = ({
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600">
-        <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+      <div className="flex items-center justify-between p-2 bg-blue-50 dark:bg-blue-900/20 border-b border-blue-200 dark:border-blue-800">
+        <label className="text-sm font-medium text-blue-700 dark:text-blue-300">
           {label}
         </label>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setShowPreview(!showPreview)}
-            className="p-1.5 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600"
-            title={showPreview ? "Show cURL" : "Show Preview"}
-          >
-            <Code className="w-4 h-4" />
-          </button>
+        <div className="flex items-center gap-6">
+          <div className="flex items-center">
+            <span className="mr-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+              {'Text'}
+            </span>
+            <button
+              onClick={() => setShowPreview(!showPreview)}
+              className={`relative inline-flex h-6 w-12 items-center rounded-full transition-colors focus:outline-none ${
+                showPreview ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'
+              }`}
+              role="switch"
+              aria-checked={showPreview}
+            >
+              <span className={`absolute left-1 inline-block h-4 w-4 transform rounded-full bg-white shadow-md transition-transform duration-200 ease-in-out ${
+                showPreview ? 'translate-x-6' : 'translate-x-0'
+              }`} />
+            </button>
+            <Code className="ml-2 w-4 h-4 text-gray-500 dark:text-gray-400" />
+            <span className="ml-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+              {'Editor'}
+            </span>
+          </div>
           <button
             onClick={handleExecute}
             disabled={isLoading || !value.trim()}
-            className="p-1.5 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-green-100 hover:bg-green-200 dark:bg-green-900/30 dark:hover:bg-green-900/50 text-green-700 dark:text-green-400 border border-green-600 dark:border-green-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             title="Execute cURL"
           >
             {isLoading ? (
@@ -70,6 +84,7 @@ const CurlInput: React.FC<CurlInputProps> = ({
             ) : (
               <Play className="w-4 h-4" />
             )}
+            <span className="text-sm font-medium">Execute</span>
           </button>
         </div>
       </div>
