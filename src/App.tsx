@@ -139,6 +139,7 @@ function App() {
   const handleMouseEnter = () => {
     if (hoverTimeout) {
       clearTimeout(hoverTimeout);
+      setHoverTimeout(null);
     }
     setIsSidebarExpanded(true);
   };
@@ -146,7 +147,7 @@ function App() {
   const handleMouseLeave = () => {
     const timeout = setTimeout(() => {
       setIsSidebarExpanded(false);
-    }, 300); // Add a delay before collapsing
+    }, 500); // Increased delay to 500ms
     setHoverTimeout(timeout);
   };
 
@@ -165,31 +166,44 @@ function App() {
       <div 
         className={`relative transition-all duration-300 ease-in-out ${
           isSidebarExpanded ? 'w-64' : 'w-14'
-        } border-r border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 flex flex-col`}
+        } border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex flex-col`}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
       >
         <div className={`flex flex-col h-full ${
-          isSidebarExpanded ? 'p-0' : 'px-0 py-4'
+          isSidebarExpanded ? 'p-4' : 'px-0 py-4'
         }`}>
-          <h1 className={`text-xl font-bold text-gray-900 dark:text-white mb-6 transition-opacity duration-300 ${
-            isSidebarExpanded ? 'opacity-100' : 'opacity-0 h-0'
+          <div className={`flex items-center mb-8 ${
+            isSidebarExpanded ? 'px-2' : 'justify-center'
           }`}>
-            JSON Tools
-          </h1>
-          <nav className="flex flex-col space-y-1">
+            <svg 
+              className="w-8 h-8 text-orange-500" 
+              fill="none" 
+              stroke="currentColor" 
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+            </svg>
+            <h1 className={`ml-3 text-xl font-bold text-gray-900 dark:text-white transition-all duration-300 ${
+              isSidebarExpanded ? 'opacity-100' : 'opacity-0 w-0'
+            }`}>
+              JSON Tools
+            </h1>
+          </div>
+
+          <nav className="flex flex-col space-y-2">
             <button
               onClick={() => setActivePage('compare')}
-              className={`group relative flex items-center ${
-                isSidebarExpanded ? 'px-4 py-2' : 'p-2'
+              className={`group relative flex items-center rounded-lg ${
+                isSidebarExpanded ? 'px-3 py-2.5' : 'p-2.5'
               } ${
                 activePage === 'compare'
-                  ? 'bg-orange-500 text-white'
-                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-              }`}
+                  ? 'bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400'
+                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50'
+              } transition-colors duration-200`}
             >
               <div className={`flex items-center ${
-                isSidebarExpanded ? 'w-full' : 'w-10 h-10 justify-center'
+                isSidebarExpanded ? 'w-full' : 'w-9 h-9 justify-center'
               }`}>
                 <svg 
                   className={`w-5 h-5 ${
@@ -201,30 +215,31 @@ function App() {
                 >
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                 </svg>
-                <span className={`ml-3 transition-all duration-300 whitespace-nowrap ${
+                <span className={`ml-3 font-medium transition-all duration-300 whitespace-nowrap ${
                   isSidebarExpanded ? 'opacity-100' : 'opacity-0 w-0'
                 }`}>
                   JSON Compare
                 </span>
               </div>
               {!isSidebarExpanded && (
-                <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-sm rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap">
+                <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-sm rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-50">
                   JSON Compare
                 </div>
               )}
             </button>
+
             <button
               onClick={() => setActivePage('api-testing')}
-              className={`group relative flex items-center ${
-                isSidebarExpanded ? 'px-4 py-2' : 'p-2'
+              className={`group relative flex items-center rounded-lg ${
+                isSidebarExpanded ? 'px-3 py-2.5' : 'p-2.5'
               } ${
                 activePage === 'api-testing'
-                  ? 'bg-orange-500 text-white'
-                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-              }`}
+                  ? 'bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400'
+                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50'
+              } transition-colors duration-200`}
             >
               <div className={`flex items-center ${
-                isSidebarExpanded ? 'w-full' : 'w-10 h-10 justify-center'
+                isSidebarExpanded ? 'w-full' : 'w-9 h-9 justify-center'
               }`}>
                 <svg 
                   className={`w-5 h-5 ${
@@ -236,14 +251,14 @@ function App() {
                 >
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
-                <span className={`ml-3 transition-all duration-300 whitespace-nowrap ${
+                <span className={`ml-3 font-medium transition-all duration-300 whitespace-nowrap ${
                   isSidebarExpanded ? 'opacity-100' : 'opacity-0 w-0'
                 }`}>
                   API Testing
                 </span>
               </div>
               {!isSidebarExpanded && (
-                <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-sm rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap">
+                <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-sm rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-50">
                   API Testing
                 </div>
               )}
