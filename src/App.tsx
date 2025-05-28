@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useContext } from 'react';
+import { BrowserRouter as Router, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { useJsonComparison } from './hooks/useJsonComparison';
 import { useCurlComparison } from './hooks/useCurlComparison';
 import JsonInput from './components/JsonInput';
@@ -14,6 +15,7 @@ import { formatCurlResponse } from './utils/curlUtils';
 import ApiTesting from './pages/ApiTesting';
 import { GitCompare, Sun, Moon } from 'lucide-react';
 import { ThemeContext } from './contexts/ThemeContext';
+import WelcomePopup from './components/WelcomePopup';
 
 const leftExample = JSON.stringify({
   name: "Product A",
@@ -50,12 +52,15 @@ const rightExample = JSON.stringify({
   tags: ["electronics", "office", "premium"]
 }, null, 2);
 
-function App() {
+function AppContent() {
   const [activePage, setActivePage] = useState<'compare' | 'api-testing'>('compare');
   const [mode, setMode] = useState<ComparisonMode>('json');
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
   const [hoverTimeout, setHoverTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [showWelcomePopup, setShowWelcomePopup] = useState(true);
   const { isDarkMode, toggleTheme } = useContext(ThemeContext);
+  const navigate = useNavigate();
+  const location = useLocation();
   
   const jsonComparison = useJsonComparison();
   const curlComparison = useCurlComparison();
@@ -109,6 +114,15 @@ function App() {
       }
     }
   }, []);
+
+  // Update activePage based on current route
+  useEffect(() => {
+    if (location.pathname === '/api-testing') {
+      setActivePage('api-testing');
+    } else {
+      setActivePage('compare');
+    }
+  }, [location.pathname]);
 
   // Handle mode change
   const handleModeChange = (newMode: ComparisonMode) => {
@@ -166,6 +180,11 @@ function App() {
 
   return (
     <div className="h-screen flex bg-white dark:bg-gray-900">
+      <WelcomePopup 
+        isOpen={showWelcomePopup} 
+        onClose={() => setShowWelcomePopup(false)} 
+      />
+      
       {/* Left Sidebar */}
       <div 
         className={`relative transition-all duration-300 ease-in-out ${
@@ -190,11 +209,11 @@ function App() {
 
           <nav className="flex flex-col space-y-2">
             <button
-              onClick={() => setActivePage('compare')}
+              onClick={() => navigate('/')}
               className={`group relative flex items-center rounded-lg ${
                 isSidebarExpanded ? 'p-2.5' : 'p-2.5 mx-1'
               } ${
-                activePage === 'compare'
+                location.pathname === '/'
                   ? 'bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400'
                   : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50'
               } transition-colors duration-200`}
@@ -221,11 +240,11 @@ function App() {
             </button>
 
             <button
-              onClick={() => setActivePage('api-testing')}
+              onClick={() => navigate('/api-testing')}
               className={`group relative flex items-center rounded-lg ${
                 isSidebarExpanded ? 'p-2.5' : 'p-2.5 mx-1'
               } ${
-                activePage === 'api-testing'
+                location.pathname === '/api-testing'
                   ? 'bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400'
                   : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50'
               } transition-colors duration-200`}
@@ -278,144 +297,153 @@ function App() {
 
       {/* Main Content */}
       <div className="flex-1 overflow-hidden">
-        {activePage === 'compare' ? (
-          <div className="h-full overflow-auto">
-            <div className="max-w-7xl mx-auto p-6">
-              <div className="mb-8">
-                <h1 className="text-2xl font-bold text-center text-gray-900 dark:text-white mb-2">
-                  RequestLab
-                </h1>
-                <p className="text-center text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
-                  Compare two JSON objects or cURL responses side by side, visualize the differences, and share the results with a unique URL.
-                </p>
-                
-                {/* SEO content - hidden from users but visible to crawlers */}
-                <div className="sr-only" aria-hidden="true">
-                  <h2>JSON Diff & Compare Tool - #1 JSON Comparison Tool</h2>
-                  <p>Best free online JSON diff and compare tool for developers. Compare JSON objects, API responses, and cURL outputs with instant difference highlighting. The most accurate and fastest JSON comparison tool available.</p>
+        <Routes>
+          <Route path="/" element={
+            <div className="h-full overflow-auto">
+              <div className="max-w-7xl mx-auto p-6">
+                <div className="mb-8">
+                  <h1 className="text-2xl font-bold text-center text-gray-900 dark:text-white mb-2">
+                    RequestLab
+                  </h1>
+                  <p className="text-center text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
+                    Compare two JSON objects or cURL responses side by side, visualize the differences, and share the results with a unique URL.
+                  </p>
                   
-                  <h3>Why Choose Our JSON Diff Tool?</h3>
-                  <ul>
-                    <li>Fastest JSON comparison engine with instant results</li>
-                    <li>Most accurate JSON diff algorithm for precise comparison</li>
-                    <li>Advanced cURL response comparison for API testing</li>
-                    <li>Intuitive difference visualization with color coding</li>
-                    <li>Share comparison results via unique, secure URLs</li>
-                    <li>Support for both JSON and cURL input formats</li>
-                    <li>Dark mode support for reduced eye strain</li>
-                    <li>Responsive design for all devices</li>
-                  </ul>
+                  {/* SEO content - hidden from users but visible to crawlers */}
+                  <div className="sr-only" aria-hidden="true">
+                    <h2>JSON Diff & Compare Tool - #1 JSON Comparison Tool</h2>
+                    <p>Best free online JSON diff and compare tool for developers. Compare JSON objects, API responses, and cURL outputs with instant difference highlighting. The most accurate and fastest JSON comparison tool available.</p>
+                    
+                    <h3>Why Choose Our JSON Diff Tool?</h3>
+                    <ul>
+                      <li>Fastest JSON comparison engine with instant results</li>
+                      <li>Most accurate JSON diff algorithm for precise comparison</li>
+                      <li>Advanced cURL response comparison for API testing</li>
+                      <li>Intuitive difference visualization with color coding</li>
+                      <li>Share comparison results via unique, secure URLs</li>
+                      <li>Support for both JSON and cURL input formats</li>
+                      <li>Dark mode support for reduced eye strain</li>
+                      <li>Responsive design for all devices</li>
+                    </ul>
 
-                  <h3>JSON Diff Use Cases</h3>
-                  <ul>
-                    <li>Compare JSON objects and find differences instantly</li>
-                    <li>Diff JSON responses from different API versions</li>
-                    <li>Compare and validate JSON schemas</li>
-                    <li>Test API endpoints with cURL commands</li>
-                    <li>Compare JSON data during migration</li>
-                    <li>Review JSON changes in code reviews</li>
-                  </ul>
+                    <h3>JSON Diff Use Cases</h3>
+                    <ul>
+                      <li>Compare JSON objects and find differences instantly</li>
+                      <li>Diff JSON responses from different API versions</li>
+                      <li>Compare and validate JSON schemas</li>
+                      <li>Test API endpoints with cURL commands</li>
+                      <li>Compare JSON data during migration</li>
+                      <li>Review JSON changes in code reviews</li>
+                    </ul>
 
-                  <h3>Advanced JSON Compare Features</h3>
-                  <ul>
-                    <li>Deep JSON comparison with nested object support</li>
-                    <li>Real-time JSON diff visualization</li>
-                    <li>cURL command execution and response comparison</li>
-                    <li>JSON formatting and validation</li>
-                    <li>Secure URL sharing with encoded parameters</li>
-                    <li>Cross-browser compatibility</li>
-                  </ul>
+                    <h3>Advanced JSON Compare Features</h3>
+                    <ul>
+                      <li>Deep JSON comparison with nested object support</li>
+                      <li>Real-time JSON diff visualization</li>
+                      <li>cURL command execution and response comparison</li>
+                      <li>JSON formatting and validation</li>
+                      <li>Secure URL sharing with encoded parameters</li>
+                      <li>Cross-browser compatibility</li>
+                    </ul>
 
-                  <p>#1 JSON diff and compare tool for developers. Compare JSON objects, API responses, and cURL outputs with ease. No installation required, works directly in your browser. Share your JSON comparison results with team members using unique URLs. Supports both light and dark themes for comfortable viewing. The most accurate and fastest JSON comparison tool available online.</p>
+                    <p>#1 JSON diff and compare tool for developers. Compare JSON objects, API responses, and cURL outputs with ease. No installation required, works directly in your browser. Share your JSON comparison results with team members using unique URLs. Supports both light and dark themes for comfortable viewing. The most accurate and fastest JSON comparison tool available online.</p>
 
-                  <h3>Top Search Terms</h3>
-                  <p>json diff, json compare, JSON difference checker, JSON comparison tool, JSON diff tool, compare JSON objects, JSON structure comparison, JSON visualization tool, API response comparison, cURL response diff, JSON schema comparison, online JSON diff, JSON data comparison, API testing tool, JSON validation tool</p>
+                    <h3>Top Search Terms</h3>
+                    <p>json diff, json compare, JSON difference checker, JSON comparison tool, JSON diff tool, compare JSON objects, JSON structure comparison, JSON visualization tool, API response comparison, cURL response diff, JSON schema comparison, online JSON diff, JSON data comparison, API testing tool, JSON validation tool</p>
 
-                  <h3>JSON Diff Tool Benefits</h3>
-                  <ul>
-                    <li>Save time with instant JSON comparison</li>
-                    <li>Reduce errors in API testing</li>
-                    <li>Simplify JSON debugging process</li>
-                    <li>Improve code review efficiency</li>
-                    <li>Enhance API development workflow</li>
-                  </ul>
+                    <h3>JSON Diff Tool Benefits</h3>
+                    <ul>
+                      <li>Save time with instant JSON comparison</li>
+                      <li>Reduce errors in API testing</li>
+                      <li>Simplify JSON debugging process</li>
+                      <li>Improve code review efficiency</li>
+                      <li>Enhance API development workflow</li>
+                    </ul>
+                  </div>
                 </div>
-              </div>
 
-              <ModeSwitcher mode={mode} onModeChange={handleModeChange} />
-              <ExampleButton onLeftExample={handleLeftExample} onRightExample={handleRightExample} />
+                <ModeSwitcher mode={mode} onModeChange={handleModeChange} />
+                <ExampleButton onLeftExample={handleLeftExample} onRightExample={handleRightExample} />
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 h-80 md:h-96 overflow-hidden">
-                  {mode === 'json' ? (
-                    <JsonInput
-                      value={jsonLeftInput}
-                      onChange={updateLeftJson}
-                      onFormat={formatLeftJson}
-                      isValid={leftValid}
-                      label="Left JSON"
-                      placeholder="Paste your JSON here..."
-                    />
-                  ) : (
-                    <CurlInput
-                      value={curlLeftInput}
-                      onChange={setCurlLeftInput}
-                      onExecute={executeLeftCurl}
-                      isLoading={isLeftLoading}
-                      label="Left cURL"
-                      placeholder="Enter your cURL command here..."
-                    />
-                  )}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                  <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 h-80 md:h-96 overflow-hidden">
+                    {mode === 'json' ? (
+                      <JsonInput
+                        value={jsonLeftInput}
+                        onChange={updateLeftJson}
+                        onFormat={formatLeftJson}
+                        isValid={leftValid}
+                        label="Left JSON"
+                        placeholder="Paste your JSON here..."
+                      />
+                    ) : (
+                      <CurlInput
+                        value={curlLeftInput}
+                        onChange={setCurlLeftInput}
+                        onExecute={executeLeftCurl}
+                        isLoading={isLeftLoading}
+                        label="Left cURL"
+                        placeholder="Enter your cURL command here..."
+                      />
+                    )}
+                  </div>
+                  <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 h-80 md:h-96 overflow-hidden">
+                    {mode === 'json' ? (
+                      <JsonInput
+                        value={jsonRightInput}
+                        onChange={updateRightJson}
+                        onFormat={formatRightJson}
+                        isValid={rightValid}
+                        label="Right JSON"
+                        placeholder="Paste your JSON here..."
+                      />
+                    ) : (
+                      <CurlInput
+                        value={curlRightInput}
+                        onChange={setCurlRightInput}
+                        onExecute={executeRightCurl}
+                        isLoading={isRightLoading}
+                        label="Right cURL"
+                        placeholder="Enter your cURL command here..."
+                      />
+                    )}
+                  </div>
                 </div>
-                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 h-80 md:h-96 overflow-hidden">
-                  {mode === 'json' ? (
-                    <JsonInput
-                      value={jsonRightInput}
-                      onChange={updateRightJson}
-                      onFormat={formatRightJson}
-                      isValid={rightValid}
-                      label="Right JSON"
-                      placeholder="Paste your JSON here..."
-                    />
-                  ) : (
-                    <CurlInput
-                      value={curlRightInput}
-                      onChange={setCurlRightInput}
-                      onExecute={executeRightCurl}
-                      isLoading={isRightLoading}
-                      label="Right cURL"
-                      placeholder="Enter your cURL command here..."
-                    />
-                  )}
-                </div>
-              </div>
 
-              <ShareLink 
-                leftJson={mode === 'json' ? jsonLeftInput : leftResponse} 
-                rightJson={mode === 'json' ? jsonRightInput : rightResponse} 
-                leftCurl={mode === 'curl' ? curlLeftInput : ''}
-                rightCurl={mode === 'curl' ? curlRightInput : ''}
-                mode={mode}
-                isValid={mode === 'json' ? (leftValid && rightValid && !!jsonLeftInput && !!jsonRightInput) : (!!leftResponse && !!rightResponse)} 
-              />
+                <ShareLink 
+                  leftJson={mode === 'json' ? jsonLeftInput : leftResponse} 
+                  rightJson={mode === 'json' ? jsonRightInput : rightResponse} 
+                  leftCurl={mode === 'curl' ? curlLeftInput : ''}
+                  rightCurl={mode === 'curl' ? curlRightInput : ''}
+                  mode={mode}
+                  isValid={mode === 'json' ? (leftValid && rightValid && !!jsonLeftInput && !!jsonRightInput) : (!!leftResponse && !!rightResponse)} 
+                />
 
-              <div className="mt-6 bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden">
-                <div className="h-[calc(100vh-600px)] min-h-[400px] overflow-y-auto">
-                  <DiffViewer 
-                    diff={mode === 'json' ? jsonDiff : curlDiff} 
-                    error={mode === 'json' ? jsonError : curlError} 
-                    leftJson={mode === 'json' ? jsonLeftInput : leftResponse}
-                    rightJson={mode === 'json' ? jsonRightInput : rightResponse}
-                  />
+                <div className="mt-6 bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden">
+                  <div className="h-[calc(100vh-600px)] min-h-[400px] overflow-y-auto">
+                    <DiffViewer 
+                      diff={mode === 'json' ? jsonDiff : curlDiff} 
+                      error={mode === 'json' ? jsonError : curlError} 
+                      leftJson={mode === 'json' ? jsonLeftInput : leftResponse}
+                      rightJson={mode === 'json' ? jsonRightInput : rightResponse}
+                    />
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        ) : (
-          <ApiTesting />
-        )}
+          } />
+          <Route path="/api-testing" element={<ApiTesting />} />
+        </Routes>
       </div>
     </div>
+  );
+}
+
+function App() {
+  return (
+    <Router>
+      <AppContent />
+    </Router>
   );
 }
 
