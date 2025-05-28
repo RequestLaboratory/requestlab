@@ -26,14 +26,14 @@ const ApiTesting: React.FC = () => {
   const [requestDetails, setRequestDetails] = useState<RequestDetails>({
     method: 'GET',
     url: '',
-    headers: {},
+    headers: { 'header-1': '' },
     body: '',
     queryParams: {}
   });
   const [response, setResponse] = useState<ApiResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'params' | 'headers' | 'body' | 'pre-request' | 'tests'>('params');
+  const [activeTab, setActiveTab] = useState<'params' | 'headers' | 'body' | 'pre-request' | 'tests'>('headers');
   const [bodyType, setBodyType] = useState<'none' | 'raw' | 'form-data' | 'x-www-form-urlencoded'>('none');
   const [contentType, setContentType] = useState('application/json');
   const [isResponsePanelVisible, setIsResponsePanelVisible] = useState(true);
