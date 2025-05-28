@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { useJsonComparison } from './hooks/useJsonComparison';
 import { useCurlComparison } from './hooks/useCurlComparison';
 import JsonInput from './components/JsonInput';
@@ -8,9 +8,12 @@ import ShareLink from './components/ShareLink';
 import ExampleButton from './components/ExampleButton';
 import ModeSwitcher, { ComparisonMode } from './components/ModeSwitcher';
 import Layout from './components/Layout';
+import Header from './components/Header';
 import { decodeJsonFromUrl } from './utils/urlUtils';
 import { formatCurlResponse } from './utils/curlUtils';
 import ApiTesting from './pages/ApiTesting';
+import { GitCompare, Sun, Moon } from 'lucide-react';
+import { ThemeContext } from './contexts/ThemeContext';
 
 const leftExample = JSON.stringify({
   name: "Product A",
@@ -52,6 +55,7 @@ function App() {
   const [mode, setMode] = useState<ComparisonMode>('json');
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
   const [hoverTimeout, setHoverTimeout] = useState<NodeJS.Timeout | null>(null);
+  const { isDarkMode, toggleTheme } = useContext(ThemeContext);
   
   const jsonComparison = useJsonComparison();
   const curlComparison = useCurlComparison();
@@ -176,14 +180,7 @@ function App() {
           <div className={`flex items-center mb-8 ${
             isSidebarExpanded ? 'px-2' : 'justify-center'
           }`}>
-            <svg 
-              className="w-8 h-8 text-orange-500" 
-              fill="none" 
-              stroke="currentColor" 
-              viewBox="0 0 24 24"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-            </svg>
+            <GitCompare className="w-8 h-8 text-blue-600 dark:text-blue-400" />
             <h1 className={`ml-3 text-xl font-bold text-gray-900 dark:text-white transition-all duration-300 ${
               isSidebarExpanded ? 'opacity-100' : 'opacity-0 w-0'
             }`}>
@@ -264,6 +261,28 @@ function App() {
               )}
             </button>
           </nav>
+
+          {/* Dark Mode Toggle at bottom */}
+          <div className="mt-auto pt-4 border-t border-gray-200 dark:border-gray-700">
+            <button
+              onClick={toggleTheme}
+              className={`w-full flex items-center ${
+                isSidebarExpanded ? 'px-3 py-2.5' : 'p-2.5 justify-center'
+              } rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-200`}
+              aria-label={isDarkMode ? "Switch to light mode" : "Switch to dark mode"}
+            >
+              {isDarkMode ? (
+                <Sun className="h-5 w-5 text-yellow-400" />
+              ) : (
+                <Moon className="h-5 w-5 text-gray-700" />
+              )}
+              <span className={`ml-3 font-medium transition-all duration-300 whitespace-nowrap ${
+                isSidebarExpanded ? 'opacity-100' : 'opacity-0 w-0'
+              }`}>
+                {isDarkMode ? 'Light Mode' : 'Dark Mode'}
+              </span>
+            </button>
+          </div>
         </div>
       </div>
 

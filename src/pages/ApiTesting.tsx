@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
 import { executeApiRequest } from '../utils/apiTestingUtils';
 import { parseCurlCommand } from '../utils/curlParser';
+import SyntaxHighlighter from 'react-syntax-highlighter';
+import { vs2015 } from 'react-syntax-highlighter/dist/esm/styles/hljs';
+import { Copy, Check, Expand, X } from 'lucide-react';
 
 interface RequestDetails {
   method: string;
@@ -34,6 +37,8 @@ const ApiTesting: React.FC = () => {
   const [bodyType, setBodyType] = useState<'none' | 'raw' | 'form-data' | 'x-www-form-urlencoded'>('none');
   const [contentType, setContentType] = useState('application/json');
   const [isResponsePanelVisible, setIsResponsePanelVisible] = useState(true);
+  const [copied, setCopied] = useState(false);
+  const [isResponseExpanded, setIsResponseExpanded] = useState(false);
 
   const handleSendRequest = async () => {
     setIsLoading(true);
@@ -149,6 +154,15 @@ const ApiTesting: React.FC = () => {
       ...prev,
       queryParams: { ...prev.queryParams, [key]: value }
     }));
+  };
+
+  const handleCopyResponse = () => {
+    const responseText = typeof response?.data === 'string'
+      ? response.data
+      : JSON.stringify(response?.data, null, 2);
+    navigator.clipboard.writeText(responseText);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   return (
@@ -475,37 +489,130 @@ const ApiTesting: React.FC = () => {
         {/* Response Panel */}
         {response && isResponsePanelVisible && (
           <div className="w-1/2 border-l border-gray-200 dark:border-gray-700 flex flex-col h-[calc(100vh-4rem)]">
-            <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
-              <div className="flex items-center justify-between">
-                <h2 className="text-sm font-medium text-gray-700 dark:text-gray-300">Response</h2>
-                <div className="flex items-center space-x-4">
-                  <button
-                    onClick={() => {
-                      const responseText = typeof response.data === 'string' 
-                        ? response.data 
-                        : JSON.stringify(response.data, null, 2);
-                      navigator.clipboard.writeText(responseText);
-                    }}
-                    className="flex items-center px-2 py-1 text-sm text-gray-600 dark:text-gray-400 hover:text-orange-500 dark:hover:text-orange-400 transition-colors duration-200"
-                  >
-                    <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2" />
-                    </svg>
-                    Copy
-                  </button>
-                  <div className="flex items-center space-x-4 text-sm text-gray-500 dark:text-gray-400">
-                    <span>Status: {response.status}</span>
-                    <span>Time: {response.time}ms</span>
-                    <span>Size: {response.size} B</span>
-                  </div>
+            <div className="flex justify-between items-center p-4 border-b border-gray-200 dark:border-gray-700">
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <span className={`px-2 py-1 rounded text-sm font-medium ${
+                    response.status >= 200 && response.status < 300
+                      ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+                      : response.status >= 300 && response.status < 400
+                      ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400'
+                      : response.status >= 400 && response.status < 500
+                      ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
+                      : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
+                  }`}>
+                    {response.status} {response.statusText}
+                  </span>
+                  <span className="text-sm text-gray-500 dark:text-gray-400">
+                    {response.time}ms
+                  </span>
+                  <span className="text-sm text-gray-500 dark:text-gray-400">
+                    {response.size} bytes
+                  </span>
                 </div>
               </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setIsResponseExpanded(true)}
+                  className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 transition-colors duration-200"
+                  title="Expand response"
+                >
+                  <Expand className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={handleCopyResponse}
+                  className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 transition-colors duration-200"
+                  title="Copy response"
+                >
+                  {copied ? <Check className="w-5 h-5" /> : <Copy className="w-5 h-5" />}
+                </button>
+              </div>
             </div>
-            <div className="flex-1 overflow-auto bg-gray-50 dark:bg-gray-900">
-              <div className="p-4">
-                <pre className="whitespace-pre-wrap font-mono text-sm">
-                  {typeof response.data === 'string' ? response.data : JSON.stringify(response.data, null, 2)}
-                </pre>
+            <div className="flex-1 min-h-0">
+              <div className="h-full overflow-auto">
+                <SyntaxHighlighter
+                  language="json"
+                  style={vs2015}
+                  customStyle={{
+                    margin: 0,
+                    height: '100%',
+                    fontSize: '0.875rem',
+                    lineHeight: '1.5rem',
+                  }}
+                  showLineNumbers
+                  wrapLines={false}
+                >
+                  {typeof response.data === 'string'
+                    ? response.data
+                    : JSON.stringify(response.data, null, 2)}
+                </SyntaxHighlighter>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Full Screen Response Modal */}
+        {isResponseExpanded && response && (
+          <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center">
+            <div className="bg-white dark:bg-gray-900 w-[90vw] h-[90vh] rounded-lg shadow-xl flex flex-col">
+              <div className="flex justify-between items-center p-4 border-b border-gray-200 dark:border-gray-700">
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <span className={`px-2 py-1 rounded text-sm font-medium ${
+                      response.status >= 200 && response.status < 300
+                        ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+                        : response.status >= 300 && response.status < 400
+                        ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400'
+                        : response.status >= 400 && response.status < 500
+                        ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
+                        : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
+                    }`}>
+                      {response.status} {response.statusText}
+                    </span>
+                    <span className="text-sm text-gray-500 dark:text-gray-400">
+                      {response.time}ms
+                    </span>
+                    <span className="text-sm text-gray-500 dark:text-gray-400">
+                      {response.size} bytes
+                    </span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleCopyResponse}
+                    className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 transition-colors duration-200"
+                    title="Copy response"
+                  >
+                    {copied ? <Check className="w-5 h-5" /> : <Copy className="w-5 h-5" />}
+                  </button>
+                  <button
+                    onClick={() => setIsResponseExpanded(false)}
+                    className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 transition-colors duration-200"
+                    title="Close"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+              <div className="flex-1 min-h-0">
+                <div className="h-full overflow-auto">
+                  <SyntaxHighlighter
+                    language="json"
+                    style={vs2015}
+                    customStyle={{
+                      margin: 0,
+                      height: '100%',
+                      fontSize: '0.875rem',
+                      lineHeight: '1.5rem',
+                    }}
+                    showLineNumbers
+                    wrapLines={false}
+                  >
+                    {typeof response.data === 'string'
+                      ? response.data
+                      : JSON.stringify(response.data, null, 2)}
+                  </SyntaxHighlighter>
+                </div>
               </div>
             </div>
           </div>
