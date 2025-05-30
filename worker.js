@@ -103,11 +103,17 @@ export default {
           const targetPath = '/' + pathParts.slice(1).join('/') + url.search;
           const originalUrl = new URL(targetPath, interceptor.baseUrl);
           
+          const startTime = Date.now();
           const response = await fetch(originalUrl.toString(), {
             method: request.method,
             headers: request.headers,
             body: request.body,
           });
+          const duration = Date.now() - startTime;
+
+          // Clone the response for logging
+          const responseClone = response.clone();
+          const responseBody = await responseClone.text();
 
           // Log the request
           const log = {
@@ -121,17 +127,23 @@ export default {
             response: {
               status: response.status,
               headers: Object.fromEntries(response.headers),
-              body: response.body ? await response.text() : null,
+              body: responseBody,
             },
             timestamp: new Date().toISOString(),
+            duration: duration
           };
 
+          // Store the log
           const logs = requestLogs.get(interceptor.id) || [];
           logs.unshift(log);
           if (logs.length > 100) logs.pop(); // Keep only last 100 logs
           requestLogs.set(interceptor.id, logs);
 
-          return addCorsHeaders(response);
+          // Return the original response
+          return addCorsHeaders(new Response(responseBody, {
+            status: response.status,
+            headers: response.headers,
+          }));
         } catch (error) {
           return addCorsHeaders(new Response('Error forwarding request: ' + error.message, { status: 500 }));
         }

@@ -102,7 +102,9 @@ ${Object.entries(requestHeaders)
                   </div>
                   <div>
                     <span className="text-gray-500 dark:text-gray-400">Duration:</span>
-                    <span className="ml-2 font-medium text-gray-900 dark:text-white">{log.duration}ms</span>
+                    <span className="ml-2 font-medium text-gray-900 dark:text-white">
+                      {typeof log.duration === 'number' ? `${log.duration.toFixed(2)}ms` : 'N/A'}
+                    </span>
                   </div>
                   <div>
                     <span className="text-gray-500 dark:text-gray-400">Time:</span>
@@ -201,7 +203,9 @@ ${Object.entries(requestHeaders)
                   </div>
                   <div>
                     <span className="text-gray-500 dark:text-gray-400">Duration:</span>
-                    <span className="ml-2 font-medium text-gray-900 dark:text-white">{log.duration}ms</span>
+                    <span className="ml-2 font-medium text-gray-900 dark:text-white">
+                      {typeof log.duration === 'number' ? `${log.duration.toFixed(2)}ms` : 'N/A'}
+                    </span>
                   </div>
                 </div>
               </div>

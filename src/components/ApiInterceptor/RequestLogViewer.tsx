@@ -52,6 +52,7 @@ export default function RequestLogViewer({ interceptorId, onSelectLog, selectedL
         throw new Error('Failed to fetch logs');
       }
       const data = await response.json();
+      console.log('Received logs:', data);
       setLogs(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch logs');
