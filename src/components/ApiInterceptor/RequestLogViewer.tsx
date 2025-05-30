@@ -78,8 +78,8 @@ export default function RequestLogViewer({ interceptorId, onSelectLog, selectedL
   }
 
   return (
-    <div className="h-full flex flex-col">
-      <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+    <div className="h-[calc(100vh-20rem)] flex flex-col">
+      <div className="flex-shrink-0 p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
         <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Request Logs</h2>
         <label className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
           <input
@@ -92,7 +92,7 @@ export default function RequestLogViewer({ interceptorId, onSelectLog, selectedL
         </label>
       </div>
 
-      <div className="flex-1 overflow-auto">
+      <div className="flex-1 min-h-0 overflow-y-auto">
         {logs.length === 0 ? (
           <div className="p-4 text-center text-gray-500 dark:text-gray-400">
             No logs found
