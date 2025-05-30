@@ -489,53 +489,140 @@ function AppContent() {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1  overflow-hidden">
         <Routes>
           <Route path="/" element={
-            <div className="flex-1 overflow-auto p-4">
-              <ModeSwitcher mode={mode} onModeChange={handleModeChange} />
-              {mode === 'json' ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <JsonInput
-                    value={jsonLeftInput}
-                    onChange={updateLeftJson}
-                    onFormat={formatLeftJson}
-                    isValid={leftValid}
-                    placeholder="Enter or paste JSON here..."
-                  />
-                  <JsonInput
-                    value={jsonRightInput}
-                    onChange={updateRightJson}
-                    onFormat={formatRightJson}
-                    isValid={rightValid}
-                    placeholder="Enter or paste JSON here..."
-                  />
+            <div className="h-full overflow-auto">
+              <div className="max-w-7xl mx-auto p-6">
+                <div className="mb-8">
+                  <h1 className="text-2xl font-bold text-center text-gray-900 dark:text-white mb-2">
+                    RequestLab
+                  </h1>
+                  <p className="text-center text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
+                    Compare two JSON objects or cURL responses side by side, visualize the differences, and share the results with a unique URL.
+                  </p>
+                  
+                  {/* SEO content - hidden from users but visible to crawlers */}
+                  <div className="sr-only" aria-hidden="true">
+                    <h2>RequestLab - All-in-One API Development Platform</h2>
+                    <p>Your comprehensive API playground for testing, comparison, and debugging. Compare JSON objects, test APIs with cURL commands, and analyze responses in real-time. The most powerful and intuitive API development tool available.</p>
+                    
+                    <h3>Why Choose RequestLab?</h3>
+                    <ul>
+                      <li>Comprehensive API testing with full request configuration</li>
+                      <li>Advanced JSON and cURL comparison with instant results</li>
+                      <li>Real-time response analysis and visualization</li>
+                      <li>Intuitive difference highlighting with color coding</li>
+                      <li>Share results via unique, secure URLs</li>
+                      <li>Support for multiple request methods and content types</li>
+                      <li>Dark mode support for reduced eye strain</li>
+                      <li>Responsive design for all devices</li>
+                    </ul>
+
+                    <h3>Key Features</h3>
+                    <ul>
+                      <li>JSON object comparison with visual diff</li>
+                      <li>cURL command testing and response analysis</li>
+                      <li>API endpoint testing with full request configuration</li>
+                      <li>Headers and query parameters management</li>
+                      <li>Request body formatting and validation</li>
+                      <li>Response time and size tracking</li>
+                    </ul>
+
+                    <h3>Advanced Capabilities</h3>
+                    <ul>
+                      <li>Deep JSON comparison with nested object support</li>
+                      <li>Real-time API response visualization</li>
+                      <li>cURL command execution and analysis</li>
+                      <li>Request/response history tracking</li>
+                      <li>Secure URL sharing with encoded parameters</li>
+                      <li>Cross-browser compatibility</li>
+                    </ul>
+
+                    <p>RequestLab is your all-in-one API development platform. Test APIs, compare JSON objects, and analyze cURL responses with ease. No installation required, works directly in your browser. Share your API testing results with team members using unique URLs. Supports both light and dark themes for comfortable viewing. The most powerful and intuitive API development tool available online.</p>
+
+                    <h3>Top Search Terms</h3>
+                    <p>API testing tool, JSON comparison, cURL testing, API debugging, JSON diff, API development platform, request testing, API response analysis, JSON visualization, cURL comparison, API playground, request lab, API testing platform, JSON validation, API development tool</p>
+
+                    <h3>RequestLab Benefits</h3>
+                    <ul>
+                      <li>Streamline API development workflow</li>
+                      <li>Accelerate API testing and debugging</li>
+                      <li>Simplify JSON comparison and validation</li>
+                      <li>Enhance team collaboration with shareable results</li>
+                      <li>Improve API development efficiency</li>
+                    </ul>
+                  </div>
                 </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <CurlInput
-                    value={curlLeftInput}
-                    onChange={setCurlLeftInput}
-                    onExecute={executeLeftCurl}
-                    isLoading={isLeftLoading}
-                    placeholder="Enter cURL command here..."
-                  />
-                  <CurlInput
-                    value={curlRightInput}
-                    onChange={setCurlRightInput}
-                    onExecute={executeRightCurl}
-                    isLoading={isRightLoading}
-                    placeholder="Enter cURL command here..."
-                  />
+
+                <ModeSwitcher mode={mode} onModeChange={handleModeChange} />
+                <ExampleButton onLeftExample={handleLeftExample} onRightExample={handleRightExample} />
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                  <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 h-80 md:h-96 overflow-hidden">
+                    {mode === 'json' ? (
+                      <JsonInput
+                        value={jsonLeftInput}
+                        onChange={updateLeftJson}
+                        onFormat={formatLeftJson}
+                        isValid={leftValid}
+                        label="Left JSON"
+                        placeholder="Paste your JSON here..."
+                      />
+                    ) : (
+                      <CurlInput
+                        value={curlLeftInput}
+                        onChange={setCurlLeftInput}
+                        onExecute={executeLeftCurl}
+                        isLoading={isLeftLoading}
+                        label="Left cURL"
+                        placeholder="Enter your cURL command here..."
+                      />
+                    )}
+                  </div>
+                  <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 h-80 md:h-96 overflow-hidden">
+                    {mode === 'json' ? (
+                      <JsonInput
+                        value={jsonRightInput}
+                        onChange={updateRightJson}
+                        onFormat={formatRightJson}
+                        isValid={rightValid}
+                        label="Right JSON"
+                        placeholder="Paste your JSON here..."
+                      />
+                    ) : (
+                      <CurlInput
+                        value={curlRightInput}
+                        onChange={setCurlRightInput}
+                        onExecute={executeRightCurl}
+                        isLoading={isRightLoading}
+                        label="Right cURL"
+                        placeholder="Enter your cURL command here..."
+                      />
+                    )}
+                  </div>
                 </div>
-              )}
-              <ExampleButton onLeftExample={handleLeftExample} onRightExample={handleRightExample} />
-              <DiffViewer
-                leftInput={mode === 'json' ? jsonLeftInput : formatCurlResponse(leftResponse)}
-                rightInput={mode === 'json' ? jsonRightInput : formatCurlResponse(rightResponse)}
-                diff={mode === 'json' ? jsonDiff : curlDiff}
-                error={mode === 'json' ? jsonError : curlError}
-              />
+
+                <ShareLink 
+                  leftJson={mode === 'json' ? jsonLeftInput : leftResponse} 
+                  rightJson={mode === 'json' ? jsonRightInput : rightResponse} 
+                  leftCurl={mode === 'curl' ? curlLeftInput : ''}
+                  rightCurl={mode === 'curl' ? curlRightInput : ''}
+                  mode={mode}
+                  isValid={mode === 'json' ? (leftValid && rightValid && !!jsonLeftInput && !!jsonRightInput) : (!!leftResponse && !!rightResponse)} 
+                />
+
+                <div className="mt-6 bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden">
+                  <div className="h-[calc(100vh-600px)] min-h-[400px] overflow-y-auto">
+                    <DiffViewer 
+                      diff={mode === 'json' ? jsonDiff : curlDiff} 
+                      error={mode === 'json' ? jsonError : curlError} 
+                      leftJson={mode === 'json' ? jsonLeftInput : leftResponse}
+                      rightJson={mode === 'json' ? jsonRightInput : rightResponse}
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
           } />
           <Route path="/api-testing" element={<ApiTesting />} />

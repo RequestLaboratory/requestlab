@@ -145,7 +145,7 @@ const DiffViewer: React.FC<DiffViewerProps> = ({ diff, error, leftJson, rightJso
   };
 
   const renderPanel = (json: string, isLeft: boolean, lines: string[]) => (
-    <div className="relative">
+    <div className="relative h-full">
       <div className="absolute top-0 left-0 right-0 bg-gray-100 dark:bg-gray-700 p-2 rounded-t-md border-b border-gray-200 dark:border-gray-600">
         <div className="flex justify-between items-center">
           <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -169,7 +169,7 @@ const DiffViewer: React.FC<DiffViewerProps> = ({ diff, error, leftJson, rightJso
           </div>
         </div>
       </div>
-      <div className="mt-10">
+      <div className="mt-10 h-[calc(100%-2.5rem)]">
         <SyntaxHighlighter
           language="json"
           style={vs2015}
@@ -178,6 +178,7 @@ const DiffViewer: React.FC<DiffViewerProps> = ({ diff, error, leftJson, rightJso
             borderRadius: '0.375rem',
             fontSize: '0.875rem',
             lineHeight: '1.5rem',
+            height: '100%',
           }}
           showLineNumbers
           wrapLines
@@ -201,8 +202,8 @@ const DiffViewer: React.FC<DiffViewerProps> = ({ diff, error, leftJson, rightJso
 
   return (
     <>
-      <div className="bg-white dark:bg-gray-800 rounded-md shadow-inner border border-gray-200 dark:border-gray-700">
-        <div className="flex justify-between items-center p-4 border-b border-gray-200 dark:border-gray-700">
+      <div className="h-full bg-white dark:bg-gray-800 rounded-md shadow-inner border border-gray-200 dark:border-gray-700 flex flex-col">
+        <div className="flex-shrink-0 flex justify-between items-center p-4 border-b border-gray-200 dark:border-gray-700">
           <div className="font-medium text-xl text-gray-800 dark:text-white">Field Name Differences</div>
           <button
             onClick={() => setIsExpanded(true)}
@@ -213,11 +214,15 @@ const DiffViewer: React.FC<DiffViewerProps> = ({ diff, error, leftJson, rightJso
           </button>
         </div>
         
-        <div className="relative">
-          <div className="overflow-y-auto p-4 pb-16">
-            <div className="grid grid-cols-2 gap-4">
-              {renderPanel(leftJson, true, leftLines)}
-              {renderPanel(rightJson, false, rightLines)}
+        <div className="flex-1 min-h-0 relative">
+          <div className="absolute inset-0 overflow-y-auto p-4 pb-16">
+            <div className="grid grid-cols-2 gap-4 h-full">
+              <div className="h-full">
+                {renderPanel(leftJson, true, leftLines)}
+              </div>
+              <div className="h-full">
+                {renderPanel(rightJson, false, rightLines)}
+              </div>
             </div>
           </div>
 
@@ -244,8 +249,8 @@ const DiffViewer: React.FC<DiffViewerProps> = ({ diff, error, leftJson, rightJso
       {/* Expanded Modal */}
       {isExpanded && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50">
-          <div className="relative w-full h-full max-w-7xl max-h-[90vh] bg-white dark:bg-gray-800 rounded-lg shadow-xl overflow-hidden">
-            <div className="flex justify-between items-center p-4 border-b border-gray-200 dark:border-gray-700">
+          <div className="relative w-full h-full max-w-7xl max-h-[90vh] bg-white dark:bg-gray-800 rounded-lg shadow-xl flex flex-col">
+            <div className="flex-shrink-0 flex justify-between items-center p-4 border-b border-gray-200 dark:border-gray-700">
               <div className="font-medium text-xl text-gray-800 dark:text-white">Field Name Differences</div>
               <button
                 onClick={() => setIsExpanded(false)}
@@ -255,10 +260,14 @@ const DiffViewer: React.FC<DiffViewerProps> = ({ diff, error, leftJson, rightJso
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="p-4 overflow-auto h-[calc(90vh-4rem)]">
-              <div className="grid grid-cols-2 gap-4">
-                {renderPanel(leftJson, true, leftLines)}
-                {renderPanel(rightJson, false, rightLines)}
+            <div className="flex-1 min-h-0 overflow-y-auto p-4">
+              <div className="grid grid-cols-2 gap-4 h-full">
+                <div className="h-full">
+                  {renderPanel(leftJson, true, leftLines)}
+                </div>
+                <div className="h-full">
+                  {renderPanel(rightJson, false, rightLines)}
+                </div>
               </div>
             </div>
           </div>
