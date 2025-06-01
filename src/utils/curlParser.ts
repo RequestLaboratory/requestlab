@@ -43,10 +43,19 @@ export function parseCurlCommand(curlCommand: string): ParsedCurl {
     }
   }
 
-  // Extract body
-  const dataMatch = cleanCommand.match(/(?:--data|-d)\s+['"]([^'"]+)['"]/);
-  if (dataMatch) {
-    result.body = dataMatch[1];
+  // Extract body (support --data, --data-raw, --data-binary, -d) with multiline and complex JSON support
+  const dataFlagRegex = /(?:--data(?:-raw)?|--data-binary|-d)\s+(['"])([\s\S]*?)\1/g;
+  let dataMatch;
+  let body = '';
+  while ((dataMatch = dataFlagRegex.exec(cleanCommand)) !== null) {
+    // Concatenate all data flags (in case of multiple)
+    body += (body ? '\n' : '') + dataMatch[2];
+  }
+  if (body) {
+    result.body = body;
+    if (!methodMatch) {
+      result.method = 'POST';
+    }
   }
 
   // Extract query parameters from URL

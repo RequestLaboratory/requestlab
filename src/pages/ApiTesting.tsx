@@ -4,7 +4,7 @@ import { parseCurlCommand } from '../utils/curlParser';
 import SyntaxHighlighter from 'react-syntax-highlighter';
 import { vs2015 } from 'react-syntax-highlighter/dist/esm/styles/hljs';
 import { Copy, Check, Expand, X, Terminal, Play, StopCircle, BarChart2 } from 'lucide-react';
-import { TextField, Box, Typography, Tabs, Tab, ThemeProvider, createTheme, Drawer, IconButton, Dialog, DialogTitle, DialogContent, DialogActions, Button } from '@mui/material';
+import { TextField, Box, Typography, Tabs, Tab, ThemeProvider, createTheme, Drawer, IconButton, Dialog, DialogTitle, DialogContent, DialogActions, Button, Checkbox } from '@mui/material';
 import { Line, Bar } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
@@ -54,6 +54,7 @@ interface ApiResponse {
   data: string | Record<string, unknown>;
   time: number;
   size: number;
+  curlCommand?: string;
 }
 
 interface LoadTestConfig {
@@ -125,6 +126,15 @@ class ChartErrorBoundary extends React.Component<
   }
 }
 
+// Utility to sync enabledHeaders with headers
+const syncEnabledHeaders = (headers: Record<string, string>, prevEnabled: Record<string, boolean> = {}) => {
+  const newEnabled: Record<string, boolean> = {};
+  Object.keys(headers).forEach(key => {
+    newEnabled[key] = prevEnabled[key] !== undefined ? prevEnabled[key] : true;
+  });
+  return newEnabled;
+};
+
 const ApiTesting: React.FC = () => {
   const { isDarkMode } = useContext(ThemeContext);
   
@@ -168,27 +178,26 @@ const ApiTesting: React.FC = () => {
     const savedState = sessionStorage.getItem('apiTestingState');
     if (savedState) {
       const parsed = JSON.parse(savedState);
+      const headers = parsed.headers || { 'header-1': '' };
       return {
         method: parsed.method || 'GET',
         url: parsed.url || '',
-        headers: parsed.headers || { 'header-1': '' },
-        enabledHeaders: parsed.enabledHeaders || {},
+        headers,
+        enabledHeaders: syncEnabledHeaders(headers, parsed.enabledHeaders),
         body: parsed.body || '',
         queryParams: parsed.queryParams || {}
       };
     }
     // Default GitHub API example
+    const headers = {
+      'Accept': 'application/vnd.github.v3+json',
+      'User-Agent': 'RequestLab'
+    };
     return {
       method: 'GET',
       url: 'https://api.github.com/repos/vuejs/vue',
-      headers: {
-        'Accept': 'application/vnd.github.v3+json',
-        'User-Agent': 'RequestLab'
-      },
-      enabledHeaders: {
-        'Accept': true,
-        'User-Agent': true
-      },
+      headers,
+      enabledHeaders: syncEnabledHeaders(headers),
       body: '',
       queryParams: {}
     };
@@ -220,6 +229,7 @@ const ApiTesting: React.FC = () => {
   const [copied, setCopied] = useState(false);
   const [copyMessage, setCopyMessage] = useState<string | null>(null);
   const [isResponseExpanded, setIsResponseExpanded] = useState(false);
+  const [responseTab, setResponseTab] = useState<'response' | 'network'>('response');
   
   // Load testing states
   const [loadTestConfig, setLoadTestConfig] = useState<LoadTestConfig>({
@@ -332,6 +342,23 @@ const ApiTesting: React.FC = () => {
         return acc;
       }, {} as Record<string, string>);
 
+      // Build the actual cURL command that will be sent
+      const actualCurlCommand = (() => {
+        let curl = `curl '${requestDetails.url}' \\\n`;
+        if (requestDetails.method !== 'GET') {
+          curl += `  -X ${requestDetails.method} \\\n`;
+        }
+        Object.entries(activeHeaders).forEach(([key, value]) => {
+          if (key && value) {
+            curl += `  -H '${key}: ${value}' \\\n`;
+          }
+        });
+        if (requestDetails.body) {
+          curl += `  -d '${requestDetails.body}' \\\n`;
+        }
+        return curl.slice(0, -3); // Remove trailing backslash and newline
+      })();
+
       const result = await executeApiRequest({
         url: requestDetails.url,
         method: requestDetails.method,
@@ -358,7 +385,8 @@ const ApiTesting: React.FC = () => {
         time: endTime - startTime,
         size: typeof responseData.response === 'string' 
           ? responseData.response.length 
-          : JSON.stringify(responseData.response).length
+          : JSON.stringify(responseData.response).length,
+        curlCommand: actualCurlCommand
       });
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to execute request');
@@ -441,7 +469,7 @@ const ApiTesting: React.FC = () => {
       headers: { ...prev.headers, [key]: value },
       enabledHeaders: {
         ...prev.enabledHeaders,
-        [key]: prev.enabledHeaders[key] ?? true // Default to true for new headers
+        [key]: true
       }
     }));
   };
@@ -714,7 +742,7 @@ const ApiTesting: React.FC = () => {
               }, 100); // Check every 100ms
               
               // Cleanup both timers if normal resolution
-              setTimeout(() => {
+    setTimeout(() => {
                 clearInterval(checkInterval);
               }, thinkTime + 50);
             });
@@ -1130,25 +1158,40 @@ const ApiTesting: React.FC = () => {
           .replace(/\s+/g, ' '); // Replace multiple spaces with single space
 
         const parsedCurl = parseCurlCommand(cleanCurl);
-        
-        // Update method
-        setRequestDetails(prev => ({
-          ...prev,
-          method: parsedCurl.method || 'GET',
-          url: parsedCurl.url || '',
-          headers: parsedCurl.headers || {},
-          body: parsedCurl.body || '',
-          queryParams: parsedCurl.queryParams || {}
-        }));
+
+        // Format JSON body if Content-Type is application/json
+        let formattedBody = parsedCurl.body;
+        const contentTypeHeader = Object.entries(parsedCurl.headers).find(([key]) =>
+          key.toLowerCase() === 'content-type'
+        );
+        if (
+          contentTypeHeader &&
+          contentTypeHeader[1].toLowerCase().includes('application/json') &&
+          parsedCurl.body
+        ) {
+          try {
+            formattedBody = JSON.stringify(JSON.parse(parsedCurl.body), null, 2);
+          } catch (e) {
+            // If not valid JSON, leave as is
+          }
+        }
+
+        setRequestDetails(prev => {
+          const newHeaders = parsedCurl.headers || {};
+          return {
+            ...prev,
+            method: parsedCurl.method || 'GET',
+            url: parsedCurl.url || '',
+            headers: newHeaders,
+            enabledHeaders: syncEnabledHeaders(newHeaders),
+            body: formattedBody || '',
+            queryParams: parsedCurl.queryParams || {}
+          };
+        });
 
         // Set body type if present
         if (parsedCurl.body) {
           setBodyType('raw');
-          
-          // Try to detect content type from headers
-          const contentTypeHeader = Object.entries(parsedCurl.headers).find(([key]) => 
-            key.toLowerCase() === 'content-type'
-          );
           if (contentTypeHeader) {
             setContentType(contentTypeHeader[1]);
           }
@@ -1165,38 +1208,38 @@ const ApiTesting: React.FC = () => {
 
   return (
     <ThemeProvider theme={muiTheme}>
-      <div className="h-screen flex flex-col bg-white dark:bg-gray-900">
-        {/* Top Bar */}
-        <div className="flex items-center gap-2 p-4 border-b border-gray-200 dark:border-gray-700">
-          <select
-            value={requestDetails.method}
-            onChange={(e) => handleMethodChange(e.target.value)}
-            className="px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white"
-          >
-            <option>GET</option>
-            <option>POST</option>
-            <option>PUT</option>
-            <option>DELETE</option>
-            <option>PATCH</option>
-          </select>
-          <input
-            type="text"
-            value={requestDetails.url}
-            onChange={(e) => handleUrlChange(e.target.value)}
-            onPaste={handleUrlPaste}
-            placeholder="Enter Request URL"
-            className="flex-1 px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white"
-          />
-          <button
-            onClick={handleSendRequest}
-            disabled={isLoading}
-            className="px-4 py-2 bg-orange-500 text-white rounded hover:bg-orange-600 disabled:opacity-50"
-          >
-            Send
-          </button>
-          <button
+    <div className="h-screen flex flex-col bg-white dark:bg-gray-900">
+      {/* Top Bar */}
+      <div className="flex items-center gap-2 p-4 border-b border-gray-200 dark:border-gray-700">
+        <select
+          value={requestDetails.method}
+          onChange={(e) => handleMethodChange(e.target.value)}
+          className="px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white"
+        >
+          <option>GET</option>
+          <option>POST</option>
+          <option>PUT</option>
+          <option>DELETE</option>
+          <option>PATCH</option>
+        </select>
+        <input
+          type="text"
+          value={requestDetails.url}
+          onChange={(e) => handleUrlChange(e.target.value)}
+          onPaste={handleUrlPaste}
+          placeholder="Enter Request URL"
+          className="flex-1 px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white"
+        />
+        <button
+          onClick={handleSendRequest}
+          disabled={isLoading}
+          className="px-4 py-2 bg-orange-500 text-white rounded hover:bg-orange-600 disabled:opacity-50"
+        >
+          Send
+        </button>
+        <button
             onClick={() => setIsImportCurlOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-2 text-gray-600 dark:text-gray-400 hover:text-orange-500 dark:hover:text-orange-400 transition-colors duration-200"
+          className="flex items-center gap-1.5 px-3 py-2 text-gray-600 dark:text-gray-400 hover:text-orange-500 dark:hover:text-orange-400 transition-colors duration-200"
             title="Import cURL"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1208,96 +1251,96 @@ const ApiTesting: React.FC = () => {
             onClick={() => setIsCurlDrawerOpen(true)}
             className="flex items-center gap-1.5 px-3 py-2 text-gray-600 dark:text-gray-400 hover:text-orange-500 dark:hover:text-orange-400 transition-colors duration-200"
             title="Show cURL"
-          >
-            <Terminal className="w-4 h-4" />
+        >
+          <Terminal className="w-4 h-4" />
             <span className="text-sm font-medium">Show cURL</span>
-          </button>
-          {response && (
-            <div className="relative">
-              <button
-                onClick={() => setIsResponsePanelVisible(!isResponsePanelVisible)}
-                className="flex items-center px-3 py-2 text-gray-600 dark:text-gray-400 hover:text-orange-500 dark:hover:text-orange-400 transition-colors duration-200"
-              >
-                {isResponsePanelVisible ? (
-                  <>
-                    <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
-                    </svg>
-                    Hide Response
-                  </>
-                ) : (
-                  <>
-                    <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
-                    </svg>
-                    Show Response
-                  </>
-                )}
-              </button>
-              {!isResponsePanelVisible && (
-                <div className="absolute bottom-0 left-0 right-0 h-0.5 rounded-full bg-gradient-to-r from-orange-500 via-blue-500 to-orange-500 animate-[gradient_2s_ease-in-out_infinite] bg-[length:200%_100%]" />
+        </button>
+        {response && (
+          <div className="relative">
+            <button
+              onClick={() => setIsResponsePanelVisible(!isResponsePanelVisible)}
+              className="flex items-center px-3 py-2 text-gray-600 dark:text-gray-400 hover:text-orange-500 dark:hover:text-orange-400 transition-colors duration-200"
+            >
+              {isResponsePanelVisible ? (
+                <>
+                  <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+                  </svg>
+                  Hide Response
+                </>
+              ) : (
+                <>
+                  <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+                  </svg>
+                  Show Response
+                </>
               )}
-            </div>
-          )}
-        </div>
+            </button>
+            {!isResponsePanelVisible && (
+              <div className="absolute bottom-0 left-0 right-0 h-0.5 rounded-full bg-gradient-to-r from-orange-500 via-blue-500 to-orange-500 animate-[gradient_2s_ease-in-out_infinite] bg-[length:200%_100%]" />
+            )}
+          </div>
+        )}
+      </div>
 
-        {/* Main Content */}
+      {/* Main Content */}
         <div className="flex-1 flex flex-col">
-          {/* Main Request Area */}
+        {/* Main Request Area */}
           <div className="flex-1 flex flex-col">
-            {/* Tabs */}
-            <div className="border-b border-gray-200 dark:border-gray-700">
-              <nav className="flex space-x-8 px-4">
-                <button
-                  onClick={() => setActiveTab('headers')}
-                  className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                    activeTab === 'headers'
-                      ? 'border-orange-500 text-orange-600 dark:text-orange-400'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400'
-                  }`}
-                >
-                  Headers
-                </button>
-                <button
-                  onClick={() => setActiveTab('body')}
-                  className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                    activeTab === 'body'
-                      ? 'border-orange-500 text-orange-600 dark:text-orange-400'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400'
-                  }`}
-                >
-                  Body
-                </button>
-                <button
-                  onClick={() => setActiveTab('params')}
-                  className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                    activeTab === 'params'
-                      ? 'border-orange-500 text-orange-600 dark:text-orange-400'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400'
-                  }`}
-                >
-                  Params
-                </button>
-                <button
-                  onClick={() => setActiveTab('pre-request')}
-                  className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                    activeTab === 'pre-request'
-                      ? 'border-orange-500 text-orange-600 dark:text-orange-400'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400'
-                  }`}
-                >
-                  Pre-request Script
-                </button>
-                <button
-                  onClick={() => setActiveTab('tests')}
-                  className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                    activeTab === 'tests'
-                      ? 'border-orange-500 text-orange-600 dark:text-orange-400'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400'
-                  }`}
-                >
-                  Tests
-                </button>
+          {/* Tabs */}
+          <div className="border-b border-gray-200 dark:border-gray-700">
+            <nav className="flex space-x-8 px-4">
+              <button
+                onClick={() => setActiveTab('headers')}
+                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === 'headers'
+                    ? 'border-orange-500 text-orange-600 dark:text-orange-400'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400'
+                }`}
+              >
+                Headers
+              </button>
+              <button
+                onClick={() => setActiveTab('body')}
+                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === 'body'
+                    ? 'border-orange-500 text-orange-600 dark:text-orange-400'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400'
+                }`}
+              >
+                Body
+              </button>
+              <button
+                onClick={() => setActiveTab('params')}
+                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === 'params'
+                    ? 'border-orange-500 text-orange-600 dark:text-orange-400'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400'
+                }`}
+              >
+                Params
+              </button>
+              <button
+                onClick={() => setActiveTab('pre-request')}
+                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === 'pre-request'
+                    ? 'border-orange-500 text-orange-600 dark:text-orange-400'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400'
+                }`}
+              >
+                Pre-request Script
+              </button>
+              <button
+                onClick={() => setActiveTab('tests')}
+                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === 'tests'
+                    ? 'border-orange-500 text-orange-600 dark:text-orange-400'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400'
+                }`}
+              >
+                Tests
+              </button>
                 <button
                   onClick={() => setActiveTab('load-test')}
                   className={`py-2 px-1 border-b-2 font-medium text-sm ${
@@ -1308,232 +1351,240 @@ const ApiTesting: React.FC = () => {
                 >
                   Load Test
                 </button>
-              </nav>
-            </div>
+            </nav>
+          </div>
 
-            {/* Tab Content */}
-            <div className="flex-1 py-4 pl-4 overflow-hidden">
-              {activeTab === 'params' && (
+          {/* Tab Content */}
+          <div className="flex-1 py-4 pl-4 overflow-hidden">
+            {activeTab === 'params' && (
                 <div className="space-y-4 h-[calc(100vh-30rem)] overflow-y-auto">
-                  <div className="grid grid-cols-12 gap-4 text-sm font-medium text-gray-500 dark:text-gray-400">
-                    <div className="col-span-4">KEY</div>
-                    <div className="col-span-4">VALUE</div>
-                    <div className="col-span-4">DESCRIPTION</div>
-                  </div>
-                  {Object.entries(requestDetails.queryParams).map(([key, value]) => (
-                    <div key={key} className="grid grid-cols-12 gap-4">
-                      <input
-                        type="text"
-                        value={key}
-                        onChange={(e) => handleQueryParamChange(e.target.value, value)}
-                        className="col-span-4 p-2 border rounded dark:bg-gray-800 dark:border-gray-700 dark:text-white"
-                        placeholder="Key"
-                      />
-                      <input
-                        type="text"
-                        value={value}
-                        onChange={(e) => handleQueryParamChange(key, e.target.value)}
-                        className="col-span-4 p-2 border rounded dark:bg-gray-800 dark:border-gray-700 dark:text-white"
-                        placeholder="Value"
-                      />
-                      <input
-                        type="text"
-                        className="col-span-4 p-2 border rounded dark:bg-gray-800 dark:border-gray-700 dark:text-white"
-                        placeholder="Description"
-                      />
-                    </div>
-                  ))}
-                  <div className="mt-4">
-                    <button
-                      onClick={() => handleQueryParamChange('', '')}
-                      className="text-orange-500 hover:text-orange-600 dark:text-orange-400"
-                    >
-                      + Add Parameter
-                    </button>
-                  </div>
+                <div className="grid grid-cols-12 gap-4 text-sm font-medium text-gray-500 dark:text-gray-400">
+                  <div className="col-span-4">KEY</div>
+                  <div className="col-span-4">VALUE</div>
+                  <div className="col-span-4">DESCRIPTION</div>
                 </div>
-              )}
+                {Object.entries(requestDetails.queryParams).map(([key, value]) => (
+                  <div key={key} className="grid grid-cols-12 gap-4">
+                    <input
+                      type="text"
+                      value={key}
+                      onChange={(e) => handleQueryParamChange(e.target.value, value)}
+                      className="col-span-4 p-2 border rounded dark:bg-gray-800 dark:border-gray-700 dark:text-white"
+                      placeholder="Key"
+                    />
+                    <input
+                      type="text"
+                      value={value}
+                      onChange={(e) => handleQueryParamChange(key, e.target.value)}
+                      className="col-span-4 p-2 border rounded dark:bg-gray-800 dark:border-gray-700 dark:text-white"
+                      placeholder="Value"
+                    />
+                    <input
+                      type="text"
+                      className="col-span-4 p-2 border rounded dark:bg-gray-800 dark:border-gray-700 dark:text-white"
+                      placeholder="Description"
+                    />
+                  </div>
+                ))}
+                  <div className="mt-4">
+                <button
+                  onClick={() => handleQueryParamChange('', '')}
+                  className="text-orange-500 hover:text-orange-600 dark:text-orange-400"
+                >
+                  + Add Parameter
+                </button>
+                  </div>
+              </div>
+            )}
 
-              {activeTab === 'headers' && (
+            {activeTab === 'headers' && (
                 <div className="flex flex-col h-[calc(100vh-30rem)]">
-                  <div className="grid grid-cols-12 gap-4 text-sm font-medium text-gray-500 dark:text-gray-400 mb-4">
+                <div className="grid grid-cols-12 gap-4 text-sm font-medium text-gray-500 dark:text-gray-400 mb-4">
                     <div className="col-span-1">ENABLED</div>
                     <div className="col-span-3">KEY</div>
-                    <div className="col-span-4">VALUE</div>
-                    <div className="col-span-4">DESCRIPTION</div>
-                  </div>
-                  <div className="flex-1 overflow-y-auto overflow-x-hidden pr-4 min-h-0">
-                    <div className="space-y-4">
-                      {Object.entries(requestDetails.headers).map(([key, value], index) => (
-                        <div key={index} className="grid grid-cols-12 gap-4">
+                  <div className="col-span-4">VALUE</div>
+                  <div className="col-span-4">DESCRIPTION</div>
+                </div>
+                <div className="flex-1 overflow-y-auto overflow-x-hidden pr-4 min-h-0">
+                  <div className="space-y-4">
+                    {Object.entries(requestDetails.headers).map(([key, value], index) => (
+                      <div key={index} className="grid grid-cols-12 gap-4">
                           <div className="col-span-1 flex items-center">
-                            <input
-                              type="checkbox"
-                              checked={requestDetails.enabledHeaders[key] ?? true}
+                            <Checkbox
+                              checked={!!requestDetails.enabledHeaders[key]}
                               onChange={() => handleHeaderToggle(key)}
-                              className="w-4 h-4 text-orange-500 border-gray-300 rounded focus:ring-orange-500 dark:focus:ring-orange-400 dark:border-gray-600"
+                              color="warning"
+                              sx={{
+                                color: '#f97316',
+                                '&.Mui-checked': {
+                                  color: '#f97316',
+                                },
+                                '& .MuiSvgIcon-root': {
+                                  fontSize: 24,
+                                },
+                              }}
                             />
                           </div>
-                          <input
-                            type="text"
-                            value={key}
-                            onChange={(e) => {
-                              const newKey = e.target.value;
-                              const newHeaders = { ...requestDetails.headers };
+                        <input
+                          type="text"
+                          value={key}
+                          onChange={(e) => {
+                            const newKey = e.target.value;
+                            const newHeaders = { ...requestDetails.headers };
                               const newEnabledHeaders = { ...requestDetails.enabledHeaders };
-                              delete newHeaders[key];
+                            delete newHeaders[key];
                               delete newEnabledHeaders[key];
-                              newHeaders[newKey] = value;
+                            newHeaders[newKey] = value;
                               newEnabledHeaders[newKey] = true;
-                              setRequestDetails(prev => ({
-                                ...prev,
+                            setRequestDetails(prev => ({
+                              ...prev,
                                 headers: newHeaders,
                                 enabledHeaders: newEnabledHeaders
-                              }));
-                            }}
+                            }));
+                          }}
                             className="col-span-3 p-2 border rounded dark:bg-gray-800 dark:border-gray-700 dark:text-white truncate"
-                            placeholder="Key"
-                          />
+                          placeholder="Key"
+                        />
+                        <input
+                          type="text"
+                          value={value}
+                          onChange={(e) => handleHeaderChange(key, e.target.value)}
+                          className="col-span-4 p-2 border rounded dark:bg-gray-800 dark:border-gray-700 dark:text-white truncate"
+                          placeholder="Value"
+                        />
+                        <div className="col-span-4 flex items-center">
                           <input
                             type="text"
-                            value={value}
-                            onChange={(e) => handleHeaderChange(key, e.target.value)}
-                            className="col-span-4 p-2 border rounded dark:bg-gray-800 dark:border-gray-700 dark:text-white truncate"
-                            placeholder="Value"
+                            className="flex-1 p-2 border rounded dark:bg-gray-800 dark:border-gray-700 dark:text-white truncate"
+                            placeholder="Description"
                           />
-                          <div className="col-span-4 flex items-center">
-                            <input
-                              type="text"
-                              className="flex-1 p-2 border rounded dark:bg-gray-800 dark:border-gray-700 dark:text-white truncate"
-                              placeholder="Description"
-                            />
-                            <button
-                              onClick={() => {
-                                const newHeaders = { ...requestDetails.headers };
+                          <button
+                            onClick={() => {
+                              const newHeaders = { ...requestDetails.headers };
                                 const newEnabledHeaders = { ...requestDetails.enabledHeaders };
-                                delete newHeaders[key];
+                              delete newHeaders[key];
                                 delete newEnabledHeaders[key];
-                                setRequestDetails(prev => ({
-                                  ...prev,
+                              setRequestDetails(prev => ({
+                                ...prev,
                                   headers: newHeaders,
                                   enabledHeaders: newEnabledHeaders
-                                }));
-                              }}
-                              className="ml-2 p-2 text-red-500 hover:text-red-600 dark:text-red-400 flex-shrink-0"
-                            >
-                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                              </svg>
-                            </button>
-                          </div>
+                              }));
+                            }}
+                            className="ml-2 p-2 text-red-500 hover:text-red-600 dark:text-red-400 flex-shrink-0"
+                          >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </button>
                         </div>
-                      ))}
-                    </div>
+                      </div>
+                    ))}
                   </div>
-                  <div className="mt-4">
-                    <button
-                      onClick={() => {
-                        const newKey = `header-${Object.keys(requestDetails.headers).length + 1}`;
-                        setRequestDetails(prev => ({
-                          ...prev,
+                </div>
+                <div className="mt-4">
+                  <button
+                    onClick={() => {
+                      const newKey = `header-${Object.keys(requestDetails.headers).length + 1}`;
+                      setRequestDetails(prev => ({
+                        ...prev,
                           headers: { ...prev.headers, [newKey]: '' },
                           enabledHeaders: { ...prev.enabledHeaders, [newKey]: true }
-                        }));
-                      }}
-                      className="flex items-center text-orange-500 hover:text-orange-600 dark:text-orange-400"
-                    >
-                      <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                      </svg>
-                      Add Header
-                    </button>
-                  </div>
+                      }));
+                    }}
+                    className="flex items-center text-orange-500 hover:text-orange-600 dark:text-orange-400"
+                  >
+                    <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
+                    Add Header
+                  </button>
                 </div>
-              )}
+              </div>
+            )}
 
-              {activeTab === 'body' && (
+            {activeTab === 'body' && (
                 <div className="space-y-4 h-[calc(100vh-30rem)] overflow-y-auto">
-                  <div className="flex space-x-4">
-                    <button
-                      onClick={() => setBodyType('raw')}
-                      className={`px-3 py-1 text-sm font-medium ${
-                        bodyType === 'raw'
-                          ? 'text-orange-600 border-b-2 border-orange-500'
-                          : 'text-gray-500 hover:text-gray-700'
-                      }`}
-                    >
-                      raw
-                    </button>
-                    <button
-                      onClick={() => setBodyType('form-data')}
-                      className={`px-3 py-1 text-sm font-medium ${
-                        bodyType === 'form-data'
-                          ? 'text-orange-600 border-b-2 border-orange-500'
-                          : 'text-gray-500 hover:text-gray-700'
-                      }`}
-                    >
-                      form-data
-                    </button>
-                    <button
-                      onClick={() => setBodyType('x-www-form-urlencoded')}
-                      className={`px-3 py-1 text-sm font-medium ${
-                        bodyType === 'x-www-form-urlencoded'
-                          ? 'text-orange-600 border-b-2 border-orange-500'
-                          : 'text-gray-500 hover:text-gray-700'
-                      }`}
-                    >
-                      x-www-form-urlencoded
-                    </button>
-                  </div>
-                  <div className="flex items-center space-x-2 mb-2">
-                    <select
-                      value={contentType}
-                      onChange={(e) => setContentType(e.target.value as any)}
-                      className="p-1 border rounded text-sm dark:bg-gray-800 dark:border-gray-700 dark:text-white"
-                    >
-                      <option>JSON</option>
-                      <option>Text</option>
-                      <option>JavaScript</option>
-                      <option>HTML</option>
-                      <option>XML</option>
-                    </select>
-                  </div>
-                  <textarea
-                    value={requestDetails.body}
-                    onChange={(e) => handleBodyChange(e.target.value)}
-                    className="w-full h-64 p-2 border rounded font-mono text-sm dark:bg-gray-800 dark:border-gray-700 dark:text-white"
-                    placeholder="Enter request body"
-                  />
+                <div className="flex space-x-4">
+                  <button
+                    onClick={() => setBodyType('raw')}
+                    className={`px-3 py-1 text-sm font-medium ${
+                      bodyType === 'raw'
+                        ? 'text-orange-600 border-b-2 border-orange-500'
+                        : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    raw
+                  </button>
+                  <button
+                    onClick={() => setBodyType('form-data')}
+                    className={`px-3 py-1 text-sm font-medium ${
+                      bodyType === 'form-data'
+                        ? 'text-orange-600 border-b-2 border-orange-500'
+                        : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    form-data
+                  </button>
+                  <button
+                    onClick={() => setBodyType('x-www-form-urlencoded')}
+                    className={`px-3 py-1 text-sm font-medium ${
+                      bodyType === 'x-www-form-urlencoded'
+                        ? 'text-orange-600 border-b-2 border-orange-500'
+                        : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    x-www-form-urlencoded
+                  </button>
                 </div>
-              )}
+                <div className="flex items-center space-x-2 mb-2">
+                  <select
+                    value={contentType}
+                    onChange={(e) => setContentType(e.target.value as any)}
+                    className="p-1 border rounded text-sm dark:bg-gray-800 dark:border-gray-700 dark:text-white"
+                  >
+                    <option>JSON</option>
+                    <option>Text</option>
+                    <option>JavaScript</option>
+                    <option>HTML</option>
+                    <option>XML</option>
+                  </select>
+                </div>
+                <textarea
+                  value={requestDetails.body}
+                  onChange={(e) => handleBodyChange(e.target.value)}
+                  className="w-full h-64 p-2 border rounded font-mono text-sm dark:bg-gray-800 dark:border-gray-700 dark:text-white"
+                  placeholder="Enter request body"
+                />
+              </div>
+            )}
 
-              {activeTab === 'pre-request' && (
+            {activeTab === 'pre-request' && (
                 <div className="space-y-4 h-[calc(100vh-30rem)] overflow-y-auto">
-                  <div className="flex items-center space-x-2 mb-2">
-                    <select className="p-1 border rounded text-sm dark:bg-gray-800 dark:border-gray-700 dark:text-white">
-                      <option>JavaScript</option>
-                    </select>
-                  </div>
-                  <textarea
-                    className="w-full h-64 p-2 border rounded font-mono text-sm dark:bg-gray-800 dark:border-gray-700 dark:text-white"
-                    placeholder="// Write your pre-request script here"
-                  />
+                <div className="flex items-center space-x-2 mb-2">
+                  <select className="p-1 border rounded text-sm dark:bg-gray-800 dark:border-gray-700 dark:text-white">
+                    <option>JavaScript</option>
+                  </select>
                 </div>
-              )}
+                <textarea
+                  className="w-full h-64 p-2 border rounded font-mono text-sm dark:bg-gray-800 dark:border-gray-700 dark:text-white"
+                  placeholder="// Write your pre-request script here"
+                />
+              </div>
+            )}
 
-              {activeTab === 'tests' && (
+            {activeTab === 'tests' && (
                 <div className="space-y-4 h-[calc(100vh-30rem)] overflow-y-auto">
-                  <div className="flex items-center space-x-2 mb-2">
-                    <select className="p-1 border rounded text-sm dark:bg-gray-800 dark:border-gray-700 dark:text-white">
-                      <option>JavaScript</option>
-                    </select>
-                  </div>
-                  <textarea
-                    className="w-full h-64 p-2 border rounded font-mono text-sm dark:bg-gray-800 dark:border-gray-700 dark:text-white"
-                    placeholder="// Write your test script here"
-                  />
+                <div className="flex items-center space-x-2 mb-2">
+                  <select className="p-1 border rounded text-sm dark:bg-gray-800 dark:border-gray-700 dark:text-white">
+                    <option>JavaScript</option>
+                  </select>
                 </div>
-              )}
+                <textarea
+                  className="w-full h-64 p-2 border rounded font-mono text-sm dark:bg-gray-800 dark:border-gray-700 dark:text-white"
+                  placeholder="// Write your test script here"
+                />
+              </div>
+            )}
 
               {activeTab === 'load-test' && (
                 <LoadTestTab
@@ -1546,52 +1597,75 @@ const ApiTesting: React.FC = () => {
                   onDownloadResults={downloadResultsAsCSV}
                 />
               )}
-            </div>
           </div>
+        </div>
 
           {/* Response Panel - Only show when not in load test tab */}
           {response && activeTab !== 'load-test' && (
             <div className={`border-t border-gray-200 dark:border-gray-700 flex flex-col transition-all duration-300 ease-in-out transform ${isResponsePanelVisible ? 'h-[400px] opacity-100' : 'h-0 opacity-0'}`}>
-              <div className="flex justify-between items-center p-4 border-b border-gray-200 dark:border-gray-700">
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-2">
-                    <span className={`px-2 py-1 rounded text-sm font-medium ${
-                      response.status >= 200 && response.status < 300
-                        ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
-                        : response.status >= 300 && response.status < 400
-                        ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400'
-                        : response.status >= 400 && response.status < 500
-                        ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
-                        : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
-                    }`}>
-                      {response.status} {response.statusText}
-                    </span>
-                    <span className="text-sm text-gray-500 dark:text-gray-400">
-                      {response.time}ms
-                    </span>
-                    <span className="text-sm text-gray-500 dark:text-gray-400">
-                      {response.size} bytes
-                    </span>
-                  </div>
-                </div>
+            <div className="flex justify-between items-center p-4 border-b border-gray-200 dark:border-gray-700">
+              <div className="flex items-center gap-4">
                 <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setIsResponseExpanded(true)}
-                    className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 transition-colors duration-200"
-                    title="Expand response"
-                  >
-                    <Expand className="w-5 h-5" />
-                  </button>
-                  <button
-                    onClick={handleCopyResponse}
-                    className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 transition-colors duration-200"
-                    title="Copy response"
-                  >
-                    {copied ? <Check className="w-5 h-5" /> : <Copy className="w-5 h-5" />}
-                  </button>
+                  <span className={`px-2 py-1 rounded text-sm font-medium ${
+                    response.status >= 200 && response.status < 300
+                      ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+                      : response.status >= 300 && response.status < 400
+                      ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400'
+                      : response.status >= 400 && response.status < 500
+                      ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
+                      : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
+                  }`}>
+                    {response.status} {response.statusText}
+                  </span>
+                  <span className="text-sm text-gray-500 dark:text-gray-400">
+                    {response.time}ms
+                  </span>
+                  <span className="text-sm text-gray-500 dark:text-gray-400">
+                    {response.size} bytes
+                  </span>
                 </div>
               </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setIsResponseExpanded(true)}
+                  className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 transition-colors duration-200"
+                  title="Expand response"
+                >
+                  <Expand className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={handleCopyResponse}
+                  className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 transition-colors duration-200"
+                  title="Copy response"
+                >
+                  {copied ? <Check className="w-5 h-5" /> : <Copy className="w-5 h-5" />}
+                </button>
+              </div>
+            </div>
               <div className="flex-1 min-h-0 overflow-auto">
+                <div className="flex border-b border-gray-200 dark:border-gray-700">
+                  <button
+                    onClick={() => setResponseTab('response')}
+                    className={`px-4 py-2 text-sm font-medium ${
+                      responseTab === 'response'
+                        ? 'text-orange-600 border-b-2 border-orange-500'
+                        : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    Response
+                  </button>
+                  <button
+                    onClick={() => setResponseTab('network')}
+                    className={`px-4 py-2 text-sm font-medium ${
+                      responseTab === 'network'
+                        ? 'text-orange-600 border-b-2 border-orange-500'
+                        : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    Network
+                  </button>
+                </div>
+                {responseTab === 'response' ? (
                 <SyntaxHighlighter
                   language="json"
                   style={vs2015}
@@ -1607,7 +1681,45 @@ const ApiTesting: React.FC = () => {
                   {typeof response.data === 'string'
                     ? response.data
                     : JSON.stringify(response.data, null, 2)}
+                  </SyntaxHighlighter>
+                ) : (
+                  <div className="p-4 h-[24vh] overflow-y-auto">
+                    <div className="mb-4">
+                      <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Request</h3>
+                      <SyntaxHighlighter
+                        language="bash"
+                        style={vs2015}
+                        customStyle={{
+                          margin: 0,
+                          fontSize: '0.875rem',
+                          lineHeight: '1.5rem',
+                          borderRadius: '0.375rem',
+                        }}
+                        showLineNumbers
+                        wrapLines={true}
+                      >
+                        {response.curlCommand || ''}
                 </SyntaxHighlighter>
+              </div>
+                    <div>
+                      <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Response Headers</h3>
+                      <SyntaxHighlighter
+                        language="json"
+                        style={vs2015}
+                        customStyle={{
+                          margin: 0,
+                          fontSize: '0.875rem',
+                          lineHeight: '1.5rem',
+                          borderRadius: '0.375rem',
+                        }}
+                        showLineNumbers
+                        wrapLines={false}
+                      >
+                        {JSON.stringify(response.headers, null, 2)}
+                      </SyntaxHighlighter>
+            </div>
+          </div>
+        )}
               </div>
             </div>
           )}
@@ -1855,4 +1967,4 @@ const styleSheet = document.createElement("style");
 styleSheet.innerText = styles;
 document.head.appendChild(styleSheet);
 
-export default ApiTesting;
+export default ApiTesting; 
