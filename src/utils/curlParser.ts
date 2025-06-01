@@ -15,20 +15,26 @@ export function parseCurlCommand(curlCommand: string): ParsedCurl {
     queryParams: {}
   };
 
+  // Clean up the command
+  const cleanCommand = curlCommand
+    .replace(/\\\n/g, ' ') // Replace line continuations with spaces
+    .replace(/\s+/g, ' ') // Replace multiple spaces with single space
+    .trim();
+
   // Extract URL
-  const urlMatch = curlCommand.match(/(?:curl\s+)(['"]?)(https?:\/\/[^'"]+)\1/);
+  const urlMatch = cleanCommand.match(/(?:curl\s+)(?:--location\s+)?(?:--request\s+[A-Z]+\s+)?(['"]?)(https?:\/\/[^'"]+)\1/);
   if (urlMatch) {
     result.url = urlMatch[2];
   }
 
   // Extract method
-  const methodMatch = curlCommand.match(/-X\s+['"]?([A-Z]+)['"]?/);
+  const methodMatch = cleanCommand.match(/(?:--request|-X)\s+['"]?([A-Z]+)['"]?/);
   if (methodMatch) {
     result.method = methodMatch[1];
   }
 
   // Extract headers
-  const headerMatches = curlCommand.matchAll(/-H\s+['"]([^'"]+)['"]/g);
+  const headerMatches = cleanCommand.matchAll(/(?:--header|-H)\s+['"]([^'"]+)['"]/g);
   for (const match of headerMatches) {
     const [, header] = match;
     const [key, value] = header.split(':').map(s => s.trim());
@@ -38,16 +44,20 @@ export function parseCurlCommand(curlCommand: string): ParsedCurl {
   }
 
   // Extract body
-  const dataMatch = curlCommand.match(/-d\s+['"]([^'"]+)['"]/);
+  const dataMatch = cleanCommand.match(/(?:--data|-d)\s+['"]([^'"]+)['"]/);
   if (dataMatch) {
     result.body = dataMatch[1];
   }
 
   // Extract query parameters from URL
-  const url = new URL(result.url);
-  url.searchParams.forEach((value, key) => {
-    result.queryParams[key] = value;
-  });
+  try {
+    const url = new URL(result.url);
+    url.searchParams.forEach((value, key) => {
+      result.queryParams[key] = value;
+    });
+  } catch (e) {
+    console.error('Failed to parse URL:', e);
+  }
 
   return result;
 } 

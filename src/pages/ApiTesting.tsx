@@ -4,7 +4,7 @@ import { parseCurlCommand } from '../utils/curlParser';
 import SyntaxHighlighter from 'react-syntax-highlighter';
 import { vs2015 } from 'react-syntax-highlighter/dist/esm/styles/hljs';
 import { Copy, Check, Expand, X, Terminal, Play, StopCircle, BarChart2 } from 'lucide-react';
-import { TextField, Box, Typography, Tabs, Tab, ThemeProvider, createTheme, Drawer, IconButton } from '@mui/material';
+import { TextField, Box, Typography, Tabs, Tab, ThemeProvider, createTheme, Drawer, IconButton, Dialog, DialogTitle, DialogContent, DialogActions, Button } from '@mui/material';
 import { Line, Bar } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
@@ -42,6 +42,7 @@ interface RequestDetails {
   method: string;
   url: string;
   headers: Record<string, string>;
+  enabledHeaders: Record<string, boolean>;
   body: string;
   queryParams: Record<string, string>;
 }
@@ -171,6 +172,7 @@ const ApiTesting: React.FC = () => {
         method: parsed.method || 'GET',
         url: parsed.url || '',
         headers: parsed.headers || { 'header-1': '' },
+        enabledHeaders: parsed.enabledHeaders || {},
         body: parsed.body || '',
         queryParams: parsed.queryParams || {}
       };
@@ -182,6 +184,10 @@ const ApiTesting: React.FC = () => {
       headers: {
         'Accept': 'application/vnd.github.v3+json',
         'User-Agent': 'RequestLab'
+      },
+      enabledHeaders: {
+        'Accept': true,
+        'User-Agent': true
       },
       body: '',
       queryParams: {}
@@ -242,6 +248,9 @@ const ApiTesting: React.FC = () => {
 
   const [isCurlDrawerOpen, setIsCurlDrawerOpen] = useState(false);
   const [curlCopied, setCurlCopied] = useState(false);
+
+  const [isImportCurlOpen, setIsImportCurlOpen] = useState(false);
+  const [curlInput, setCurlInput] = useState('');
 
   // Save state to session storage whenever it changes
   useEffect(() => {
@@ -315,11 +324,19 @@ const ApiTesting: React.FC = () => {
     setError(null);
     try {
       const startTime = Date.now();
+      // Filter headers based on enabledHeaders
+      const activeHeaders = Object.entries(requestDetails.headers).reduce((acc, [key, value]) => {
+        if (requestDetails.enabledHeaders[key]) {
+          acc[key] = value;
+        }
+        return acc;
+      }, {} as Record<string, string>);
+
       const result = await executeApiRequest({
         url: requestDetails.url,
         method: requestDetails.method,
         headers: {
-          ...requestDetails.headers,
+          ...activeHeaders,
           'Content-Type': contentType
         },
         body: requestDetails.body || undefined,
@@ -408,10 +425,24 @@ const ApiTesting: React.FC = () => {
     setRequestDetails(prev => ({ ...prev, url }));
   };
 
+  const handleHeaderToggle = (key: string) => {
+    setRequestDetails(prev => ({
+      ...prev,
+      enabledHeaders: {
+        ...prev.enabledHeaders,
+        [key]: !prev.enabledHeaders[key]
+      }
+    }));
+  };
+
   const handleHeaderChange = (key: string, value: string) => {
     setRequestDetails(prev => ({
       ...prev,
-      headers: { ...prev.headers, [key]: value }
+      headers: { ...prev.headers, [key]: value },
+      enabledHeaders: {
+        ...prev.enabledHeaders,
+        [key]: prev.enabledHeaders[key] ?? true // Default to true for new headers
+      }
     }));
   };
 
@@ -534,7 +565,8 @@ const ApiTesting: React.FC = () => {
           'Content-Type': contentType,
           'Cache-Control': 'no-cache, no-store, must-revalidate',
           'Pragma': 'no-cache',
-          'Expires': '0'
+          'Expires': '0',
+          'X-Request-ID': `${Date.now()}_${vuId}_${iteration}` // Add unique request ID
         };
 
         // Add unique parameter to prevent caching
@@ -1089,6 +1121,48 @@ const ApiTesting: React.FC = () => {
     setIsChartExpanded(true);
   };
 
+  const handleImportCurl = () => {
+    if (curlInput) {
+      try {
+        // Clean up the cURL command
+        const cleanCurl = curlInput.trim()
+          .replace(/\\\n/g, ' ') // Replace line continuations with spaces
+          .replace(/\s+/g, ' '); // Replace multiple spaces with single space
+
+        const parsedCurl = parseCurlCommand(cleanCurl);
+        
+        // Update method
+        setRequestDetails(prev => ({
+          ...prev,
+          method: parsedCurl.method || 'GET',
+          url: parsedCurl.url || '',
+          headers: parsedCurl.headers || {},
+          body: parsedCurl.body || '',
+          queryParams: parsedCurl.queryParams || {}
+        }));
+
+        // Set body type if present
+        if (parsedCurl.body) {
+          setBodyType('raw');
+          
+          // Try to detect content type from headers
+          const contentTypeHeader = Object.entries(parsedCurl.headers).find(([key]) => 
+            key.toLowerCase() === 'content-type'
+          );
+          if (contentTypeHeader) {
+            setContentType(contentTypeHeader[1]);
+          }
+        }
+
+        setIsImportCurlOpen(false);
+        setCurlInput('');
+      } catch (err) {
+        alert('Invalid cURL command. Please check the format and try again.');
+        console.error('Failed to parse cURL command:', err);
+      }
+    }
+  };
+
   return (
     <ThemeProvider theme={muiTheme}>
       <div className="h-screen flex flex-col bg-white dark:bg-gray-900">
@@ -1119,6 +1193,16 @@ const ApiTesting: React.FC = () => {
             className="px-4 py-2 bg-orange-500 text-white rounded hover:bg-orange-600 disabled:opacity-50"
           >
             Send
+          </button>
+          <button
+            onClick={() => setIsImportCurlOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-2 text-gray-600 dark:text-gray-400 hover:text-orange-500 dark:hover:text-orange-400 transition-colors duration-200"
+            title="Import cURL"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+            </svg>
+            <span className="text-sm font-medium">Import cURL</span>
           </button>
           <button
             onClick={() => setIsCurlDrawerOpen(true)}
@@ -1273,7 +1357,8 @@ const ApiTesting: React.FC = () => {
               {activeTab === 'headers' && (
                 <div className="flex flex-col h-[calc(100vh-30rem)]">
                   <div className="grid grid-cols-12 gap-4 text-sm font-medium text-gray-500 dark:text-gray-400 mb-4">
-                    <div className="col-span-4">KEY</div>
+                    <div className="col-span-1">ENABLED</div>
+                    <div className="col-span-3">KEY</div>
                     <div className="col-span-4">VALUE</div>
                     <div className="col-span-4">DESCRIPTION</div>
                   </div>
@@ -1281,20 +1366,32 @@ const ApiTesting: React.FC = () => {
                     <div className="space-y-4">
                       {Object.entries(requestDetails.headers).map(([key, value], index) => (
                         <div key={index} className="grid grid-cols-12 gap-4">
+                          <div className="col-span-1 flex items-center">
+                            <input
+                              type="checkbox"
+                              checked={requestDetails.enabledHeaders[key] ?? true}
+                              onChange={() => handleHeaderToggle(key)}
+                              className="w-4 h-4 text-orange-500 border-gray-300 rounded focus:ring-orange-500 dark:focus:ring-orange-400 dark:border-gray-600"
+                            />
+                          </div>
                           <input
                             type="text"
                             value={key}
                             onChange={(e) => {
                               const newKey = e.target.value;
                               const newHeaders = { ...requestDetails.headers };
+                              const newEnabledHeaders = { ...requestDetails.enabledHeaders };
                               delete newHeaders[key];
+                              delete newEnabledHeaders[key];
                               newHeaders[newKey] = value;
+                              newEnabledHeaders[newKey] = true;
                               setRequestDetails(prev => ({
                                 ...prev,
-                                headers: newHeaders
+                                headers: newHeaders,
+                                enabledHeaders: newEnabledHeaders
                               }));
                             }}
-                            className="col-span-4 p-2 border rounded dark:bg-gray-800 dark:border-gray-700 dark:text-white truncate"
+                            className="col-span-3 p-2 border rounded dark:bg-gray-800 dark:border-gray-700 dark:text-white truncate"
                             placeholder="Key"
                           />
                           <input
@@ -1313,10 +1410,13 @@ const ApiTesting: React.FC = () => {
                             <button
                               onClick={() => {
                                 const newHeaders = { ...requestDetails.headers };
+                                const newEnabledHeaders = { ...requestDetails.enabledHeaders };
                                 delete newHeaders[key];
+                                delete newEnabledHeaders[key];
                                 setRequestDetails(prev => ({
                                   ...prev,
-                                  headers: newHeaders
+                                  headers: newHeaders,
+                                  enabledHeaders: newEnabledHeaders
                                 }));
                               }}
                               className="ml-2 p-2 text-red-500 hover:text-red-600 dark:text-red-400 flex-shrink-0"
@@ -1336,7 +1436,8 @@ const ApiTesting: React.FC = () => {
                         const newKey = `header-${Object.keys(requestDetails.headers).length + 1}`;
                         setRequestDetails(prev => ({
                           ...prev,
-                          headers: { ...prev.headers, [newKey]: '' }
+                          headers: { ...prev.headers, [newKey]: '' },
+                          enabledHeaders: { ...prev.enabledHeaders, [newKey]: true }
                         }));
                       }}
                       className="flex items-center text-orange-500 hover:text-orange-600 dark:text-orange-400"
@@ -1676,6 +1777,56 @@ const ApiTesting: React.FC = () => {
             </div>
           </div>
         </Drawer>
+
+        {/* Import cURL Dialog */}
+        <Dialog 
+          open={isImportCurlOpen} 
+          onClose={() => {
+            setIsImportCurlOpen(false);
+            setCurlInput('');
+          }}
+          maxWidth="md"
+          fullWidth
+        >
+          <DialogTitle>Import cURL Command</DialogTitle>
+          <DialogContent>
+            <TextField
+              autoFocus
+              margin="dense"
+              label="Paste your cURL command here"
+              type="text"
+              fullWidth
+              multiline
+              rows={6}
+              value={curlInput}
+              onChange={(e) => setCurlInput(e.target.value)}
+              variant="outlined"
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  fontFamily: 'monospace',
+                  fontSize: '0.875rem',
+                }
+              }}
+            />
+          </DialogContent>
+          <DialogActions>
+            <Button 
+              onClick={() => {
+                setIsImportCurlOpen(false);
+                setCurlInput('');
+              }}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleImportCurl}
+              variant="contained"
+              color="primary"
+            >
+              Import
+            </Button>
+          </DialogActions>
+        </Dialog>
       </div>
 
       {error && (
