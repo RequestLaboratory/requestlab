@@ -207,8 +207,6 @@ const rightExample = JSON.stringify({
 function AppContent() {
   const [activePage, setActivePage] = useState<'compare' | 'api-testing' | 'api-interceptor'>('compare');
   const [mode, setMode] = useState<ComparisonMode>('json');
-  const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
-  const [hoverTimeout, setHoverTimeout] = useState<ReturnType<typeof setTimeout> | null>(null);
   const [showWelcomePopup, setShowWelcomePopup] = useState(true);
   const { isDarkMode, toggleTheme } = useContext(ThemeContext);
   const navigate = useNavigate();
@@ -316,30 +314,6 @@ function AppContent() {
     }
   };
 
-  const handleMouseEnter = () => {
-    if (hoverTimeout) {
-      clearTimeout(hoverTimeout);
-      setHoverTimeout(null);
-    }
-    setIsSidebarExpanded(true);
-  };
-
-  const handleMouseLeave = () => {
-    const timeout = setTimeout(() => {
-      setIsSidebarExpanded(false);
-    }, 500); // Increased delay to 500ms
-    setHoverTimeout(timeout);
-  };
-
-  // Cleanup timeout on unmount
-  useEffect(() => {
-    return () => {
-      if (hoverTimeout) {
-        clearTimeout(hoverTimeout);
-      }
-    };
-  }, [hoverTimeout]);
-
   return (
     <div className="h-screen flex bg-white dark:bg-gray-900">
       <WelcomePopup 
@@ -347,55 +321,35 @@ function AppContent() {
         onClose={() => setShowWelcomePopup(false)} 
       />
       
-      {/* Left Sidebar */}
-      <div 
-        className={`relative transition-all duration-300 ease-in-out ${
-          isSidebarExpanded ? 'w-64' : 'w-14'
-        } border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex flex-col`}
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={handleMouseLeave}
-      >
-        <div className={`flex flex-col h-full ${
-          isSidebarExpanded ? 'px-0 py-4' : 'px-0 py-4'
-        }`}>
-          <div className={`flex items-center mb-8 ${
-            isSidebarExpanded ? 'px-2' : 'justify-center'
-          }`}>
+      {/* Left Sidebar - Now persistent */}
+      <div className="w-64 border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex flex-col">
+        <div className="flex flex-col h-full px-0 py-4">
+          <div className="flex items-center mb-8 px-2">
             <GitCompare className="w-8 h-8 text-blue-600 dark:text-blue-400" />
-            {isSidebarExpanded && (
-              <h1 className="ml-3 text-xl font-bold text-gray-900 dark:text-white transition-all duration-300 truncate">
-                RequestLab
-              </h1>
-            )}
+            <h1 className="ml-3 text-xl font-bold text-gray-900 dark:text-white">
+              RequestLab
+            </h1>
           </div>
 
           <nav className="flex flex-col space-y-2">
             <button
               onClick={() => navigate('/')}
-              className={`group relative flex items-center rounded-lg ${
-                isSidebarExpanded ? 'p-2.5' : 'p-2.5 mx-1'
-              } ${
+              className={`group relative flex items-center rounded-lg p-2.5 ${
                 location.pathname === '/'
                   ? 'bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400'
                   : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50'
               } transition-colors duration-200`}
             >
-              <div className={`flex items-center ${
-                isSidebarExpanded ? 'w-full' : 'w-9 justify-center'
-              }`}>
+              <div className="flex items-center w-full">
                 <svg 
-                  className={`w-5 h-5 ${
-                    isSidebarExpanded ? '' : 'mx-auto'
-                  }`} 
+                  className="w-5 h-5" 
                   fill="none" 
                   stroke="currentColor" 
                   viewBox="0 0 24 24"
                 >
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                 </svg>
-                <span className={`ml-3 font-medium transition-all duration-300 whitespace-nowrap ${
-                  isSidebarExpanded ? 'opacity-100' : 'opacity-0 w-0'
-                }`}>
+                <span className="ml-3 font-medium">
                   JSON Compare
                 </span>
               </div>
@@ -403,30 +357,22 @@ function AppContent() {
 
             <button
               onClick={() => navigate('/api-testing')}
-              className={`group relative flex items-center rounded-lg ${
-                isSidebarExpanded ? 'p-2.5' : 'p-2.5 mx-1'
-              } ${
+              className={`group relative flex items-center rounded-lg p-2.5 ${
                 location.pathname === '/api-testing'
                   ? 'bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400'
                   : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50'
               } transition-colors duration-200`}
             >
-              <div className={`flex items-center ${
-                isSidebarExpanded ? 'w-full' : 'w-9 justify-center'
-              }`}>
+              <div className="flex items-center w-full">
                 <svg 
-                  className={`w-5 h-5 ${
-                    isSidebarExpanded ? '' : 'mx-auto'
-                  }`} 
+                  className="w-5 h-5" 
                   fill="none" 
                   stroke="currentColor" 
                   viewBox="0 0 24 24"
                 >
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
-                <span className={`ml-3 font-medium transition-all duration-300 whitespace-nowrap ${
-                  isSidebarExpanded ? 'opacity-100' : 'opacity-0 w-0'
-                }`}>
+                <span className="ml-3 font-medium">
                   API Testing
                 </span>
               </div>
@@ -434,30 +380,22 @@ function AppContent() {
 
             <button
               onClick={() => navigate('/api-interceptor')}
-              className={`group relative flex items-center rounded-lg ${
-                isSidebarExpanded ? 'p-2.5' : 'p-2.5 mx-1'
-              } ${
+              className={`group relative flex items-center rounded-lg p-2.5 ${
                 location.pathname === '/api-interceptor'
                   ? 'bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400'
                   : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50'
               } transition-colors duration-200`}
             >
-              <div className={`flex items-center ${
-                isSidebarExpanded ? 'w-full' : 'w-9 justify-center'
-              }`}>
+              <div className="flex items-center w-full">
                 <svg 
-                  className={`w-5 h-5 ${
-                    isSidebarExpanded ? '' : 'mx-auto'
-                  }`} 
+                  className="w-5 h-5" 
                   fill="none" 
                   stroke="currentColor" 
                   viewBox="0 0 24 24"
                 >
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                 </svg>
-                <span className={`ml-3 font-medium transition-all duration-300 whitespace-nowrap ${
-                  isSidebarExpanded ? 'opacity-100' : 'opacity-0 w-0'
-                }`}>
+                <span className="ml-3 font-medium">
                   API Interceptor
                 </span>
               </div>
@@ -468,9 +406,7 @@ function AppContent() {
           <div className="mt-auto pt-4 border-t border-gray-200 dark:border-gray-700">
             <button
               onClick={toggleTheme}
-              className={`w-full flex items-center ${
-                isSidebarExpanded ? 'px-3 py-2.5' : 'p-2.5 justify-center'
-              } rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-200`}
+              className="w-full flex items-center px-3 py-2.5 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-200"
               aria-label={isDarkMode ? "Switch to light mode" : "Switch to dark mode"}
             >
               {isDarkMode ? (
@@ -478,18 +414,16 @@ function AppContent() {
               ) : (
                 <Moon className="h-5 w-5 text-gray-700" />
               )}
-              {isSidebarExpanded && (
-                <span className="ml-3 font-medium whitespace-nowrap">
-                  {isDarkMode ? 'Light Mode' : 'Dark Mode'}
-                </span>
-              )}
+              <span className="ml-3 font-medium">
+                {isDarkMode ? 'Light Mode' : 'Dark Mode'}
+              </span>
             </button>
           </div>
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="flex-1  overflow-hidden">
+      <div className="flex-1 overflow-hidden">
         <Routes>
           <Route path="/" element={
             <div className="h-full overflow-auto">
