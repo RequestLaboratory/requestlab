@@ -10,6 +10,7 @@ interface ApiOptions {
   body?: string;
   timeout?: number;
   followRedirects?: boolean;
+  signal?: AbortSignal;
 }
 
 export const executeApiRequest = async (options: ApiOptions): Promise<ApiResponse> => {
