@@ -13,6 +13,30 @@ interface ApiOptions {
   signal?: AbortSignal;
 }
 
+export interface LoadTestConfig {
+  numUsers: number;
+  requestsPerMinute: number;
+}
+
+export interface LoadTestResult {
+  id: number;
+  userId: number;
+  method: string;
+  url: string;
+  startTime: number;
+  endTime: number;
+  duration: number;
+  status?: number;
+  statusText?: string;
+  responseSize: number;
+  error?: string;
+  connectionInfo?: {
+    protocol: string;
+    host: string;
+    keepAlive: boolean;
+  };
+}
+
 export const executeApiRequest = async (options: ApiOptions): Promise<ApiResponse> => {
   try {
     // Make the request
