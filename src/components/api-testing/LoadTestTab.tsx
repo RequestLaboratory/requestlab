@@ -418,7 +418,7 @@ const LoadTestTab: React.FC<LoadTestTabProps> = ({
                   <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                     <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0">
                       <tr>
-                        <th colSpan={10} className="px-6 py-3 bg-gray-800 dark:bg-gray-800">
+                        <th colSpan={10} className="px-6 py-3 bg-gray-100 dark:bg-gray-800">
                           <div className="flex justify-end">
                             <button
                               onClick={onDownloadResults}
@@ -503,9 +503,9 @@ const LoadTestTab: React.FC<LoadTestTabProps> = ({
               {resultTab === 1 && (
                 <div className="max-h-[calc(100vh-24rem)] overflow-y-auto pr-2">
                   <div className="space-y-6">
-                    <div className="bg-gray-700 rounded-lg p-4">
+                    <div className="bg-gray-100 dark:bg-gray-700 rounded-lg p-4">
                       <div className="flex justify-between items-center mb-4">
-                        <h4 className="text-lg font-medium text-white">Overall Response Time Trend</h4>
+                        <h4 className="text-lg font-medium text-gray-900 dark:text-white">Overall Response Time Trend</h4>
                         <button
                           className="p-2 text-gray-400 hover:text-white transition-colors duration-200"
                           title="Maximize chart"
@@ -554,9 +554,9 @@ const LoadTestTab: React.FC<LoadTestTabProps> = ({
                       </div>
                     </div>
 
-                    <div className="bg-gray-700 rounded-lg p-4">
+                    <div className="bg-gray-100 dark:bg-gray-700 rounded-lg p-4">
                       <div className="flex justify-between items-center mb-4">
-                        <h4 className="text-lg font-medium text-white">Response Time Trend by User</h4>
+                        <h4 className="text-lg font-medium text-gray-900 dark:text-white">Response Time Trend by User</h4>
                         <button
                           className="p-2 text-gray-400 hover:text-white transition-colors duration-200"
                           title="Maximize chart"
@@ -591,9 +591,9 @@ const LoadTestTab: React.FC<LoadTestTabProps> = ({
                       </div>
                     </div>
 
-                    <div className="bg-gray-700 rounded-lg p-4">
+                    <div className="bg-gray-100 dark:bg-gray-700 rounded-lg p-4">
                       <div className="flex justify-between items-center mb-4">
-                        <h4 className="text-lg font-medium text-white">Request Distribution</h4>
+                        <h4 className="text-lg font-medium text-gray-900 dark:text-white">Request Distribution</h4>
                         <button
                           className="p-2 text-gray-400 hover:text-white transition-colors duration-200"
                           title="Maximize chart"
@@ -659,32 +659,32 @@ const LoadTestTab: React.FC<LoadTestTabProps> = ({
                       acc[result.userId].maxResponseTime = Math.max(acc[result.userId].maxResponseTime, result.duration);
                       return acc;
                     }, {} as Record<number, UserStats>)).map(([userId, stats]) => (
-                      <div key={userId} className="bg-gray-700 rounded-lg p-4">
-                        <h4 className="text-lg font-medium text-white mb-4">User {userId}</h4>
+                      <div key={userId} className="bg-gray-100 dark:bg-gray-700 rounded-lg p-4">
+                        <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-4">User {userId}</h4>
                         <div className="grid grid-cols-2 gap-4 text-sm">
                           <div>
-                            <p className="text-gray-400">Total Requests</p>
-                            <p className="text-white">{stats.total}</p>
+                            <p className="text-gray-500 dark:text-gray-400">Total Requests</p>
+                            <p className="text-gray-900 dark:text-white">{stats.total}</p>
                           </div>
                           <div>
-                            <p className="text-gray-400">Success Rate</p>
-                            <p className="text-white">{((stats.success / stats.total) * 100).toFixed(1)}%</p>
+                            <p className="text-gray-500 dark:text-gray-400">Success Rate</p>
+                            <p className="text-gray-900 dark:text-white">{((stats.success / stats.total) * 100).toFixed(1)}%</p>
                           </div>
                           <div>
-                            <p className="text-gray-400">Failure Rate</p>
-                            <p className="text-white">{((stats.failure / stats.total) * 100).toFixed(1)}%</p>
+                            <p className="text-gray-500 dark:text-gray-400">Failure Rate</p>
+                            <p className="text-gray-900 dark:text-white">{((stats.failure / stats.total) * 100).toFixed(1)}%</p>
                           </div>
                           <div>
-                            <p className="text-gray-400">Avg Response Time</p>
-                            <p className="text-white">{stats.avgResponseTime.toFixed(2)}ms</p>
+                            <p className="text-gray-500 dark:text-gray-400">Avg Response Time</p>
+                            <p className="text-gray-900 dark:text-white">{stats.avgResponseTime.toFixed(2)}ms</p>
                           </div>
                           <div>
-                            <p className="text-gray-400">Min Response Time</p>
-                            <p className="text-white">{stats.minResponseTime.toFixed(2)}ms</p>
+                            <p className="text-gray-500 dark:text-gray-400">Min Response Time</p>
+                            <p className="text-gray-900 dark:text-white">{stats.minResponseTime.toFixed(2)}ms</p>
                           </div>
                           <div>
-                            <p className="text-gray-400">Max Response Time</p>
-                            <p className="text-white">{stats.maxResponseTime.toFixed(2)}ms</p>
+                            <p className="text-gray-500 dark:text-gray-400">Max Response Time</p>
+                            <p className="text-gray-900 dark:text-white">{stats.maxResponseTime.toFixed(2)}ms</p>
                           </div>
                         </div>
                       </div>
