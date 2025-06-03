@@ -26,7 +26,7 @@ const ComparisonResults: React.FC<ComparisonResultsProps> = ({ diff, leftSchema,
     <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
       <div className="bg-gray-100 dark:bg-gray-800 p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
         <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
-          <DatabaseIcon className="w-5 h-5 mr-2 text-blue-600 dark:text-blue-400" />
+          <DatabaseIcon className="w-5 h-5 mr-2 text-orange-600 dark:text-orange-400" />
           Schema Differences
         </h3>
         <button className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors">
@@ -37,7 +37,7 @@ const ComparisonResults: React.FC<ComparisonResultsProps> = ({ diff, leftSchema,
       {/* Table lists at the top */}
       <div className="p-4 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 grid grid-cols-2 gap-4">
         <div>
-          <h4 className="text-blue-600 dark:text-blue-400 font-medium mb-2">Tables in Left</h4>
+          <h4 className="text-orange-600 dark:text-orange-400 font-medium mb-2">Tables in Left</h4>
           <div className="flex flex-wrap gap-2">
             {diff.allTablesLeft.length === 0 && <span className="text-gray-500 dark:text-gray-400">None</span>}
             {diff.allTablesLeft.map(table => (
@@ -46,7 +46,7 @@ const ComparisonResults: React.FC<ComparisonResultsProps> = ({ diff, leftSchema,
           </div>
         </div>
         <div>
-          <h4 className="text-blue-600 dark:text-blue-400 font-medium mb-2">Tables in Right</h4>
+          <h4 className="text-orange-600 dark:text-orange-400 font-medium mb-2">Tables in Right</h4>
           <div className="flex flex-wrap gap-2">
             {diff.allTablesRight.length === 0 && <span className="text-gray-500 dark:text-gray-400">None</span>}
             {diff.allTablesRight.map(table => (

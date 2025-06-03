@@ -96,7 +96,7 @@ const SqlCompare: React.FC = () => {
   return (
     <div className="flex flex-col h-full w-full bg-white dark:bg-gray-900 text-gray-900 dark:text-white">
       <div className="mb-6">
-        <h2 className="text-xl font-semibold text-blue-600 dark:text-blue-400 mb-4 flex items-center">
+        <h2 className="text-xl font-semibold text-orange-600 dark:text-orange-400 mb-4 flex items-center">
           <ArrowLeftRightIcon className="h-5 w-5 mr-2" />
           Compare MySQL Database Schemas
         </h2>
@@ -109,10 +109,10 @@ const SqlCompare: React.FC = () => {
         {/* Left SQL Input */}
         <div className="flex flex-col">
           <div className="flex justify-between items-center mb-2">
-            <h2 className="text-lg font-medium text-blue-600 dark:text-blue-400">Left Schema</h2>
+            <h2 className="text-lg font-medium text-orange-600 dark:text-orange-400">Left Schema</h2>
             <button 
               onClick={() => loadExample('left')}
-              className="text-sm text-gray-500 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors flex items-center"
+              className="text-sm text-gray-500 dark:text-gray-300 hover:text-orange-600 dark:hover:text-orange-400 transition-colors flex items-center"
             >
               <DatabaseIcon className="w-3.5 h-3.5 mr-1" />
               Load Left Example
@@ -128,10 +128,10 @@ const SqlCompare: React.FC = () => {
         {/* Right SQL Input */}
         <div className="flex flex-col">
           <div className="flex justify-between items-center mb-2">
-            <h2 className="text-lg font-medium text-blue-600 dark:text-blue-400">Right Schema</h2>
+            <h2 className="text-lg font-medium text-orange-600 dark:text-orange-400">Right Schema</h2>
             <button 
               onClick={() => loadExample('right')}
-              className="text-sm text-gray-500 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors flex items-center"
+              className="text-sm text-gray-500 dark:text-gray-300 hover:text-orange-600 dark:hover:text-orange-400 transition-colors flex items-center"
             >
               <DatabaseIcon className="w-3.5 h-3.5 mr-1" />
               Load Right Example
@@ -148,7 +148,7 @@ const SqlCompare: React.FC = () => {
       <div className="flex justify-evenly items-center mb-10">
         <div className="flex items-center gap-4">
           <button
-            className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-medium flex items-center gap-2 transition-colors"
+            className="px-6 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 font-medium flex items-center gap-2 transition-colors"
             onClick={handleCompare}
             disabled={isComparing || !leftSql || !rightSql}
           >
