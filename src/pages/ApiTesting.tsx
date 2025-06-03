@@ -1671,7 +1671,7 @@ const ApiTesting: React.FC = () => {
                   style={vs2015}
                   customStyle={{
                     margin: 0,
-                    height: '100%',
+                    height: '26vh',
                     fontSize: '0.875rem',
                     lineHeight: '1.5rem',
                   }}
