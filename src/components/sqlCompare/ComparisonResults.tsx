@@ -1,6 +1,6 @@
 import React from 'react';
 import { EnhancedSchemaDiff } from '../../utils/sqlDiff';
-import { ChevronDownIcon, ChevronRightIcon, PlusIcon, MinusIcon, RefreshCwIcon, MaximizeIcon, DatabaseIcon } from 'lucide-react';
+import { ChevronDownIcon, ChevronRightIcon, PlusIcon, MinusIcon, RefreshCwIcon, MaximizeIcon, DatabaseIcon, XIcon } from 'lucide-react';
 import { TableSchema } from '../types/sqlTypes';
 
 interface ComparisonResultsProps {
@@ -11,6 +11,7 @@ interface ComparisonResultsProps {
 
 const ComparisonResults: React.FC<ComparisonResultsProps> = ({ diff, leftSchema, rightSchema }) => {
   const [expandedTables, setExpandedTables] = React.useState<Record<string, boolean>>({});
+  const [modalOpen, setModalOpen] = React.useState(false);
 
   const toggleTable = (tableName: string) => {
     setExpandedTables(prev => ({
@@ -22,18 +23,9 @@ const ComparisonResults: React.FC<ComparisonResultsProps> = ({ diff, leftSchema,
   // Get all unique table names from both sides for a full side-by-side list
   const allTables = Array.from(new Set([...diff.allTablesLeft, ...diff.allTablesRight]));
 
-  return (
-    <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
-      <div className="bg-gray-100 dark:bg-gray-800 p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
-          <DatabaseIcon className="w-5 h-5 mr-2 text-orange-600 dark:text-orange-400" />
-          Schema Differences
-        </h3>
-        <button className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors">
-          <MaximizeIcon className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-        </button>
-      </div>
-
+  // Extract the main content as a function for reuse
+  const renderContent = () => (
+    <>
       {/* Table lists at the top */}
       <div className="p-4 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 grid grid-cols-2 gap-4">
         <div>
@@ -174,6 +166,38 @@ const ComparisonResults: React.FC<ComparisonResultsProps> = ({ diff, leftSchema,
           </div>
         );
       })}
+    </>
+  );
+
+  return (
+    <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
+      <div className="bg-gray-100 dark:bg-gray-800 p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
+          <DatabaseIcon className="w-5 h-5 mr-2 text-orange-600 dark:text-orange-400" />
+          Schema Differences
+        </h3>
+        <button className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors" onClick={() => setModalOpen(true)}>
+          <MaximizeIcon className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+        </button>
+      </div>
+      {renderContent()}
+      {/* Modal Dialog */}
+      {modalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+          <div className="bg-white dark:bg-gray-900 rounded-lg shadow-lg max-w-5xl w-full max-h-[90vh] overflow-y-auto border border-gray-200 dark:border-gray-700 relative">
+            <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 rounded-t-lg">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
+                <DatabaseIcon className="w-5 h-5 mr-2 text-orange-600 dark:text-orange-400" />
+                Schema Differences
+              </h3>
+              <button className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors" onClick={() => setModalOpen(false)}>
+                <XIcon className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+              </button>
+            </div>
+            <div>{renderContent()}</div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
