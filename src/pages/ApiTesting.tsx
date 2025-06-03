@@ -1350,7 +1350,7 @@ const ApiTesting: React.FC = () => {
                   }`}
                 >
                   Load Test
-                </button>
+              </button>
             </nav>
           </div>
 
@@ -1596,7 +1596,7 @@ const ApiTesting: React.FC = () => {
                   results={loadTestResults}
                   onDownloadResults={downloadResultsAsCSV}
                 />
-              )}
+            )}
           </div>
         </div>
 

@@ -10,7 +10,9 @@ export interface ColumnDefinition {
     name: string;
     columns: Record<string, ColumnDefinition>;
     raw: string;
-    indexes?: Record<string, IndexDefinition>;
+    primaryKey: string[];
+    uniqueKeys: Record<string, string[]>;
+    indexes: Record<string, string[]>;
     foreignKeys?: ForeignKeyDefinition[];
     engine?: string;
     charset?: string;
@@ -44,11 +46,17 @@ export interface ColumnDefinition {
     changedColumns: Record<string, ColumnDiff>;
     indexesOnlyInLeft?: string[];
     indexesOnlyInRight?: string[];
-    changedIndexes?: Record<string, IndexDiff>;
+    changedIndexes?: ChangedKeyDiff;
+    primaryKeyChanged?: boolean;
+    uniqueKeysOnlyInLeft?: string[];
+    uniqueKeysOnlyInRight?: string[];
+    changedUniqueKeys?: ChangedKeyDiff;
     foreignKeysChanged?: boolean;
     engineChanged?: boolean;
     charsetChanged?: boolean;
   }
+  
+  export type ChangedKeyDiff = Record<string, { left: string[]; right: string[] }>;
   
   export interface ColumnDiff {
     left: string;

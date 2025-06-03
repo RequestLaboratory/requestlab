@@ -39,7 +39,7 @@ export function parseMySQLDDL(sql: string): Record<string, TableSchema> {
 
   for (const match of matches) {
     // Extract table name
-    const tableNameMatch = match.match(/CREATE TABLE\s+(?:IF NOT EXISTS\s+)?[`'"]?(\w+)[`'"]?/i);
+    const tableNameMatch = match.match(/CREATE TABLE\s+(?:IF NOT EXISTS\s+)?[`'\"]?(\w+)[`'\"]?/i);
     if (!tableNameMatch) continue;
     const tableName = tableNameMatch[1];
 
@@ -57,11 +57,15 @@ export function parseMySQLDDL(sql: string): Record<string, TableSchema> {
     if (firstParen === -1 || endParen === -1) continue;
     const columnsBlock = match.slice(firstParen + 1, endParen);
 
-    // Parse columns
+    // Parse columns and constraints
     const columns: Record<string, ColumnDefinition> = {};
+    let primaryKey: string[] = [];
+    let uniqueKeys: Record<string, string[]> = {};
+    let indexes: Record<string, string[]> = {};
     const lines = splitColumnsBlock(columnsBlock);
     for (const line of lines) {
       if (!line) continue;
+      // Column definition
       const columnRegex = /^[`"]?(\w+)[`"]?\s+([\w]+(?:\([^)]*\))?(?:\s+unsigned)?)(?:\s+(.*?))?$/i;
       const columnMatch = line.match(columnRegex);
       if (columnMatch && !/^PRIMARY KEY|^UNIQUE KEY|^KEY|^CONSTRAINT|^FOREIGN KEY|^INDEX/i.test(line)) {
@@ -79,11 +83,58 @@ export function parseMySQLDDL(sql: string): Record<string, TableSchema> {
           extra
         };
       }
+      // PRIMARY KEY
+      const pkMatch = line.match(/^PRIMARY KEY\s*\(([^)]+)\)/i);
+      if (pkMatch) {
+        primaryKey = pkMatch[1].split(',').map(s => s.replace(/[`"'\s]/g, '')).filter(Boolean);
+      }
+      // UNIQUE KEY (with or without name)
+      const uqMatch = line.match(/^UNIQUE KEY\s+[`"']?(\w+)[`"']?\s*\(([^)]+)\)/i);
+      if (uqMatch) {
+        const keyName = uqMatch[1];
+        const cols = uqMatch[2].split(',').map(s => s.replace(/[`"'\s]/g, '')).filter(Boolean);
+        uniqueKeys[keyName] = cols;
+      } else {
+        // UNIQUE KEY without name: UNIQUE KEY (`col1`)
+        const uqNoNameMatch = line.match(/^UNIQUE KEY\s*\(([^)]+)\)/i);
+        if (uqNoNameMatch) {
+          const cols = uqNoNameMatch[1].split(',').map(s => s.replace(/[`"'\s]/g, '')).filter(Boolean);
+          // Use a generated name for unnamed unique keys
+          const keyName = 'unnamed_' + cols.join('_');
+          uniqueKeys[keyName] = cols;
+        } else {
+          // UNIQUE (`col1`) (no KEY keyword)
+          const uqShortMatch = line.match(/^UNIQUE\s*\(([^)]+)\)/i);
+          if (uqShortMatch) {
+            const cols = uqShortMatch[1].split(',').map(s => s.replace(/[`"'\s]/g, '')).filter(Boolean);
+            const keyName = 'unnamed_' + cols.join('_');
+            uniqueKeys[keyName] = cols;
+          } else {
+            // CONSTRAINT ... UNIQUE KEY ...
+            const uqConstraintMatch = line.match(/^CONSTRAINT\s+[`"']?(\w+)[`"']?\s+UNIQUE KEY\s+[`"']?(\w+)[`"']?\s*\(([^)]+)\)/i);
+            if (uqConstraintMatch) {
+              const keyName = uqConstraintMatch[2];
+              const cols = uqConstraintMatch[3].split(',').map(s => s.replace(/[`"'\s]/g, '')).filter(Boolean);
+              uniqueKeys[keyName] = cols;
+            }
+          }
+        }
+      }
+      // KEY (regular index)
+      const idxMatch = line.match(/^KEY\s+[`"']?(\w+)[`"']?\s*\(([^)]+)\)/i);
+      if (idxMatch) {
+        const keyName = idxMatch[1];
+        const cols = idxMatch[2].split(',').map(s => s.replace(/[`"'\s]/g, '')).filter(Boolean);
+        indexes[keyName] = cols;
+      }
     }
     tables[tableName] = {
       name: tableName,
       columns,
       raw: match,
+      primaryKey,
+      uniqueKeys,
+      indexes,
       engine: undefined,
       charset: undefined
     };

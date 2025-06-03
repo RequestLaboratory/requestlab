@@ -184,7 +184,7 @@ const SqlCompare: React.FC = () => {
       </div>
       
       {diff && (
-        <ComparisonResults diff={diff} />
+        <ComparisonResults diff={diff} leftSchema={parseMySQLDDL(leftSql)} rightSchema={parseMySQLDDL(rightSql)} />
       )}
     </div>
   );

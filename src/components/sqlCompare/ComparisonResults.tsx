@@ -1,12 +1,15 @@
 import React from 'react';
 import { EnhancedSchemaDiff } from '../../utils/sqlDiff';
 import { ChevronDownIcon, ChevronRightIcon, PlusIcon, MinusIcon, RefreshCwIcon, MaximizeIcon, DatabaseIcon } from 'lucide-react';
+import { TableSchema } from '../types/sqlTypes';
 
 interface ComparisonResultsProps {
   diff: EnhancedSchemaDiff;
+  leftSchema: Record<string, TableSchema>;
+  rightSchema: Record<string, TableSchema>;
 }
 
-const ComparisonResults: React.FC<ComparisonResultsProps> = ({ diff }) => {
+const ComparisonResults: React.FC<ComparisonResultsProps> = ({ diff, leftSchema, rightSchema }) => {
   const [expandedTables, setExpandedTables] = React.useState<Record<string, boolean>>({});
 
   const toggleTable = (tableName: string) => {
@@ -32,7 +35,7 @@ const ComparisonResults: React.FC<ComparisonResultsProps> = ({ diff }) => {
       </div>
 
       {/* Table lists at the top */}
-      <div className="p-4 bg-gray-50 dark:bg-gray-850 border-b border-gray-200 dark:border-gray-700 grid grid-cols-2 gap-4">
+      <div className="p-4 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 grid grid-cols-2 gap-4">
         <div>
           <h4 className="text-blue-600 dark:text-blue-400 font-medium mb-2">Tables in Left</h4>
           <div className="flex flex-wrap gap-2">
@@ -53,7 +56,7 @@ const ComparisonResults: React.FC<ComparisonResultsProps> = ({ diff }) => {
         </div>
       </div>
 
-      <div className="p-4 bg-gray-50 dark:bg-gray-850 border-b border-gray-200 dark:border-gray-700 flex items-center space-x-6">
+      <div className="p-4 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex items-center space-x-6">
         <div className="flex items-center space-x-2">
           <MinusIcon className="w-4 h-4 text-red-500 dark:text-red-400" />
           <span className="text-sm text-gray-700 dark:text-gray-300">Tables/Fields removed</span>
@@ -75,6 +78,9 @@ const ComparisonResults: React.FC<ComparisonResultsProps> = ({ diff }) => {
         const tableDiff = diff.tablesInBoth[tableName];
         const removed = diff.tablesOnlyInLeft.includes(tableName);
         const added = diff.tablesOnlyInRight.includes(tableName);
+        // Get leftTable and rightTable for key/index/primaryKey display
+        const leftTable = inLeft ? leftSchema[tableName] : undefined;
+        const rightTable = inRight ? rightSchema[tableName] : undefined;
         return (
           <div key={tableName} className="border-b border-gray-200 dark:border-gray-700">
             <div
@@ -97,9 +103,30 @@ const ComparisonResults: React.FC<ComparisonResultsProps> = ({ diff }) => {
             </div>
             {expandedTables[tableName] && (
               <div className="grid grid-cols-2 divide-x divide-gray-200 dark:divide-gray-700">
-                <div className="p-4 bg-gray-50 dark:bg-gray-850">
+                <div className="p-4 bg-gray-50 dark:bg-gray-800">
                   <h5 className="text-sm font-medium text-gray-700 dark:text-gray-400 mb-2">Left Schema</h5>
                   <div className="font-mono text-sm space-y-1">
+                    {/* Primary Key diff */}
+                    {inLeft && tableDiff && tableDiff.primaryKeyChanged && (
+                      <div className="text-yellow-500 dark:text-yellow-400">~ PRIMARY KEY: {leftTable && leftTable.primaryKey ? leftTable.primaryKey.join(', ') : ''}</div>
+                    )}
+                    {/* Unique Keys only in left */}
+                    {inLeft && tableDiff && tableDiff.uniqueKeysOnlyInLeft && tableDiff.uniqueKeysOnlyInLeft.map(key => (
+                      <div key={key} className="text-red-500 dark:text-red-400">- UNIQUE KEY {key}: {leftTable && leftTable.uniqueKeys && leftTable.uniqueKeys[key] ? leftTable.uniqueKeys[key].join(', ') : ''}</div>
+                    ))}
+                    {/* Unique Keys changed */}
+                    {inLeft && tableDiff && tableDiff.changedUniqueKeys && Object.entries(tableDiff.changedUniqueKeys).map(([key, val]) => (
+                      <div key={key} className="text-yellow-500 dark:text-yellow-400">~ UNIQUE KEY {key}: {val.left.join(', ')}</div>
+                    ))}
+                    {/* Indexes only in left */}
+                    {inLeft && tableDiff && tableDiff.indexesOnlyInLeft && tableDiff.indexesOnlyInLeft.map(key => (
+                      <div key={key} className="text-red-500 dark:text-red-400">- KEY {key}: {leftTable && leftTable.indexes && leftTable.indexes[key] ? leftTable.indexes[key].join(', ') : ''}</div>
+                    ))}
+                    {/* Indexes changed */}
+                    {inLeft && tableDiff && tableDiff.changedIndexes && Object.entries(tableDiff.changedIndexes).map(([key, val]) => (
+                      <div key={key} className="text-yellow-500 dark:text-yellow-400">~ KEY {key}: {val.left.join(', ')}</div>
+                    ))}
+                    {/* Columns diff */}
                     {!inLeft && <div className="text-red-500 dark:text-red-400">(missing)</div>}
                     {inLeft && tableDiff && tableDiff.columnsOnlyInLeft.map(col => (
                       <div key={col} className="text-red-500 dark:text-red-400">- {col}</div>
@@ -109,9 +136,30 @@ const ComparisonResults: React.FC<ComparisonResultsProps> = ({ diff }) => {
                     ))}
                   </div>
                 </div>
-                <div className="p-4 bg-gray-50 dark:bg-gray-850">
+                <div className="p-4 bg-gray-50 dark:bg-gray-800">
                   <h5 className="text-sm font-medium text-gray-700 dark:text-gray-400 mb-2">Right Schema</h5>
                   <div className="font-mono text-sm space-y-1">
+                    {/* Primary Key diff */}
+                    {inRight && tableDiff && tableDiff.primaryKeyChanged && (
+                      <div className="text-yellow-500 dark:text-yellow-400">~ PRIMARY KEY: {rightTable && rightTable.primaryKey ? rightTable.primaryKey.join(', ') : ''}</div>
+                    )}
+                    {/* Unique Keys only in right */}
+                    {inRight && tableDiff && tableDiff.uniqueKeysOnlyInRight && tableDiff.uniqueKeysOnlyInRight.map(key => (
+                      <div key={key} className="text-green-600 dark:text-green-400">+ UNIQUE KEY {key}: {rightTable && rightTable.uniqueKeys && rightTable.uniqueKeys[key] ? rightTable.uniqueKeys[key].join(', ') : ''}</div>
+                    ))}
+                    {/* Unique Keys changed */}
+                    {inRight && tableDiff && tableDiff.changedUniqueKeys && Object.entries(tableDiff.changedUniqueKeys).map(([key, val]) => (
+                      <div key={key} className="text-yellow-500 dark:text-yellow-400">~ UNIQUE KEY {key}: {val.right.join(', ')}</div>
+                    ))}
+                    {/* Indexes only in right */}
+                    {inRight && tableDiff && tableDiff.indexesOnlyInRight && tableDiff.indexesOnlyInRight.map(key => (
+                      <div key={key} className="text-green-600 dark:text-green-400">+ KEY {key}: {rightTable && rightTable.indexes && rightTable.indexes[key] ? rightTable.indexes[key].join(', ') : ''}</div>
+                    ))}
+                    {/* Indexes changed */}
+                    {inRight && tableDiff && tableDiff.changedIndexes && Object.entries(tableDiff.changedIndexes).map(([key, val]) => (
+                      <div key={key} className="text-yellow-500 dark:text-yellow-400">~ KEY {key}: {val.right.join(', ')}</div>
+                    ))}
+                    {/* Columns diff */}
                     {!inRight && <div className="text-green-600 dark:text-green-400">(missing)</div>}
                     {inRight && tableDiff && tableDiff.columnsOnlyInRight.map(col => (
                       <div key={col} className="text-green-600 dark:text-green-400">+ {col}</div>
