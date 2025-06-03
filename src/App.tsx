@@ -18,6 +18,7 @@ import { ThemeContext } from './contexts/ThemeContext';
 import WelcomePopup from './components/WelcomePopup';
 import ApiInterceptor from './pages/ApiInterceptor';
 import InterceptorLogs from './pages/InterceptorLogs';
+import SQLCompare from './components/sqlCompare';
 
 const leftExample = JSON.stringify({
   name: "Ford Mustang GT",
@@ -205,7 +206,7 @@ const rightExample = JSON.stringify({
 }, null, 2);
 
 function AppContent() {
-  const [activePage, setActivePage] = useState<'compare' | 'api-testing' | 'api-interceptor'>('compare');
+  const [activePage, setActivePage] = useState<'compare' | 'api-testing' | 'api-interceptor' | 'sql-compare'>('compare');
   const [mode, setMode] = useState<ComparisonMode>('json');
   const [showWelcomePopup, setShowWelcomePopup] = useState(true);
   const { isDarkMode, toggleTheme } = useContext(ThemeContext);
@@ -279,6 +280,8 @@ function AppContent() {
       setActivePage('api-testing');
     } else if (location.pathname === '/api-interceptor') {
       setActivePage('api-interceptor');
+    } else if (location.pathname === '/sql-compare') {
+      setActivePage('sql-compare');
     } else {
       setActivePage('compare');
     }
@@ -397,6 +400,30 @@ function AppContent() {
                 </svg>
                 <span className="ml-3 font-medium">
                   API Interceptor
+                </span>
+              </div>
+            </button>
+
+            <button
+              onClick={() => navigate('/sql-compare')}
+              className={`group relative flex items-center rounded-lg p-2.5 ${
+                location.pathname === '/sql-compare'
+                  ? 'bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400'
+                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50'
+              } transition-colors duration-200`}
+            >
+              <div className="flex items-center w-full">
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <ellipse cx="12" cy="7" rx="8" ry="3" />
+                  <path d="M4 7v10c0 1.657 3.582 3 8 3s8-1.343 8-3V7" />
+                </svg>
+                <span className="ml-3 font-medium">
+                  SQL Compare
                 </span>
               </div>
             </button>
@@ -561,7 +588,8 @@ function AppContent() {
           } />
           <Route path="/api-testing" element={<ApiTesting />} />
           <Route path="/api-interceptor" element={<ApiInterceptor />} />
-          <Route path="/interceptors/:id/logs" element={<InterceptorLogs />} />
+          <Route path="/interceptor-logs" element={<InterceptorLogs />} />
+          <Route path="/sql-compare" element={<SQLCompare />} />
         </Routes>
       </div>
     </div>
