@@ -47,26 +47,39 @@ const SqlCompare: React.FC = () => {
 
   const loadExample = (side: 'left' | 'right') => {
     const exampleSQL = `CREATE DATABASE  IF NOT EXISTS \`example_db\` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */;
-USE \`example_db\`;
+        USE \`example_db\`;
 
-DROP TABLE IF EXISTS \`users\`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE \`users\` (
-  \`id\` int NOT NULL AUTO_INCREMENT,
-  \`username\` varchar(50) NOT NULL,
-  \`email\` varchar(100) NOT NULL,
-  \`password\` varchar(255) NOT NULL,
-  \`created_at\` timestamp DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (\`id\`),
-  UNIQUE KEY (\`email\`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;`;
+        DROP TABLE IF EXISTS \`users\`;
+        /*!40101 SET @saved_cs_client     = @@character_set_client */;
+        /*!50503 SET character_set_client = utf8mb4 */;
+        CREATE TABLE \`users\` (
+        \`id\` int NOT NULL AUTO_INCREMENT,
+        \`username\` varchar(50) NOT NULL,
+        \`email\` varchar(100) NOT NULL,
+        \`password\` varchar(255) NOT NULL,
+        \`created_at\` timestamp DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (\`id\`),
+        UNIQUE KEY (\`email\`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;`;
 
     // Add a slight difference if it's the right side
-    const rightExampleSQL = exampleSQL.replace(
-      'email varchar(100) NOT NULL,',
-      'email varchar(150) NOT NULL,\n  profile_image varchar(255),'
-    );
+    const rightExampleSQL = `CREATE DATABASE  IF NOT EXISTS \`example_db\` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */;
+        USE \`example_db\`;
+
+        DROP TABLE IF EXISTS \`users\`;
+        /*!40101 SET @saved_cs_client     = @@character_set_client */;
+        /*!50503 SET character_set_client = utf8mb4 */;
+        CREATE TABLE \`users\` (
+        \`id\` int NOT NULL AUTO_INCREMENT,
+        \`username\` varchar(50) NOT NULL,
+        \`email\` varchar(150) NOT NULL,
+        \`password\` varchar(255) NOT NULL,
+        \`created_at\` timestamp DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (\`id\`),
+        UNIQUE KEY (\`email\`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;`
+
+    console.log(side, "side==");
 
     if (side === 'left') {
       setLeftSql(exampleSQL);
@@ -81,13 +94,13 @@ CREATE TABLE \`users\` (
   };
 
   return (
-    <div className="flex flex-col h-full w-full">
+    <div className="flex flex-col h-full w-full bg-white dark:bg-gray-900 text-gray-900 dark:text-white">
       <div className="mb-6">
-        <h2 className="text-xl font-semibold text-blue-400 mb-4 flex items-center">
+        <h2 className="text-xl font-semibold text-blue-600 dark:text-blue-400 mb-4 flex items-center">
           <ArrowLeftRightIcon className="h-5 w-5 mr-2" />
           Compare MySQL Database Schemas
         </h2>
-        <p className="text-gray-400">
+        <p className="text-gray-600 dark:text-gray-400">
           Paste your MySQL schema dumps below or upload .sql files to compare them and identify differences.
         </p>
       </div>
@@ -96,13 +109,13 @@ CREATE TABLE \`users\` (
         {/* Left SQL Input */}
         <div className="flex flex-col">
           <div className="flex justify-between items-center mb-2">
-            <h2 className="text-lg font-medium text-blue-400">Left Schema</h2>
+            <h2 className="text-lg font-medium text-blue-600 dark:text-blue-400">Left Schema</h2>
             <button 
               onClick={() => loadExample('left')}
-              className="text-sm text-gray-300 hover:text-blue-400 transition-colors flex items-center"
+              className="text-sm text-gray-500 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors flex items-center"
             >
               <DatabaseIcon className="w-3.5 h-3.5 mr-1" />
-              Load Example
+              Load Left Example
             </button>
           </div>
           <SqlEditor 
@@ -115,13 +128,13 @@ CREATE TABLE \`users\` (
         {/* Right SQL Input */}
         <div className="flex flex-col">
           <div className="flex justify-between items-center mb-2">
-            <h2 className="text-lg font-medium text-blue-400">Right Schema</h2>
+            <h2 className="text-lg font-medium text-blue-600 dark:text-blue-400">Right Schema</h2>
             <button 
               onClick={() => loadExample('right')}
-              className="text-sm text-gray-300 hover:text-blue-400 transition-colors flex items-center"
+              className="text-sm text-gray-500 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors flex items-center"
             >
               <DatabaseIcon className="w-3.5 h-3.5 mr-1" />
-              Load Example
+              Load Right Example
             </button>
           </div>
           <SqlEditor 
@@ -151,19 +164,19 @@ CREATE TABLE \`users\` (
               </>
             )}
           </button>
-          {error && <span className="text-red-400">{error}</span>}
+          {error && <span className="text-red-500 dark:text-red-400">{error}</span>}
         </div>
         
         <div className="relative">
           <button
-            className="px-4 py-2 border border-gray-600 text-gray-300 rounded hover:bg-gray-700 font-medium flex items-center gap-2 transition-colors"
+            className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-100 dark:hover:bg-gray-700 font-medium flex items-center gap-2 transition-colors"
             onClick={copyShareLink}
           >
             <Share2Icon className="w-4 h-4" />
             Copy Share Link
           </button>
           {showCopiedMessage && (
-            <div className="absolute top-full right-0 mt-2 px-3 py-1 bg-gray-700 text-white text-xs rounded shadow-lg">
+            <div className="absolute top-full right-0 mt-2 px-3 py-1 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white text-xs rounded shadow-lg">
               Share link copied!
             </div>
           )}
