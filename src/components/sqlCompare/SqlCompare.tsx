@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { parseMySQLDDL } from '../../utils/sqlParser';
 import { diffSchemas, EnhancedSchemaDiff } from '../../utils/sqlDiff';
 import SqlEditor from './SqlEditor';
@@ -13,6 +13,15 @@ const SqlCompare: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [isComparing, setIsComparing] = useState(false);
   const [showCopiedMessage, setShowCopiedMessage] = useState(false);
+
+  useEffect(() => {
+    // On mount, check for leftSql and rightSql in the URL
+    const params = new URLSearchParams(window.location.search);
+    const left = params.get('leftSql');
+    const right = params.get('rightSql');
+    if (left) setLeftSql(decodeURIComponent(left));
+    if (right) setRightSql(decodeURIComponent(right));
+  }, []);
 
   // File upload handlers
   const handleFileUpload = (side: 'left' | 'right', e: React.ChangeEvent<HTMLInputElement>) => {
@@ -89,6 +98,13 @@ const SqlCompare: React.FC = () => {
   };
 
   const copyShareLink = () => {
+    // Build the share URL with encoded SQL
+    const baseUrl = window.location.origin + window.location.pathname;
+    const params = new URLSearchParams();
+    if (leftSql) params.set('leftSql', leftSql);
+    if (rightSql) params.set('rightSql', rightSql);
+    const shareUrl = `${baseUrl}?mode=sql&${params.toString()}`;
+    navigator.clipboard.writeText(shareUrl);
     setShowCopiedMessage(true);
     setTimeout(() => setShowCopiedMessage(false), 2000);
   };
