@@ -1,7 +1,8 @@
 import React from 'react';
 import { EnhancedSchemaDiff } from '../../utils/sqlDiff';
-import { ChevronDownIcon, ChevronRightIcon, PlusIcon, MinusIcon, RefreshCwIcon, MaximizeIcon, DatabaseIcon, XIcon } from 'lucide-react';
+import { ChevronDownIcon, ChevronRightIcon, PlusIcon, MinusIcon, RefreshCwIcon, MaximizeIcon, DatabaseIcon, XIcon, FileDownIcon } from 'lucide-react';
 import { TableSchema } from '../types/sqlTypes';
+import { saveAs } from 'file-saver';
 
 interface ComparisonResultsProps {
   diff: EnhancedSchemaDiff;
@@ -23,13 +24,78 @@ const ComparisonResults: React.FC<ComparisonResultsProps> = ({ diff, leftSchema,
   // Get all unique table names from both sides for a full side-by-side list
   const allTables = Array.from(new Set([...diff.allTablesLeft, ...diff.allTablesRight]));
 
+  // Export left schema difference
+  const exportLeftDiff = () => {
+    const result: Record<string, any> = {};
+    // Tables only in left
+    diff.tablesOnlyInLeft.forEach(table => {
+      result[table] = leftSchema[table];
+    });
+    // Tables in both with differences
+    Object.entries(diff.tablesInBoth).forEach(([table, tableDiff]) => {
+      if (leftSchema[table]) {
+        // Only include changed columns/keys
+        const tableObj: any = { ...leftSchema[table] };
+        if (tableDiff.columnsOnlyInLeft.length > 0) {
+          tableObj.columns = tableDiff.columnsOnlyInLeft.reduce((acc, col) => {
+            acc[col] = leftSchema[table].columns[col];
+            return acc;
+          }, {} as any);
+        }
+        if (Object.keys(tableDiff.changedColumns).length > 0) {
+          tableObj.changedColumns = tableDiff.changedColumns;
+        }
+        result[table] = tableObj;
+      }
+    });
+    const blob = new Blob([JSON.stringify(result, null, 2)], { type: 'application/json' });
+    saveAs(blob, 'left-schema-diff.json');
+  };
+
+  // Export right schema difference
+  const exportRightDiff = () => {
+    const result: Record<string, any> = {};
+    // Tables only in right
+    diff.tablesOnlyInRight.forEach(table => {
+      result[table] = rightSchema[table];
+    });
+    // Tables in both with differences
+    Object.entries(diff.tablesInBoth).forEach(([table, tableDiff]) => {
+      if (rightSchema[table]) {
+        // Only include changed columns/keys
+        const tableObj: any = { ...rightSchema[table] };
+        if (tableDiff.columnsOnlyInRight.length > 0) {
+          tableObj.columns = tableDiff.columnsOnlyInRight.reduce((acc, col) => {
+            acc[col] = rightSchema[table].columns[col];
+            return acc;
+          }, {} as any);
+        }
+        if (Object.keys(tableDiff.changedColumns).length > 0) {
+          tableObj.changedColumns = tableDiff.changedColumns;
+        }
+        result[table] = tableObj;
+      }
+    });
+    const blob = new Blob([JSON.stringify(result, null, 2)], { type: 'application/json' });
+    saveAs(blob, 'right-schema-diff.json');
+  };
+
   // Extract the main content as a function for reuse
   const renderContent = () => (
     <>
       {/* Table lists at the top */}
       <div className="p-4 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 grid grid-cols-2 gap-4">
         <div>
-          <h4 className="text-orange-600 dark:text-orange-400 font-medium mb-2">Tables in Left</h4>
+          <div className="flex items-center mb-2">
+            <h4 className="text-orange-600 dark:text-orange-400 font-medium mr-2">Tables in Left</h4>
+            <button
+              onClick={exportLeftDiff}
+              className="ml-2 px-3 py-1.5 flex items-center gap-1.5 text-xs font-semibold border border-orange-300 dark:border-orange-700 bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 rounded hover:bg-orange-200 dark:hover:bg-orange-800 transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+            >
+              <FileDownIcon className="w-4 h-4" />
+              Export Left Diff
+            </button>
+          </div>
           <div className="flex flex-wrap gap-2">
             {diff.allTablesLeft.length === 0 && <span className="text-gray-500 dark:text-gray-400">None</span>}
             {diff.allTablesLeft.map(table => (
@@ -38,7 +104,16 @@ const ComparisonResults: React.FC<ComparisonResultsProps> = ({ diff, leftSchema,
           </div>
         </div>
         <div>
-          <h4 className="text-orange-600 dark:text-orange-400 font-medium mb-2">Tables in Right</h4>
+          <div className="flex items-center mb-2">
+            <h4 className="text-orange-600 dark:text-orange-400 font-medium mr-2">Tables in Right</h4>
+            <button
+              onClick={exportRightDiff}
+              className="ml-2 px-3 py-1.5 flex items-center gap-1.5 text-xs font-semibold border border-orange-300 dark:border-orange-700 bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 rounded hover:bg-orange-200 dark:hover:bg-orange-800 transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+            >
+              <FileDownIcon className="w-4 h-4" />
+              Export Right Diff
+            </button>
+          </div>
           <div className="flex flex-wrap gap-2">
             {diff.allTablesRight.length === 0 && <span className="text-gray-500 dark:text-gray-400">None</span>}
             {diff.allTablesRight.map(table => (
