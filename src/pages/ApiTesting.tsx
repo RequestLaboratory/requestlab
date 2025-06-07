@@ -23,6 +23,8 @@ import {
 import 'chartjs-adapter-date-fns';
 import { ThemeContext } from '../contexts/ThemeContext';
 import LoadTestTab from '../components/api-testing/LoadTestTab';
+import { useApiCollections } from '../contexts/ApiCollectionsContext';
+import { useLoader } from '../contexts/LoaderContext';
 
 // Register ChartJS components
 ChartJS.register(
@@ -39,6 +41,7 @@ ChartJS.register(
 );
 
 interface RequestDetails {
+  name?: string;
   method: string;
   url: string;
   headers: Record<string, string>;
@@ -135,9 +138,34 @@ const syncEnabledHeaders = (headers: Record<string, string>, prevEnabled: Record
   return newEnabled;
 };
 
+type ApiTestingTab = 'params' | 'headers' | 'body' | 'pre-request' | 'tests' | 'load-test';
+const validTabs: ApiTestingTab[] = [
+  'params', 'headers', 'body', 'pre-request', 'tests', 'load-test'
+];
+function isValidTab(tab: string | null): tab is ApiTestingTab {
+  return typeof tab === 'string' && validTabs.includes(tab as ApiTestingTab);
+}
+
+// Move getInitialTab here, before its first usage
+const getInitialTab = (): ApiTestingTab => {
+  const savedTab = sessionStorage.getItem('apiTestingActiveTab');
+  return isValidTab(savedTab) ? savedTab : 'headers';
+};
+
 const ApiTesting: React.FC = () => {
   const { isDarkMode } = useContext(ThemeContext);
-  
+  const {
+    apis,
+    selectedApiId,
+    addApi,
+    updateApi,
+    selectApi,
+    unsavedApiIds,
+    markApiUnsaved,
+    unmarkApiUnsaved,
+  } = useApiCollections();
+  const { showLoader, hideLoader } = useLoader();
+
   // Create MUI theme based on dark/light mode
   const muiTheme = createTheme({
     palette: {
@@ -180,6 +208,7 @@ const ApiTesting: React.FC = () => {
       const parsed = JSON.parse(savedState);
       const headers = parsed.headers || { 'header-1': '' };
       return {
+        name: parsed.name || '',
         method: parsed.method || 'GET',
         url: parsed.url || '',
         headers,
@@ -194,6 +223,7 @@ const ApiTesting: React.FC = () => {
       'User-Agent': 'RequestLab'
     };
     return {
+      name: '',
       method: 'GET',
       url: 'https://api.github.com/repos/vuejs/vue',
       headers,
@@ -210,10 +240,7 @@ const ApiTesting: React.FC = () => {
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'params' | 'headers' | 'body' | 'pre-request' | 'tests' | 'load-test'>(() => {
-    const savedTab = sessionStorage.getItem('apiTestingActiveTab');
-    return (savedTab as 'params' | 'headers' | 'body' | 'pre-request' | 'tests' | 'load-test') || 'headers';
-  });
+  const [activeTab, setActiveTab] = useState<ApiTestingTab>(() => getInitialTab());
   const [bodyType, setBodyType] = useState<'none' | 'raw' | 'form-data' | 'x-www-form-urlencoded'>(() => {
     const savedBodyType = sessionStorage.getItem('apiTestingBodyType');
     return (savedBodyType as any) || 'none';
@@ -230,7 +257,7 @@ const ApiTesting: React.FC = () => {
   const [copyMessage, setCopyMessage] = useState<string | null>(null);
   const [isResponseExpanded, setIsResponseExpanded] = useState(false);
   const [responseTab, setResponseTab] = useState<'response' | 'network'>('response');
-  
+
   // Load testing states
   const [loadTestConfig, setLoadTestConfig] = useState<LoadTestConfig>({
     numUsers: 10,
@@ -240,7 +267,7 @@ const ApiTesting: React.FC = () => {
   const [isLoadTestRunning, setIsLoadTestRunning] = useState(false);
   const [loadTestError, setLoadTestError] = useState<string | null>(null);
   const [shouldStopLoadTest, setShouldStopLoadTest] = useState(false);
-  
+
   // Use a ref to store active controllers to avoid dependency issues in useEffect
   const activeRequestsRef = useRef<AbortController[]>([]);
   // Use a ref to track the stop signal for immediate access in async functions
@@ -292,7 +319,7 @@ const ApiTesting: React.FC = () => {
   // Update ref when shouldStopLoadTest changes
   useEffect(() => {
     stopSignalRef.current = shouldStopLoadTest;
-    
+
     if (shouldStopLoadTest) {
       // Abort all active requests when stop is requested
       abortAllRequests();
@@ -310,7 +337,7 @@ const ApiTesting: React.FC = () => {
   const abortAllRequests = () => {
     // Get controllers from ref to ensure we have the latest
     const controllers = activeRequestsRef.current;
-    
+
     // Abort each controller
     controllers.forEach(controller => {
       try {
@@ -321,10 +348,10 @@ const ApiTesting: React.FC = () => {
         console.error('Error aborting request:', error);
       }
     });
-    
+
     // Clear the controllers array
     activeRequestsRef.current = [];
-    
+
     // Set running state to false
     setIsLoadTestRunning(false);
   };
@@ -529,7 +556,7 @@ const ApiTesting: React.FC = () => {
     setShouldStopLoadTest(true);
     stopSignalRef.current = true;
     abortAllRequests();
-    
+
     // Cleanup charts before resetting data
     if (lineChartRef.current) {
       lineChartRef.current.destroy();
@@ -537,7 +564,7 @@ const ApiTesting: React.FC = () => {
     if (barChartRef.current) {
       barChartRef.current.destroy();
     }
-    
+
     setTrendData(null);
   };
 
@@ -549,7 +576,7 @@ const ApiTesting: React.FC = () => {
     setShouldStopLoadTest(false);
     stopSignalRef.current = false;
     activeRequestsRef.current = [];
-    
+
     let requestId = 1;
 
     const vus = loadTestConfig.numUsers;
@@ -576,7 +603,7 @@ const ApiTesting: React.FC = () => {
 
       const startTime = new Date();
       const controller = new AbortController();
-      
+
       // Add to active controllers ref
       activeRequestsRef.current.push(controller);
 
@@ -660,8 +687,8 @@ const ApiTesting: React.FC = () => {
           duration: endTime.getTime() - startTime.getTime(),
           status: responseData.status,
           statusText: responseData.headers['status-text'] || '',
-          responseSize: typeof responseData.response === 'string' 
-            ? responseData.response.length 
+          responseSize: typeof responseData.response === 'string'
+            ? responseData.response.length
             : JSON.stringify(responseData.response).length,
           connectionInfo: {
             keepAlive: responseData.headers['connection']?.toLowerCase() === 'keep-alive',
@@ -710,20 +737,20 @@ const ApiTesting: React.FC = () => {
     // Function to run a single VU
     const runVU = async (vuId: number): Promise<void> => {
       let iteration = 0;
-      
+
       while (iteration < requestsPerMinute && !stopSignalRef.current) {
         // Check stop signal before each request
         if (stopSignalRef.current) {
           break;
         }
-        
+
         const result = await executeRequest(vuId, iteration);
-        
+
         // Don't add results if test was stopped
         if (!stopSignalRef.current) {
           setLoadTestResults(prev => [...prev, result]);
         }
-        
+
         // Add think time between iterations, but check for stop condition
         if (!stopSignalRef.current) {
           try {
@@ -731,7 +758,7 @@ const ApiTesting: React.FC = () => {
               const timeoutId = setTimeout(() => {
                 resolve();
               }, thinkTime);
-              
+
               // Setup a watcher for the stop signal
               const checkInterval = setInterval(() => {
                 if (stopSignalRef.current) {
@@ -740,7 +767,7 @@ const ApiTesting: React.FC = () => {
                   resolve();
                 }
               }, 100); // Check every 100ms
-              
+
               // Cleanup both timers if normal resolution
     setTimeout(() => {
                 clearInterval(checkInterval);
@@ -750,12 +777,12 @@ const ApiTesting: React.FC = () => {
             // Just continue if think time is interrupted
           }
         }
-        
+
         // Check stop signal again after waiting
         if (stopSignalRef.current) {
           break;
         }
-        
+
         iteration++;
       }
     };
@@ -773,7 +800,7 @@ const ApiTesting: React.FC = () => {
         // Already stopped by user
         return;
       }
-      
+
       setIsLoadTestRunning(false);
       if (stopSignalRef.current) {
         // Add a message about the test being stopped
@@ -941,7 +968,7 @@ const ApiTesting: React.FC = () => {
         displayColors: true,
         usePointStyle: true,
         callbacks: {
-          label: function(context) {
+          label: function (context) {
             return `${context.dataset.label}: ${context.parsed.y.toFixed(2)}ms`;
           }
         }
@@ -956,7 +983,7 @@ const ApiTesting: React.FC = () => {
         ticks: {
           color: 'white',
           padding: 10,
-          callback: function(value) {
+          callback: function (value) {
             return value + 'ms';
           }
         },
@@ -1085,9 +1112,8 @@ const ApiTesting: React.FC = () => {
       result.responseSize,
       result.connectionInfo ? (
         <span className="flex items-center">
-          <span className={`w-2 h-2 rounded-full mr-2 ${
-            result.connectionInfo.keepAlive ? 'bg-green-500' : 'bg-yellow-500'
-          }`} />
+          <span className={`w-2 h-2 rounded-full mr-2 ${result.connectionInfo.keepAlive ? 'bg-green-500' : 'bg-yellow-500'
+            }`} />
           {result.connectionInfo.protocol}//{result.connectionInfo.host}
         </span>
       ) : '-',
@@ -1206,11 +1232,101 @@ const ApiTesting: React.FC = () => {
     }
   };
 
+  // Auto-select the first API in the first collection on first load if none selected
+  useEffect(() => {
+    if (!selectedApiId && apis.length > 0) {
+      // Find the first API in the first collection
+      // Sort collections by id to ensure order
+      const collections = Array.from(new Set(apis.map(api => api.collectionId))).sort((a, b) => a - b);
+      if (collections.length > 0) {
+        const firstCollectionId = collections[0];
+        const firstApi = apis.find(api => api.collectionId === firstCollectionId);
+        if (firstApi && typeof firstApi.id === 'number') {
+          selectApi(firstApi.id);
+        }
+      }
+    }
+  }, [apis, selectedApiId, selectApi]);
+
+  // When selectedApiId changes, load API details including name
+  useEffect(() => {
+    if (selectedApiId) {
+      const api = apis.find(a => a.id === selectedApiId);
+      if (api) {
+        setRequestDetails(prev => ({
+          ...prev,
+          name: api.name || '',
+          method: api.method || 'GET',
+          url: api.url || '',
+          headers: api.headers || {},
+          enabledHeaders: Object.keys(api.headers || {}).reduce((acc, key) => { acc[key] = true; return acc; }, {} as Record<string, boolean>),
+          body: api.body || '',
+          queryParams: api.params || {},
+        }));
+      }
+      // Clear response and close response panel when switching APIs
+      setResponse(null);
+      setIsResponsePanelVisible(false);
+      // Clear load test state when switching APIs
+      setLoadTestResults([]);
+      setIsLoadTestRunning(false);
+      setLoadTestError(null);
+      setTrendData(null);
+      setResultTab(0);
+      setShouldStopLoadTest(false);
+      setTimeout(hideLoader, 400);
+    }
+  }, [selectedApiId, apis]);
+
+  // Auto-manage response panel visibility on tab or response change
+  useEffect(() => {
+    switch (activeTab) {
+      case 'load-test':
+        setIsResponsePanelVisible(false);
+        break;
+      default:
+        if (!response) setIsResponsePanelVisible(false);
+        else setIsResponsePanelVisible(true);
+        break;
+    }
+  }, [activeTab, response]);
+
+  // Track unsaved changes for the current API
+  useEffect(() => {
+    if (!selectedApiId) return;
+    const api = apis.find(a => a.id === selectedApiId);
+    if (!api) return;
+    // Compare requestDetails with api fields
+    const isUnsaved =
+      api.name !== requestDetails.name ||
+      api.method !== requestDetails.method ||
+      api.url !== requestDetails.url ||
+      JSON.stringify(api.headers) !== JSON.stringify(requestDetails.headers) ||
+      JSON.stringify(api.body) !== JSON.stringify(requestDetails.body) ||
+      JSON.stringify(api.params) !== JSON.stringify(requestDetails.queryParams);
+    if (isUnsaved) {
+      markApiUnsaved(selectedApiId);
+    } else {
+      unmarkApiUnsaved(selectedApiId);
+    }
+  }, [requestDetails, apis, selectedApiId, markApiUnsaved, unmarkApiUnsaved]);
+
   return (
     <ThemeProvider theme={muiTheme}>
-    <div className="h-screen flex flex-col bg-white dark:bg-gray-900">
+      <div className="h-screen flex bg-white dark:bg-gray-900">
+        <div className="flex-1 min-w-0 flex flex-col">
+          {/* Existing ApiTesting main content starts here */}
       {/* Top Bar */}
       <div className="flex items-center gap-2 p-4 border-b border-gray-200 dark:border-gray-700">
+        {selectedApiId && (
+          <input
+            type="text"
+            value={requestDetails.name || ''}
+            onChange={e => setRequestDetails(prev => ({ ...prev, name: e.target.value }))}
+            placeholder="API Name"
+            className="px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white font-semibold w-48"
+          />
+        )}
         <select
           value={requestDetails.method}
           onChange={(e) => handleMethodChange(e.target.value)}
@@ -1238,23 +1354,60 @@ const ApiTesting: React.FC = () => {
           Send
         </button>
         <button
-            onClick={() => setIsImportCurlOpen(true)}
+              onClick={() => setIsImportCurlOpen(true)}
           className="flex items-center gap-1.5 px-3 py-2 text-gray-600 dark:text-gray-400 hover:text-orange-500 dark:hover:text-orange-400 transition-colors duration-200"
-            title="Import cURL"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-            </svg>
-            <span className="text-sm font-medium">Import cURL</span>
-          </button>
-          <button
-            onClick={() => setIsCurlDrawerOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-2 text-gray-600 dark:text-gray-400 hover:text-orange-500 dark:hover:text-orange-400 transition-colors duration-200"
-            title="Show cURL"
+              title="Import cURL"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+              </svg>
+              <span className="text-sm font-medium">Import cURL</span>
+            </button>
+            <button
+              onClick={() => setIsCurlDrawerOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-2 text-gray-600 dark:text-gray-400 hover:text-orange-500 dark:hover:text-orange-400 transition-colors duration-200"
+              title="Show cURL"
         >
           <Terminal className="w-4 h-4" />
-            <span className="text-sm font-medium">Show cURL</span>
+              <span className="text-sm font-medium">Show cURL</span>
         </button>
+        {selectedApiId && (
+          <button
+            onClick={async () => {
+              if (!requestDetails.name) { alert('API name is required'); return; }
+              // If updateApi is available, use it, else fallback to addApi
+              if (typeof updateApi === 'function') {
+                await updateApi({
+                  id: selectedApiId,
+                  collectionId: apis.find(a => a.id === selectedApiId)?.collectionId || 0,
+                  name: requestDetails.name,
+                  method: requestDetails.method,
+                  url: requestDetails.url,
+                  headers: requestDetails.headers,
+                  body: requestDetails.body,
+                  params: requestDetails.queryParams,
+                });
+                unmarkApiUnsaved(selectedApiId);
+              } else {
+                // fallback: remove and re-add
+                await addApi({
+                  collectionId: apis.find(a => a.id === selectedApiId)?.collectionId || 0,
+                  name: requestDetails.name,
+                  method: requestDetails.method,
+                  url: requestDetails.url,
+                  headers: requestDetails.headers,
+                  body: requestDetails.body,
+                  params: requestDetails.queryParams,
+                });
+                unmarkApiUnsaved(selectedApiId);
+              }
+              alert('API updated!');
+            }}
+            className="px-3 py-2 bg-orange-500 text-white rounded hover:bg-orange-600"
+          >
+            Save
+          </button>
+        )}
         {response && (
           <div className="relative">
             <button
@@ -1285,16 +1438,15 @@ const ApiTesting: React.FC = () => {
       </div>
 
       {/* Main Content */}
-        <div className="flex-1 flex flex-col">
-        {/* Main Request Area */}
           <div className="flex-1 flex flex-col">
+        {/* Main Request Area */}
+            <div className="flex-1 flex flex-col">
           {/* Tabs */}
           <div className="border-b border-gray-200 dark:border-gray-700">
             <nav className="flex space-x-8 px-4">
               <button
-                onClick={() => setActiveTab('headers')}
-                className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                  activeTab === 'headers'
+                onClick={() => isValidTab('headers') && setActiveTab('headers')}
+                    className={`py-2 px-1 border-b-2 font-medium text-sm ${activeTab === 'headers'
                     ? 'border-orange-500 text-orange-600 dark:text-orange-400'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400'
                 }`}
@@ -1302,9 +1454,8 @@ const ApiTesting: React.FC = () => {
                 Headers
               </button>
               <button
-                onClick={() => setActiveTab('body')}
-                className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                  activeTab === 'body'
+                onClick={() => isValidTab('body') && setActiveTab('body')}
+                    className={`py-2 px-1 border-b-2 font-medium text-sm ${activeTab === 'body'
                     ? 'border-orange-500 text-orange-600 dark:text-orange-400'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400'
                 }`}
@@ -1312,9 +1463,8 @@ const ApiTesting: React.FC = () => {
                 Body
               </button>
               <button
-                onClick={() => setActiveTab('params')}
-                className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                  activeTab === 'params'
+                onClick={() => isValidTab('params') && setActiveTab('params')}
+                    className={`py-2 px-1 border-b-2 font-medium text-sm ${activeTab === 'params'
                     ? 'border-orange-500 text-orange-600 dark:text-orange-400'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400'
                 }`}
@@ -1322,9 +1472,8 @@ const ApiTesting: React.FC = () => {
                 Params
               </button>
               <button
-                onClick={() => setActiveTab('pre-request')}
-                className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                  activeTab === 'pre-request'
+                onClick={() => isValidTab('pre-request') && setActiveTab('pre-request')}
+                    className={`py-2 px-1 border-b-2 font-medium text-sm ${activeTab === 'pre-request'
                     ? 'border-orange-500 text-orange-600 dark:text-orange-400'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400'
                 }`}
@@ -1332,24 +1481,22 @@ const ApiTesting: React.FC = () => {
                 Pre-request Script
               </button>
               <button
-                onClick={() => setActiveTab('tests')}
-                className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                  activeTab === 'tests'
+                onClick={() => isValidTab('tests') && setActiveTab('tests')}
+                    className={`py-2 px-1 border-b-2 font-medium text-sm ${activeTab === 'tests'
                     ? 'border-orange-500 text-orange-600 dark:text-orange-400'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400'
                 }`}
               >
                 Tests
               </button>
-                <button
-                  onClick={() => setActiveTab('load-test')}
-                  className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                    activeTab === 'load-test'
+                  <button
+                    onClick={() => isValidTab('load-test') && setActiveTab('load-test')}
+                    className={`py-2 px-1 border-b-2 font-medium text-sm ${activeTab === 'load-test'
                       ? 'border-orange-500 text-orange-600 dark:text-orange-400'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400'
-                  }`}
-                >
-                  Load Test
+                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                      }`}
+                  >
+                    Load Test
               </button>
             </nav>
           </div>
@@ -1357,7 +1504,7 @@ const ApiTesting: React.FC = () => {
           {/* Tab Content */}
           <div className="flex-1 py-4 pl-4 overflow-hidden">
             {activeTab === 'params' && (
-                <div className="space-y-4 h-[calc(100vh-30rem)] overflow-y-auto">
+                  <div className="space-y-4 h-[calc(100vh-30rem)] overflow-y-auto">
                 <div className="grid grid-cols-12 gap-4 text-sm font-medium text-gray-500 dark:text-gray-400">
                   <div className="col-span-4">KEY</div>
                   <div className="col-span-4">VALUE</div>
@@ -1386,22 +1533,22 @@ const ApiTesting: React.FC = () => {
                     />
                   </div>
                 ))}
-                  <div className="mt-4">
+                    <div className="mt-4">
                 <button
                   onClick={() => handleQueryParamChange('', '')}
                   className="text-orange-500 hover:text-orange-600 dark:text-orange-400"
                 >
                   + Add Parameter
                 </button>
-                  </div>
+                    </div>
               </div>
             )}
 
             {activeTab === 'headers' && (
-                <div className="flex flex-col h-[calc(100vh-30rem)]">
+                  <div className="flex flex-col h-[calc(100vh-30rem)]">
                 <div className="grid grid-cols-12 gap-4 text-sm font-medium text-gray-500 dark:text-gray-400 mb-4">
-                    <div className="col-span-1">ENABLED</div>
-                    <div className="col-span-3">KEY</div>
+                      <div className="col-span-1">ENABLED</div>
+                      <div className="col-span-3">KEY</div>
                   <div className="col-span-4">VALUE</div>
                   <div className="col-span-4">DESCRIPTION</div>
                 </div>
@@ -1409,40 +1556,40 @@ const ApiTesting: React.FC = () => {
                   <div className="space-y-4">
                     {Object.entries(requestDetails.headers).map(([key, value], index) => (
                       <div key={index} className="grid grid-cols-12 gap-4">
-                          <div className="col-span-1 flex items-center">
-                            <Checkbox
-                              checked={!!requestDetails.enabledHeaders[key]}
-                              onChange={() => handleHeaderToggle(key)}
-                              color="warning"
-                              sx={{
-                                color: '#f97316',
-                                '&.Mui-checked': {
+                            <div className="col-span-1 flex items-center">
+                              <Checkbox
+                                checked={!!requestDetails.enabledHeaders[key]}
+                                onChange={() => handleHeaderToggle(key)}
+                                color="warning"
+                                sx={{
                                   color: '#f97316',
-                                },
-                                '& .MuiSvgIcon-root': {
-                                  fontSize: 24,
-                                },
-                              }}
-                            />
-                          </div>
+                                  '&.Mui-checked': {
+                                    color: '#f97316',
+                                  },
+                                  '& .MuiSvgIcon-root': {
+                                    fontSize: 24,
+                                  },
+                                }}
+                              />
+                            </div>
                         <input
                           type="text"
                           value={key}
                           onChange={(e) => {
                             const newKey = e.target.value;
                             const newHeaders = { ...requestDetails.headers };
-                              const newEnabledHeaders = { ...requestDetails.enabledHeaders };
+                                const newEnabledHeaders = { ...requestDetails.enabledHeaders };
                             delete newHeaders[key];
-                              delete newEnabledHeaders[key];
+                                delete newEnabledHeaders[key];
                             newHeaders[newKey] = value;
-                              newEnabledHeaders[newKey] = true;
+                                newEnabledHeaders[newKey] = true;
                             setRequestDetails(prev => ({
                               ...prev,
-                                headers: newHeaders,
-                                enabledHeaders: newEnabledHeaders
+                                  headers: newHeaders,
+                                  enabledHeaders: newEnabledHeaders
                             }));
                           }}
-                            className="col-span-3 p-2 border rounded dark:bg-gray-800 dark:border-gray-700 dark:text-white truncate"
+                              className="col-span-3 p-2 border rounded dark:bg-gray-800 dark:border-gray-700 dark:text-white truncate"
                           placeholder="Key"
                         />
                         <input
@@ -1461,13 +1608,13 @@ const ApiTesting: React.FC = () => {
                           <button
                             onClick={() => {
                               const newHeaders = { ...requestDetails.headers };
-                                const newEnabledHeaders = { ...requestDetails.enabledHeaders };
+                                  const newEnabledHeaders = { ...requestDetails.enabledHeaders };
                               delete newHeaders[key];
-                                delete newEnabledHeaders[key];
+                                  delete newEnabledHeaders[key];
                               setRequestDetails(prev => ({
                                 ...prev,
-                                  headers: newHeaders,
-                                  enabledHeaders: newEnabledHeaders
+                                    headers: newHeaders,
+                                    enabledHeaders: newEnabledHeaders
                               }));
                             }}
                             className="ml-2 p-2 text-red-500 hover:text-red-600 dark:text-red-400 flex-shrink-0"
@@ -1487,8 +1634,8 @@ const ApiTesting: React.FC = () => {
                       const newKey = `header-${Object.keys(requestDetails.headers).length + 1}`;
                       setRequestDetails(prev => ({
                         ...prev,
-                          headers: { ...prev.headers, [newKey]: '' },
-                          enabledHeaders: { ...prev.enabledHeaders, [newKey]: true }
+                            headers: { ...prev.headers, [newKey]: '' },
+                            enabledHeaders: { ...prev.enabledHeaders, [newKey]: true }
                       }));
                     }}
                     className="flex items-center text-orange-500 hover:text-orange-600 dark:text-orange-400"
@@ -1503,12 +1650,11 @@ const ApiTesting: React.FC = () => {
             )}
 
             {activeTab === 'body' && (
-                <div className="space-y-4 h-[calc(100vh-30rem)] overflow-y-auto">
+                  <div className="space-y-4 h-[calc(100vh-30rem)] overflow-y-auto">
                 <div className="flex space-x-4">
                   <button
                     onClick={() => setBodyType('raw')}
-                    className={`px-3 py-1 text-sm font-medium ${
-                      bodyType === 'raw'
+                        className={`px-3 py-1 text-sm font-medium ${bodyType === 'raw'
                         ? 'text-orange-600 border-b-2 border-orange-500'
                         : 'text-gray-500 hover:text-gray-700'
                     }`}
@@ -1517,8 +1663,7 @@ const ApiTesting: React.FC = () => {
                   </button>
                   <button
                     onClick={() => setBodyType('form-data')}
-                    className={`px-3 py-1 text-sm font-medium ${
-                      bodyType === 'form-data'
+                        className={`px-3 py-1 text-sm font-medium ${bodyType === 'form-data'
                         ? 'text-orange-600 border-b-2 border-orange-500'
                         : 'text-gray-500 hover:text-gray-700'
                     }`}
@@ -1527,8 +1672,7 @@ const ApiTesting: React.FC = () => {
                   </button>
                   <button
                     onClick={() => setBodyType('x-www-form-urlencoded')}
-                    className={`px-3 py-1 text-sm font-medium ${
-                      bodyType === 'x-www-form-urlencoded'
+                        className={`px-3 py-1 text-sm font-medium ${bodyType === 'x-www-form-urlencoded'
                         ? 'text-orange-600 border-b-2 border-orange-500'
                         : 'text-gray-500 hover:text-gray-700'
                     }`}
@@ -1559,7 +1703,7 @@ const ApiTesting: React.FC = () => {
             )}
 
             {activeTab === 'pre-request' && (
-                <div className="space-y-4 h-[calc(100vh-30rem)] overflow-y-auto">
+                  <div className="space-y-4 h-[calc(100vh-30rem)] overflow-y-auto">
                 <div className="flex items-center space-x-2 mb-2">
                   <select className="p-1 border rounded text-sm dark:bg-gray-800 dark:border-gray-700 dark:text-white">
                     <option>JavaScript</option>
@@ -1573,7 +1717,7 @@ const ApiTesting: React.FC = () => {
             )}
 
             {activeTab === 'tests' && (
-                <div className="space-y-4 h-[calc(100vh-30rem)] overflow-y-auto">
+                  <div className="space-y-4 h-[calc(100vh-30rem)] overflow-y-auto">
                 <div className="flex items-center space-x-2 mb-2">
                   <select className="p-1 border rounded text-sm dark:bg-gray-800 dark:border-gray-700 dark:text-white">
                     <option>JavaScript</option>
@@ -1586,28 +1730,27 @@ const ApiTesting: React.FC = () => {
               </div>
             )}
 
-              {activeTab === 'load-test' && (
-                <LoadTestTab
-                  config={loadTestConfig}
-                  onConfigChange={handleLoadTestConfigChange}
-                  isRunning={isLoadTestRunning}
-                  onStart={runLoadTest}
-                  onStop={stopLoadTest}
-                  results={loadTestResults}
-                  onDownloadResults={downloadResultsAsCSV}
-                />
+                {activeTab === 'load-test' && (
+                  <LoadTestTab
+                    config={loadTestConfig}
+                    onConfigChange={handleLoadTestConfigChange}
+                    isRunning={isLoadTestRunning}
+                    onStart={runLoadTest}
+                    onStop={stopLoadTest}
+                    results={loadTestResults}
+                    onDownloadResults={downloadResultsAsCSV}
+                  />
             )}
           </div>
         </div>
 
-          {/* Response Panel - Only show when not in load test tab */}
-          {response && activeTab !== 'load-test' && (
-            <div className={`border-t border-gray-200 dark:border-gray-700 flex flex-col transition-all duration-300 ease-in-out transform ${isResponsePanelVisible ? 'h-[400px] opacity-100' : 'h-0 opacity-0'}`}>
+            {/* Response Panel - Only show when not in load test tab */}
+            {response && activeTab !== 'load-test' && (
+              <div className={`border-t border-gray-200 dark:border-gray-700 flex flex-col transition-all duration-300 ease-in-out transform ${isResponsePanelVisible ? 'h-[400px] opacity-100' : 'h-0 opacity-0'}`}>
             <div className="flex justify-between items-center p-4 border-b border-gray-200 dark:border-gray-700">
               <div className="flex items-center gap-4">
                 <div className="flex items-center gap-2">
-                  <span className={`px-2 py-1 rounded text-sm font-medium ${
-                    response.status >= 200 && response.status < 300
+                      <span className={`px-2 py-1 rounded text-sm font-medium ${response.status >= 200 && response.status < 300
                       ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
                       : response.status >= 300 && response.status < 400
                       ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400'
@@ -1642,36 +1785,34 @@ const ApiTesting: React.FC = () => {
                 </button>
               </div>
             </div>
-              <div className="flex-1 min-h-0 overflow-auto">
-                <div className="flex border-b border-gray-200 dark:border-gray-700">
-                  <button
-                    onClick={() => setResponseTab('response')}
-                    className={`px-4 py-2 text-sm font-medium ${
-                      responseTab === 'response'
+                <div className="flex-1 min-h-0 overflow-auto">
+                  <div className="flex border-b border-gray-200 dark:border-gray-700">
+                    <button
+                      onClick={() => setResponseTab('response')}
+                      className={`px-4 py-2 text-sm font-medium ${responseTab === 'response'
                         ? 'text-orange-600 border-b-2 border-orange-500'
                         : 'text-gray-500 hover:text-gray-700'
-                    }`}
-                  >
-                    Response
-                  </button>
-                  <button
-                    onClick={() => setResponseTab('network')}
-                    className={`px-4 py-2 text-sm font-medium ${
-                      responseTab === 'network'
+                        }`}
+                    >
+                      Response
+                    </button>
+                    <button
+                      onClick={() => setResponseTab('network')}
+                      className={`px-4 py-2 text-sm font-medium ${responseTab === 'network'
                         ? 'text-orange-600 border-b-2 border-orange-500'
                         : 'text-gray-500 hover:text-gray-700'
-                    }`}
-                  >
-                    Network
-                  </button>
-                </div>
-                {responseTab === 'response' ? (
+                        }`}
+                    >
+                      Network
+                    </button>
+                  </div>
+                  {responseTab === 'response' ? (
                 <SyntaxHighlighter
                   language="json"
                   style={vs2015}
                   customStyle={{
                     margin: 0,
-                    height: '26vh',
+                        height: '26vh',
                     fontSize: '0.875rem',
                     lineHeight: '1.5rem',
                   }}
@@ -1681,49 +1822,49 @@ const ApiTesting: React.FC = () => {
                   {typeof response.data === 'string'
                     ? response.data
                     : JSON.stringify(response.data, null, 2)}
-                  </SyntaxHighlighter>
-                ) : (
-                  <div className="p-4 h-[24vh] overflow-y-auto">
-                    <div className="mb-4">
-                      <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Request</h3>
-                      <SyntaxHighlighter
-                        language="bash"
-                        style={vs2015}
-                        customStyle={{
-                          margin: 0,
-                          fontSize: '0.875rem',
-                          lineHeight: '1.5rem',
-                          borderRadius: '0.375rem',
-                        }}
-                        showLineNumbers
-                        wrapLines={true}
-                      >
-                        {response.curlCommand || ''}
+                    </SyntaxHighlighter>
+                  ) : (
+                    <div className="p-4 h-[24vh] overflow-y-auto">
+                      <div className="mb-4">
+                        <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Request</h3>
+                        <SyntaxHighlighter
+                          language="bash"
+                          style={vs2015}
+                          customStyle={{
+                            margin: 0,
+                            fontSize: '0.875rem',
+                            lineHeight: '1.5rem',
+                            borderRadius: '0.375rem',
+                          }}
+                          showLineNumbers
+                          wrapLines={true}
+                        >
+                          {response.curlCommand || ''}
                 </SyntaxHighlighter>
               </div>
-                    <div>
-                      <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Response Headers</h3>
-                      <SyntaxHighlighter
-                        language="json"
-                        style={vs2015}
-                        customStyle={{
-                          margin: 0,
-                          fontSize: '0.875rem',
-                          lineHeight: '1.5rem',
-                          borderRadius: '0.375rem',
-                        }}
-                        showLineNumbers
-                        wrapLines={false}
-                      >
-                        {JSON.stringify(response.headers, null, 2)}
-                      </SyntaxHighlighter>
+                      <div>
+                        <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Response Headers</h3>
+                        <SyntaxHighlighter
+                          language="json"
+                          style={vs2015}
+                          customStyle={{
+                            margin: 0,
+                            fontSize: '0.875rem',
+                            lineHeight: '1.5rem',
+                            borderRadius: '0.375rem',
+                          }}
+                          showLineNumbers
+                          wrapLines={false}
+                        >
+                          {JSON.stringify(response.headers, null, 2)}
+                        </SyntaxHighlighter>
             </div>
           </div>
         )}
+                </div>
               </div>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
 
         {/* Full Screen Response Modal */}
         {isResponseExpanded && response && (
@@ -1732,8 +1873,7 @@ const ApiTesting: React.FC = () => {
               <div className="flex justify-between items-center p-4 border-b border-gray-200 dark:border-gray-700">
                 <div className="flex items-center gap-4">
                   <div className="flex items-center gap-2">
-                    <span className={`px-2 py-1 rounded text-sm font-medium ${
-                      response.status >= 200 && response.status < 300
+                      <span className={`px-2 py-1 rounded text-sm font-medium ${response.status >= 200 && response.status < 300
                         ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
                         : response.status >= 300 && response.status < 400
                         ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400'
@@ -1792,153 +1932,153 @@ const ApiTesting: React.FC = () => {
           </div>
         )}
 
-        {/* Full Screen Chart Modal */}
-        {isChartExpanded && (
-          <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center">
-            <div className="w-[90vw] h-[90vh] bg-gray-800 rounded-lg shadow-xl flex flex-col">
-              <div className="flex justify-between items-center p-4 border-b border-gray-700">
-                <h3 className="text-xl font-medium text-white">
-                  {expandedChartType === 'line' ? 'Response Time Trend' : 'Request Distribution'}
-                </h3>
-                <button
-                  onClick={() => {
-                    setIsChartExpanded(false);
-                    setExpandedChartType(null);
-                  }}
-                  className="p-2 text-gray-400 hover:text-white transition-colors duration-200"
-                >
-                  <X className="w-6 h-6" />
-                </button>
-              </div>
-              <div className="flex-1 p-4">
-                <div className="h-full w-full">
-                  <ChartErrorBoundary>
-                    {expandedChartType === 'line' && trendData && (
-                      <Line
-                        data={trendData}
-                        options={{
-                          ...lineChartOptions,
-                          maintainAspectRatio: false,
-                          responsive: true
-                        }}
-                      />
-                    )}
-                    {expandedChartType === 'bar' && (
-                      <Bar
-                        data={prepareDistributionData()!}
-                        options={{
-                          ...barChartOptions,
-                          maintainAspectRatio: false,
-                          responsive: true
-                        }}
-                      />
-                    )}
-                  </ChartErrorBoundary>
+          {/* Full Screen Chart Modal */}
+          {isChartExpanded && (
+            <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center">
+              <div className="w-[90vw] h-[90vh] bg-gray-800 rounded-lg shadow-xl flex flex-col">
+                <div className="flex justify-between items-center p-4 border-b border-gray-700">
+                  <h3 className="text-xl font-medium text-white">
+                    {expandedChartType === 'line' ? 'Response Time Trend' : 'Request Distribution'}
+                  </h3>
+                  <button
+                    onClick={() => {
+                      setIsChartExpanded(false);
+                      setExpandedChartType(null);
+                    }}
+                    className="p-2 text-gray-400 hover:text-white transition-colors duration-200"
+                  >
+                    <X className="w-6 h-6" />
+                  </button>
+                </div>
+                <div className="flex-1 p-4">
+                  <div className="h-full w-full">
+                    <ChartErrorBoundary>
+                      {expandedChartType === 'line' && trendData && (
+                        <Line
+                          data={trendData}
+                          options={{
+                            ...lineChartOptions,
+                            maintainAspectRatio: false,
+                            responsive: true
+                          }}
+                        />
+                      )}
+                      {expandedChartType === 'bar' && (
+                        <Bar
+                          data={prepareDistributionData()!}
+                          options={{
+                            ...barChartOptions,
+                            maintainAspectRatio: false,
+                            responsive: true
+                          }}
+                        />
+                      )}
+                    </ChartErrorBoundary>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* cURL Drawer */}
-        <Drawer
-          anchor="right"
-          open={isCurlDrawerOpen}
-          onClose={() => setIsCurlDrawerOpen(false)}
-          PaperProps={{
-            sx: {
-              width: { xs: '100vw', sm: 480 },
-              backgroundColor: isDarkMode ? '#18181b' : '#fff',
-              color: isDarkMode ? '#fff' : '#18181b',
-              p: 0,
-            },
-          }}
-        >
-          <div className="flex flex-col h-full">
-            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700">
-              <span className="text-lg font-semibold">cURL Command</span>
-              <IconButton onClick={() => setIsCurlDrawerOpen(false)}>
-                <X className="w-6 h-6" />
-              </IconButton>
+          {/* cURL Drawer */}
+          <Drawer
+            anchor="right"
+            open={isCurlDrawerOpen}
+            onClose={() => setIsCurlDrawerOpen(false)}
+            PaperProps={{
+              sx: {
+                width: { xs: '100vw', sm: 480 },
+                backgroundColor: isDarkMode ? '#18181b' : '#fff',
+                color: isDarkMode ? '#fff' : '#18181b',
+                p: 0,
+              },
+            }}
+          >
+            <div className="flex flex-col h-full">
+              <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+                <span className="text-lg font-semibold">cURL Command</span>
+                <IconButton onClick={() => setIsCurlDrawerOpen(false)}>
+                  <X className="w-6 h-6" />
+                </IconButton>
+              </div>
+              <div className="flex-1 overflow-auto p-4">
+                <SyntaxHighlighter
+                  language="bash"
+                  style={vs2015}
+                  customStyle={{
+                    background: 'none',
+                    fontSize: '0.95rem',
+                    borderRadius: 8,
+                    padding: 0,
+                    margin: 0,
+                    wordBreak: 'break-all',
+                  }}
+                  wrapLines={true}
+                >
+                  {buildCurlCommand()}
+                </SyntaxHighlighter>
+              </div>
+              <div className="flex items-center justify-end gap-2 px-4 py-3 border-t border-gray-200 dark:border-gray-700">
+                <button
+                  onClick={handleCopyCurlInDrawer}
+                  className="flex items-center gap-1 px-4 py-2 bg-orange-500 text-white rounded hover:bg-orange-600 transition-colors duration-200"
+                >
+                  {curlCopied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                  <span className="ml-1">Copy</span>
+                </button>
+              </div>
             </div>
-            <div className="flex-1 overflow-auto p-4">
-              <SyntaxHighlighter
-                language="bash"
-                style={vs2015}
-                customStyle={{
-                  background: 'none',
-                  fontSize: '0.95rem',
-                  borderRadius: 8,
-                  padding: 0,
-                  margin: 0,
-                  wordBreak: 'break-all',
+          </Drawer>
+
+          {/* Import cURL Dialog */}
+          <Dialog
+            open={isImportCurlOpen}
+            onClose={() => {
+              setIsImportCurlOpen(false);
+              setCurlInput('');
+            }}
+            maxWidth="md"
+            fullWidth
+          >
+            <DialogTitle>Import cURL Command</DialogTitle>
+            <DialogContent>
+              <TextField
+                autoFocus
+                margin="dense"
+                label="Paste your cURL command here"
+                type="text"
+                fullWidth
+                multiline
+                rows={6}
+                value={curlInput}
+                onChange={(e) => setCurlInput(e.target.value)}
+                variant="outlined"
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    fontFamily: 'monospace',
+                    fontSize: '0.875rem',
+                  }
                 }}
-                wrapLines={true}
+              />
+            </DialogContent>
+            <DialogActions>
+              <Button
+                onClick={() => {
+                  setIsImportCurlOpen(false);
+                  setCurlInput('');
+                }}
               >
-                {buildCurlCommand()}
-              </SyntaxHighlighter>
-            </div>
-            <div className="flex items-center justify-end gap-2 px-4 py-3 border-t border-gray-200 dark:border-gray-700">
-              <button
-                onClick={handleCopyCurlInDrawer}
-                className="flex items-center gap-1 px-4 py-2 bg-orange-500 text-white rounded hover:bg-orange-600 transition-colors duration-200"
+                Cancel
+              </Button>
+              <Button
+                onClick={handleImportCurl}
+                variant="contained"
+                color="primary"
               >
-                {curlCopied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                <span className="ml-1">Copy</span>
-              </button>
-            </div>
-          </div>
-        </Drawer>
-
-        {/* Import cURL Dialog */}
-        <Dialog 
-          open={isImportCurlOpen} 
-          onClose={() => {
-            setIsImportCurlOpen(false);
-            setCurlInput('');
-          }}
-          maxWidth="md"
-          fullWidth
-        >
-          <DialogTitle>Import cURL Command</DialogTitle>
-          <DialogContent>
-            <TextField
-              autoFocus
-              margin="dense"
-              label="Paste your cURL command here"
-              type="text"
-              fullWidth
-              multiline
-              rows={6}
-              value={curlInput}
-              onChange={(e) => setCurlInput(e.target.value)}
-              variant="outlined"
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  fontFamily: 'monospace',
-                  fontSize: '0.875rem',
-                }
-              }}
-            />
-          </DialogContent>
-          <DialogActions>
-            <Button 
-              onClick={() => {
-                setIsImportCurlOpen(false);
-                setCurlInput('');
-              }}
-            >
-              Cancel
-            </Button>
-            <Button 
-              onClick={handleImportCurl}
-              variant="contained"
-              color="primary"
-            >
-              Import
-            </Button>
-          </DialogActions>
-        </Dialog>
+                Import
+              </Button>
+            </DialogActions>
+          </Dialog>
       </div>
 
       {error && (
@@ -1951,15 +2091,16 @@ const ApiTesting: React.FC = () => {
           <p className="text-green-600 dark:text-green-400">{copyMessage}</p>
         </div>
       )}
+    </div>
     </ThemeProvider>
   );
 };
 
 const styles = `
 @keyframes gradient {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
+          0 % { background- position: 0% 50%; }
+        50% {background - position: 100% 50%; }
+        100% {background - position: 0% 50%; }
 }
 `;
 
