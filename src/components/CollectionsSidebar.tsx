@@ -79,7 +79,7 @@ const NewCollectionModal: React.FC<NewCollectionModalProps> = ({ isOpen, onClose
 interface ImportCurlModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (curl: string, collectionId: number) => void;
+  onSubmit: (curl: string, collectionId: number, name: string) => void;
   collections: Array<{ id?: number; name: string }>;
   loading: boolean;
 }
@@ -87,13 +87,15 @@ interface ImportCurlModalProps {
 const ImportCurlModal: React.FC<ImportCurlModalProps> = ({ isOpen, onClose, onSubmit, collections, loading }) => {
   const [curl, setCurl] = useState('');
   const [collectionId, setCollectionId] = useState<number | ''>('');
+  const [name, setName] = useState('Imported API');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (curl.trim() && collectionId) {
-      onSubmit(curl.trim(), collectionId);
+      onSubmit(curl.trim(), collectionId, name.trim() || 'Imported API');
       setCurl('');
       setCollectionId('');
+      setName('');
     }
   };
 
@@ -107,6 +109,19 @@ const ImportCurlModal: React.FC<ImportCurlModalProps> = ({ isOpen, onClose, onSu
             Import cURL Command
           </h3>
           <form onSubmit={handleSubmit}>
+            <div className="mb-4">
+              <label htmlFor="api-name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Name
+              </label>
+              <input
+                id="api-name"
+                type="text"
+                value={name}
+                onChange={e => setName(e.target.value)}
+                placeholder="Enter API name..."
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 dark:bg-gray-700 dark:text-white transition-all duration-200"
+              />
+            </div>
             <div className="mb-4">
               <label htmlFor="collection-select" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Target Collection
@@ -192,10 +207,10 @@ const CollectionsSidebar: React.FC = () => {
     await addCollection(name);
   };
 
-  const handleImportCurl = async (curl: string, collectionId: number) => {
+  const handleImportCurl = async (curl: string, collectionId: number, name: string) => {
     setImportLoading(true);
     try {
-      await importCurlToCollection(curl, collectionId);
+      await importCurlToCollection(curl, collectionId, name);
       setIsImportCurlOpen(false);
     } finally {
       setImportLoading(false);

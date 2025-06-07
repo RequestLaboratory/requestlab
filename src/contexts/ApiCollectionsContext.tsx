@@ -52,7 +52,7 @@ interface ApiCollectionsContextType {
   selectCollection: (id: number) => void;
   addApi: (api: Omit<ApiEntry, 'id'>) => Promise<void>;
   selectApi: (id: number) => void;
-  importCurlToCollection: (curl: string, collectionId: number) => Promise<void>;
+  importCurlToCollection: (curl: string, collectionId: number, name?: string) => Promise<void>;
   updateApi: (api: ApiEntry) => Promise<void>;
   unsavedApiIds: Set<number>;
   markApiUnsaved: (id: number) => void;
@@ -115,12 +115,12 @@ export const ApiCollectionsProvider: React.FC<{ children: React.ReactNode }> = (
   };
 
   // Placeholder for cURL import logic
-  const importCurlToCollection = async (curl: string, collectionId: number) => {
+  const importCurlToCollection = async (curl: string, collectionId: number, name?: string) => {
     try {
       const parsed = parseCurlCommand(curl);
       await addApi({
         collectionId,
-        name: 'Imported API',
+        name: name || 'Imported API',
         method: parsed.method || 'GET',
         url: parsed.url || '',
         headers: parsed.headers || {},
@@ -132,7 +132,7 @@ export const ApiCollectionsProvider: React.FC<{ children: React.ReactNode }> = (
       // fallback to dummy if parse fails
       await addApi({
         collectionId,
-        name: 'Imported API',
+        name: name || 'Imported API',
         method: 'GET',
         url: 'https://example.com',
         headers: {},
