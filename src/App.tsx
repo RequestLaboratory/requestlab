@@ -389,8 +389,21 @@ function AppContent() {
             </button>
 
             {showCollections && (
-              <div className="ml-6 mt-1">
-                <CollectionsSidebar />
+              <div
+                className="ml-4 mt-1 max-h-[50vh] overflow-y-auto overflow-x-hidden"
+                style={{
+                  scrollbarWidth: 'none',
+                  msOverflowStyle: 'none',
+                }}
+              >
+                <style>{`
+                  .sidebar-scrollbar::-webkit-scrollbar {
+                    display: none;
+                  }
+                `}</style>
+                <div className="sidebar-scrollbar">
+                  <CollectionsSidebar />
+                </div>
               </div>
             )}
 

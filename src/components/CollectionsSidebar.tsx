@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Plus, Upload, ChevronRight, ChevronDown, Folder, FolderOpen, Globe } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { Plus, Upload, ChevronRight, ArrowDownToLine, Folder, FolderOpen, Globe, Trash2 } from 'lucide-react';
 import { useApiCollections } from '../contexts/ApiCollectionsContext';
 import { useLoader } from '../contexts/LoaderContext';
 
@@ -180,6 +180,71 @@ const ImportCurlModal: React.FC<ImportCurlModalProps> = ({ isOpen, onClose, onSu
   );
 };
 
+// Modal for importing a collection
+interface ImportCollectionModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onImport: (file: File) => void;
+  loading: boolean;
+  error: string | null;
+}
+
+const ImportCollectionModal: React.FC<ImportCollectionModalProps> = ({ isOpen, onClose, onImport, loading, error }) => {
+  const [file, setFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFile(e.target.files?.[0] || null);
+  };
+
+  const handleImport = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (file) onImport(file);
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 animate-in fade-in duration-200">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-96 max-w-[90vw] animate-in zoom-in-95 duration-200">
+        <div className="p-6">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+            Import Collection
+          </h3>
+          <form onSubmit={handleImport}>
+            <div className="mb-4">
+              <input
+                type="file"
+                accept="application/json,.json"
+                ref={fileInputRef}
+                onChange={handleFileChange}
+                className="block w-full text-sm text-gray-700 dark:text-gray-200 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-orange-50 file:text-orange-700 hover:file:bg-orange-100"
+              />
+            </div>
+            {error && <div className="mb-2 text-xs text-red-500">{error}</div>}
+            <div className="flex justify-end space-x-3">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 transition-all duration-200"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={!file || loading}
+                className="px-4 py-2 text-sm font-medium text-white bg-orange-600 border border-transparent rounded-md hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 active:scale-95"
+              >
+                {loading ? 'Importing...' : 'Import'}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const CollectionsSidebar: React.FC = () => {
   const {
     collections,
@@ -191,13 +256,18 @@ const CollectionsSidebar: React.FC = () => {
     selectApi,
     importCurlToCollection,
     unsavedApiIds,
+    deleteCollection,
   } = useApiCollections();
-  const { showLoader, hideLoader } = useLoader();
-  
+  const { showLoader } = useLoader();
+
   const [expanded, setExpanded] = useState<Record<number, boolean>>({});
   const [isNewCollectionOpen, setIsNewCollectionOpen] = useState(false);
   const [isImportCurlOpen, setIsImportCurlOpen] = useState(false);
   const [importLoading, setImportLoading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [importError, setImportError] = useState<string | null>(null);
+  const [isImportCollectionOpen, setIsImportCollectionOpen] = useState(false);
+  const [importCollectionLoading, setImportCollectionLoading] = useState(false);
 
   const toggleExpand = (id: number) => {
     setExpanded((prev) => ({ ...prev, [id]: !prev[id] }));
@@ -217,31 +287,145 @@ const CollectionsSidebar: React.FC = () => {
     }
   };
 
+  const handleExportCollection = (collectionId: number) => {
+    const collection = collections.find(c => c.id === collectionId);
+    if (!collection) return;
+    const collectionApis = apis.filter(api => api.collectionId === collectionId);
+    // Build Postman v2.1 collection JSON
+    const postmanCollection = {
+      info: {
+        _postman_id: collection.id?.toString() || '',
+        name: collection.name,
+        schema: 'https://schema.getpostman.com/json/collection/v2.1.0/collection.json',
+      },
+      item: collectionApis.map(api => ({
+        name: api.name,
+        request: {
+          method: api.method,
+          header: Object.entries(api.headers || {}).map(([key, value]) => ({ key, value, type: 'text' })),
+          url: (() => {
+            try {
+              const u = new URL(api.url);
+              return {
+                raw: api.url,
+                protocol: u.protocol.replace(':', ''),
+                host: u.hostname.split('.'),
+                port: u.port || undefined,
+                path: u.pathname.split('/').filter(Boolean),
+                query: Array.from(u.searchParams.entries()).map(([key, value]) => ({ key, value })),
+              };
+            } catch {
+              return { raw: api.url };
+            }
+          })(),
+          ...(api.body ? { body: { mode: 'raw', raw: api.body } } : {}),
+        },
+        response: [],
+      })),
+    };
+    const blob = new Blob([JSON.stringify(postmanCollection, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${collection.name.replace(/\s+/g, '_')}_postman_collection.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImportCollectionFile = async (file: File) => {
+    setImportCollectionLoading(true);
+    try {
+      const text = await file.text();
+      const json = JSON.parse(text);
+      // Always create a new collection for import
+      let collectionName = '';
+      let apis: any[] = [];
+      if (json.info && json.item) {
+        // Postman format
+        collectionName = json.info.name || 'Imported Collection';
+        apis = json.item.map((item: any) => ({
+          name: item.name,
+          method: item.request?.method || 'GET',
+          url: item.request?.url?.raw || '',
+          headers: (item.request?.header || []).reduce((acc: any, h: any) => { acc[h.key] = h.value; return acc; }, {}),
+          body: item.request?.body?.raw || '',
+          params: (item.request?.url?.query || []).reduce((acc: any, q: any) => { acc[q.key] = q.value; return acc; }, {}),
+        }));
+      } else if (json.name && Array.isArray(json.apis)) {
+        // Our own format
+        collectionName = json.name;
+        apis = json.apis;
+      } else {
+        throw new Error('Unsupported collection format');
+      }
+      // Always add a new collection
+      const newCollectionId = await addCollection(collectionName);
+      for (const api of apis) {
+        await importCurlToCollection(
+          `curl '${api.url}'${api.method && api.method !== 'GET' ? ` -X ${api.method}` : ''}` +
+            Object.entries(api.headers || {}).map(([k, v]) => ` -H '${k}: ${v}'`).join('') +
+            (api.body ? ` -d '${api.body}'` : ''),
+          newCollectionId,
+          api.name || 'Imported API'
+        );
+      }
+      setImportCollectionLoading(false);
+      setIsImportCollectionOpen(false);
+      setImportError(null);
+    } catch (err: any) {
+      setImportError('Failed to import collection: ' + (err.message || 'Unknown error'));
+      setImportCollectionLoading(false);
+    }
+  };
+
   return (
     <>
       <div className="flex flex-col h-full">
         {/* Header Actions */}
-        <div className="p-3 border-b border-gray-100 dark:border-gray-700">
+        <div className="w-64 p-3 border-b border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800"
+            style={{
+                marginLeft: '-1.4rem',
+                position: 'fixed',
+                zIndex: 10,
+            }}
+        >
           <div className="flex flex-row space-x-2">
             <button
               onClick={() => setIsNewCollectionOpen(true)}
-              className="flex items-center justify-center px-3 py-2 text-sm font-medium text-white bg-orange-600 rounded-md hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 transition-all duration-200 transform hover:scale-105 active:scale-95"
+              className="flex items-center justify-center px-2 py-1 text-xs font-medium text-white bg-orange-600 rounded-md hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 transition-all duration-200"
             >
-              <Plus className="w-4 h-4 mr-2" />
+              <Plus className="w-3 h-3 mr-1" />
               Collection
             </button>
             <button
               onClick={() => setIsImportCurlOpen(true)}
-              className="flex items-center justify-center px-3 py-2 text-sm font-medium text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-700 rounded-md hover:bg-orange-100 dark:hover:bg-orange-900/30 transition-all duration-200 transform hover:scale-105 active:scale-95"
+              className="flex items-center justify-center px-2 py-1 text-xs font-medium text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-700 rounded-md hover:bg-orange-100 dark:hover:bg-orange-900/30 transition-all duration-200"
             >
-              <Upload className="w-4 h-4 mr-2" />
+              <Upload className="w-3 h-3 mr-1" />
               cURL
             </button>
+            <button
+              onClick={() => setIsImportCollectionOpen(true)}
+              className="flex items-center justify-center px-2 py-1 text-xs font-medium text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-700 rounded-md hover:bg-orange-100 dark:hover:bg-orange-900/30 transition-all duration-200"
+              title="Import Collection"
+            >
+             <Upload className="w-3 h-3 mr-1" />
+              Import
+            </button>
           </div>
+          {importError && (
+            <div className="mt-2 text-xs text-red-500">{importError}</div>
+          )}
         </div>
 
         {/* Collections List */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto"
+        style={{
+            marginTop: '3rem',
+        }}
+        >
           {collections.length === 0 ? (
             <div className="p-4 text-center animate-in fade-in duration-300">
               <div className="text-gray-400 dark:text-gray-500 mb-2">
@@ -278,6 +462,7 @@ const CollectionsSidebar: React.FC = () => {
                           : 'hover:bg-gray-100 dark:hover:bg-gray-700/50 text-gray-700 dark:text-gray-300 hover:shadow-sm'
                       }`}
                       onClick={() => {
+                        showLoader();
                         selectCollection(collection.id!);
                         if (!isExpanded) {
                           toggleExpand(collection.id!);
@@ -307,9 +492,28 @@ const CollectionsSidebar: React.FC = () => {
                         <span className="font-medium truncate">{collection.name}</span>
                       </div>
                       
-                      <span className="text-xs bg-gray-200 dark:bg-gray-600 text-gray-600 dark:text-gray-300 px-2 py-0.5 rounded-full ml-2 transition-all duration-200 group-hover:bg-gray-300 dark:group-hover:bg-gray-500">
-                        {collectionApis.length}
-                      </span>
+                      <button
+                        onClick={e => {
+                          e.stopPropagation();
+                          handleExportCollection(collection.id!);
+                        }}
+                        className="ml-2 p-1 rounded hover:bg-orange-100 dark:hover:bg-orange-900/30"
+                        title="Export Collection"
+                      >
+                        <ArrowDownToLine className="w-4 h-4 text-orange-500" />
+                      </button>
+                      <button
+                        onClick={e => {
+                          e.stopPropagation();
+                          if (window.confirm(`Delete collection "${collection.name}" and all its APIs?`)) {
+                            deleteCollection(collection.id!);
+                          }
+                        }}
+                        className="ml-1 p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30"
+                        title="Delete Collection"
+                      >
+                        <Trash2 className="w-4 h-4 text-red-500" />
+                      </button>
                     </div>
 
                     {/* API Items with smooth expand/collapse */}
@@ -340,10 +544,7 @@ const CollectionsSidebar: React.FC = () => {
                                 onClick={() => {
                                   showLoader();
                                   selectCollection(collection.id!);
-                                  setTimeout(() => {
-                                    selectApi(api.id!);
-                                    setTimeout(hideLoader, 600);
-                                  }, 0);
+                                  selectApi(api.id!);
                                 }}
                               >
                                 <div className="flex items-center flex-1 min-w-0">
@@ -373,20 +574,25 @@ const CollectionsSidebar: React.FC = () => {
           )}
         </div>
       </div>
-
-      {/* Modals */}
+      {/* Render modals at the bottom so they are always present */}
       <NewCollectionModal
         isOpen={isNewCollectionOpen}
         onClose={() => setIsNewCollectionOpen(false)}
         onSubmit={handleNewCollection}
       />
-
       <ImportCurlModal
         isOpen={isImportCurlOpen}
         onClose={() => setIsImportCurlOpen(false)}
         onSubmit={handleImportCurl}
         collections={collections}
         loading={importLoading}
+      />
+      <ImportCollectionModal
+        isOpen={isImportCollectionOpen}
+        onClose={() => { setIsImportCollectionOpen(false); setImportError(null); }}
+        onImport={handleImportCollectionFile}
+        loading={importCollectionLoading}
+        error={importError}
       />
     </>
   );

@@ -48,12 +48,13 @@ interface ApiCollectionsContextType {
   apis: ApiEntry[];
   selectedCollectionId: number | null;
   selectedApiId: number | null;
-  addCollection: (name: string) => Promise<void>;
+  addCollection: (name: string) => Promise<number>;
   selectCollection: (id: number) => void;
   addApi: (api: Omit<ApiEntry, 'id'>) => Promise<void>;
   selectApi: (id: number) => void;
   importCurlToCollection: (curl: string, collectionId: number, name?: string) => Promise<void>;
   updateApi: (api: ApiEntry) => Promise<void>;
+  deleteCollection: (collectionId: number) => Promise<void>;
   unsavedApiIds: Set<number>;
   markApiUnsaved: (id: number) => void;
   unmarkApiUnsaved: (id: number) => void;
@@ -92,6 +93,7 @@ export const ApiCollectionsProvider: React.FC<{ children: React.ReactNode }> = (
     const id = await db.collections.add({ name });
     setCollections(await db.collections.toArray());
     setSelectedCollectionId(id);
+    return id;
   };
 
   const selectCollection = (id: number) => {
@@ -112,6 +114,18 @@ export const ApiCollectionsProvider: React.FC<{ children: React.ReactNode }> = (
     if (!api.id) return;
     await db.apis.update(api.id, { ...api });
     setApis(await db.apis.toArray());
+  };
+
+  // Delete a collection and all its APIs
+  const deleteCollection = async (collectionId: number) => {
+    await db.apis.where('collectionId').equals(collectionId).delete();
+    await db.collections.delete(collectionId);
+    setCollections(await db.collections.toArray());
+    setApis(await db.apis.toArray());
+    if (selectedCollectionId === collectionId) {
+      setSelectedCollectionId(null);
+      setSelectedApiId(null);
+    }
   };
 
   // Placeholder for cURL import logic
@@ -155,6 +169,7 @@ export const ApiCollectionsProvider: React.FC<{ children: React.ReactNode }> = (
         selectApi,
         importCurlToCollection,
         updateApi,
+        deleteCollection,
         ...unsavedApi,
       }}
     >
