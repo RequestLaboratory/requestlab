@@ -48,6 +48,7 @@ interface RequestDetails {
   enabledHeaders: Record<string, boolean>;
   body: string;
   queryParams: Record<string, string>;
+  formData?: { key: string; value: string; type?: 'text' | 'file'; src?: string }[];
 }
 
 interface ApiResponse {
@@ -202,7 +203,7 @@ const ApiTesting: React.FC = () => {
     },
   });
 
-  const [requestDetails, setRequestDetails] = useState<RequestDetails>(() => {
+  const [requestDetails, setRequestDetails] = useState<RequestDetails & { formData?: { key: string; value: string }[] }>(() => {
     const savedState = sessionStorage.getItem('apiTestingState');
     if (savedState) {
       const parsed = JSON.parse(savedState);
@@ -214,7 +215,8 @@ const ApiTesting: React.FC = () => {
         headers,
         enabledHeaders: syncEnabledHeaders(headers, parsed.enabledHeaders),
         body: parsed.body || '',
-        queryParams: parsed.queryParams || {}
+        queryParams: parsed.queryParams || {},
+        formData: parsed.formData || [{ key: '', value: '' }],
       };
     }
     // Default GitHub API example
@@ -229,7 +231,8 @@ const ApiTesting: React.FC = () => {
       headers,
       enabledHeaders: syncEnabledHeaders(headers),
       body: '',
-      queryParams: {}
+      queryParams: {},
+      formData: [{ key: '', value: '' }],
     };
   });
 
@@ -369,31 +372,76 @@ const ApiTesting: React.FC = () => {
         return acc;
       }, {} as Record<string, string>);
 
-      // Build the actual cURL command that will be sent
-      const actualCurlCommand = (() => {
-        let curl = `curl '${requestDetails.url}' \\\n`;
-        if (requestDetails.method !== 'GET') {
-          curl += `  -X ${requestDetails.method} \\\n`;
-        }
-        Object.entries(activeHeaders).forEach(([key, value]) => {
-          if (key && value) {
-            curl += `  -H '${key}: ${value}' \\\n`;
+      let bodyToSend: any = requestDetails.body || undefined;
+      let headersToSend = { ...activeHeaders };
+      let actualCurlCommand = '';
+
+      if (bodyType === 'form-data') {
+        // Remove content-type so browser sets it with boundary
+        delete headersToSend['Content-Type'];
+        const form = new FormData();
+        (requestDetails.formData || []).forEach(({ key, value, type, src }) => {
+          if (key) {
+            if (type === 'file' && src) {
+              // For file uploads, we need to fetch the file from the object URL
+              fetch(src)
+                .then(res => res.blob())
+                .then(blob => {
+                  form.append(key, blob, value);
+                });
+            } else {
+              form.append(key, value);
+            }
           }
         });
-        if (requestDetails.body) {
-          curl += `  -d '${requestDetails.body}' \\\n`;
-        }
-        return curl.slice(0, -3); // Remove trailing backslash and newline
-      })();
+        bodyToSend = form;
+        // For cURL preview, show as -F
+        actualCurlCommand = (() => {
+          let curl = `curl '${requestDetails.url}' \\\n`;
+          if (requestDetails.method !== 'GET') {
+            curl += `  -X ${requestDetails.method} \\\n`;
+          }
+          Object.entries(activeHeaders).forEach(([key, value]) => {
+            if (key && value) {
+              curl += `  -H '${key}: ${value}' \\\n`;
+            }
+          });
+          (requestDetails.formData || []).forEach(({ key, value, type }) => {
+            if (key) {
+              if (type === 'file') {
+                curl += `  -F '${key}=@${value}' \\\n`;
+              } else {
+                curl += `  -F '${key}=${value}' \\\n`;
+              }
+            }
+          });
+          return curl.slice(0, -3);
+        })();
+      } else {
+        // raw or other
+        actualCurlCommand = (() => {
+          let curl = `curl '${requestDetails.url}' \\\n`;
+          if (requestDetails.method !== 'GET') {
+            curl += `  -X ${requestDetails.method} \\\n`;
+          }
+          Object.entries(activeHeaders).forEach(([key, value]) => {
+            if (key && value) {
+              curl += `  -H '${key}: ${value}' \\\n`;
+            }
+          });
+          if (requestDetails.body) {
+            curl += `  -d '${requestDetails.body}' \\\n`;
+          }
+          return curl.slice(0, -3);
+        })();
+        headersToSend['Content-Type'] = contentType;
+      }
 
       const result = await executeApiRequest({
         url: requestDetails.url,
         method: requestDetails.method,
-        headers: {
-          ...activeHeaders,
-          'Content-Type': contentType
-        },
-        body: requestDetails.body || undefined,
+        headers: headersToSend,
+        body: bodyToSend,
         followRedirects: true
       });
       const endTime = Date.now();
@@ -1183,6 +1231,67 @@ const ApiTesting: React.FC = () => {
           .replace(/\\\n/g, ' ') // Replace line continuations with spaces
           .replace(/\s+/g, ' '); // Replace multiple spaces with single space
 
+        // Check if it's a form-data request
+        const hasFormData = cleanCurl.includes('--form') || cleanCurl.includes('-F');
+        if (hasFormData) {
+          // Extract form data
+          const formDataMatches = cleanCurl.matchAll(/(?:--form|-F)\s+['"]([^'"]+)['"]/g);
+          const formData: { key: string; value: string; type: 'text' | 'file'; src?: string }[] = [];
+          
+          for (const match of formDataMatches) {
+            const formItem = match[1];
+            const [key, value] = formItem.split('=');
+            
+            if (value.startsWith('@')) {
+              // It's a file input
+              formData.push({
+                key: key,
+                value: value.substring(1), // Remove the @ symbol
+                type: 'file',
+                src: value.substring(1)
+              });
+            } else {
+              // It's a text input
+              formData.push({
+                key: key,
+                value: value.replace(/^["']|["']$/g, ''), // Remove surrounding quotes
+                type: 'text'
+              });
+            }
+          }
+
+          // Extract URL and method
+          const urlMatch = cleanCurl.match(/(?:curl\s+)(?:--location\s+)?(?:--request\s+[A-Z]+\s+)?(['"]?)(https?:\/\/[^'"]+)\1/);
+          const methodMatch = cleanCurl.match(/(?:--request|-X)\s+['"]?([A-Z]+)['"]?/);
+          
+          // Extract headers
+          const headerMatches = cleanCurl.matchAll(/(?:--header|-H)\s+['"]([^'"]+)['"]/g);
+          const headers: Record<string, string> = {};
+          for (const match of headerMatches) {
+            const header = match[1];
+            const [key, value] = header.split(':').map(s => s.trim());
+            if (key && value) {
+              headers[key] = value;
+            }
+          }
+
+          setRequestDetails(prev => ({
+            ...prev,
+            method: methodMatch ? methodMatch[1] : 'POST',
+            url: urlMatch ? urlMatch[2] : '',
+            headers,
+            enabledHeaders: syncEnabledHeaders(headers),
+            formData,
+            body: ''
+          }));
+
+          setBodyType('form-data');
+          setIsImportCurlOpen(false);
+          setCurlInput('');
+          return;
+        }
+
+        // Handle regular cURL command (non-form-data)
         const parsedCurl = parseCurlCommand(cleanCurl);
 
         // Format JSON body if Content-Type is application/json
@@ -1262,7 +1371,14 @@ const ApiTesting: React.FC = () => {
           enabledHeaders: Object.keys(api.headers || {}).reduce((acc, key) => { acc[key] = true; return acc; }, {} as Record<string, boolean>),
           body: api.body || '',
           queryParams: api.params || {},
+          formData: api.formData ? api.formData.map(fd => ({ key: fd.key, value: fd.value || '' })) : [{ key: '', value: '' }],
         }));
+        // Set bodyType based on bodyMode
+        if (api.bodyMode === 'formdata') {
+          setBodyType('form-data');
+        } else if (api.bodyMode === 'raw') {
+          setBodyType('raw');
+        }
       }
       // Clear response and close response panel when switching APIs
       setResponse(null);
@@ -1650,55 +1766,144 @@ const ApiTesting: React.FC = () => {
             )}
 
             {activeTab === 'body' && (
-                  <div className="space-y-4 h-[calc(100vh-30rem)] overflow-y-auto">
+              <div className="space-y-4 h-[calc(100vh-30rem)] overflow-y-auto">
                 <div className="flex space-x-4">
                   <button
                     onClick={() => setBodyType('raw')}
-                        className={`px-3 py-1 text-sm font-medium ${bodyType === 'raw'
-                        ? 'text-orange-600 border-b-2 border-orange-500'
-                        : 'text-gray-500 hover:text-gray-700'
+                    className={`px-3 py-1 text-sm font-medium ${bodyType === 'raw'
+                      ? 'text-orange-600 border-b-2 border-orange-500'
+                      : 'text-gray-500 hover:text-gray-700'
                     }`}
                   >
                     raw
                   </button>
                   <button
                     onClick={() => setBodyType('form-data')}
-                        className={`px-3 py-1 text-sm font-medium ${bodyType === 'form-data'
-                        ? 'text-orange-600 border-b-2 border-orange-500'
-                        : 'text-gray-500 hover:text-gray-700'
+                    className={`px-3 py-1 text-sm font-medium ${bodyType === 'form-data'
+                      ? 'text-orange-600 border-b-2 border-orange-500'
+                      : 'text-gray-500 hover:text-gray-700'
                     }`}
                   >
                     form-data
                   </button>
                   <button
                     onClick={() => setBodyType('x-www-form-urlencoded')}
-                        className={`px-3 py-1 text-sm font-medium ${bodyType === 'x-www-form-urlencoded'
-                        ? 'text-orange-600 border-b-2 border-orange-500'
-                        : 'text-gray-500 hover:text-gray-700'
+                    className={`px-3 py-1 text-sm font-medium ${bodyType === 'x-www-form-urlencoded'
+                      ? 'text-orange-600 border-b-2 border-orange-500'
+                      : 'text-gray-500 hover:text-gray-700'
                     }`}
                   >
                     x-www-form-urlencoded
                   </button>
                 </div>
-                <div className="flex items-center space-x-2 mb-2">
-                  <select
-                    value={contentType}
-                    onChange={(e) => setContentType(e.target.value as any)}
-                    className="p-1 border rounded text-sm dark:bg-gray-800 dark:border-gray-700 dark:text-white"
-                  >
-                    <option>JSON</option>
-                    <option>Text</option>
-                    <option>JavaScript</option>
-                    <option>HTML</option>
-                    <option>XML</option>
-                  </select>
-                </div>
-                <textarea
-                  value={requestDetails.body}
-                  onChange={(e) => handleBodyChange(e.target.value)}
-                  className="w-full h-64 p-2 border rounded font-mono text-sm dark:bg-gray-800 dark:border-gray-700 dark:text-white"
-                  placeholder="Enter request body"
-                />
+                {bodyType === 'raw' && (
+                  <>
+                    <div className="flex items-center space-x-2 mb-2">
+                      <select
+                        value={contentType}
+                        onChange={(e) => setContentType(e.target.value as any)}
+                        className="p-1 border rounded text-sm dark:bg-gray-800 dark:border-gray-700 dark:text-white"
+                      >
+                        <option>application/json</option>
+                        <option>text/plain</option>
+                        <option>application/javascript</option>
+                        <option>text/html</option>
+                        <option>application/xml</option>
+                      </select>
+                    </div>
+                    <textarea
+                      value={requestDetails.body}
+                      onChange={(e) => handleBodyChange(e.target.value)}
+                      className="w-full h-64 p-2 border rounded font-mono text-sm dark:bg-gray-800 dark:border-gray-700 dark:text-white"
+                      placeholder="Enter request body"
+                    />
+                  </>
+                )}
+                {bodyType === 'form-data' && (
+                  <div className="space-y-2">
+                    {(requestDetails.formData || []).map((pair, idx) => (
+                      <div key={idx} className="flex space-x-2">
+                        <input
+                          type="text"
+                          value={pair.key}
+                          onChange={e => {
+                            const newFormData = [...(requestDetails.formData || [])];
+                            newFormData[idx].key = e.target.value;
+                            setRequestDetails(prev => ({ ...prev, formData: newFormData }));
+                          }}
+                          className="w-1/3 p-2 border rounded dark:bg-gray-800 dark:border-gray-700 dark:text-white"
+                          placeholder="Key"
+                        />
+                        <div className="flex-1 flex space-x-2">
+                          <select
+                            value={pair.type || 'text'}
+                            onChange={e => {
+                              const newFormData = [...(requestDetails.formData || [])];
+                              newFormData[idx].type = e.target.value as 'text' | 'file';
+                              if (e.target.value === 'file') {
+                                newFormData[idx].value = '';
+                              }
+                              setRequestDetails(prev => ({ ...prev, formData: newFormData }));
+                            }}
+                            className="w-24 p-2 border rounded dark:bg-gray-800 dark:border-gray-700 dark:text-white"
+                          >
+                            <option value="text">Text</option>
+                            <option value="file">File</option>
+                          </select>
+                          {pair.type === 'file' ? (
+                            <div className="flex-1 flex items-center space-x-2">
+                              <input
+                                type="file"
+                                onChange={e => {
+                                  const file = e.target.files?.[0];
+                                  if (file) {
+                                    const newFormData = [...(requestDetails.formData || [])];
+                                    newFormData[idx].value = file.name;
+                                    newFormData[idx].src = URL.createObjectURL(file);
+                                    setRequestDetails(prev => ({ ...prev, formData: newFormData }));
+                                  }
+                                }}
+                                className="flex-1 p-2 border rounded dark:bg-gray-800 dark:border-gray-700 dark:text-white"
+                              />
+                            </div>
+                          ) : (
+                            <input
+                              type="text"
+                              value={pair.value}
+                              onChange={e => {
+                                const newFormData = [...(requestDetails.formData || [])];
+                                newFormData[idx].value = e.target.value;
+                                setRequestDetails(prev => ({ ...prev, formData: newFormData }));
+                              }}
+                              className="flex-1 p-2 border rounded dark:bg-gray-800 dark:border-gray-700 dark:text-white"
+                              placeholder="Value"
+                            />
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newFormData = [...(requestDetails.formData || [])];
+                            newFormData.splice(idx, 1);
+                            setRequestDetails(prev => ({ ...prev, formData: newFormData.length ? newFormData : [{ key: '', value: '', type: 'text' }] }));
+                          }}
+                          className="px-2 py-1 text-xs text-red-500 hover:text-red-700"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setRequestDetails(prev => ({ ...prev, formData: [...(prev.formData || []), { key: '', value: '', type: 'text' }] }));
+                      }}
+                      className="px-3 py-1 text-xs text-orange-600 hover:text-orange-800 border border-orange-200 rounded"
+                    >
+                      + Add Field
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 

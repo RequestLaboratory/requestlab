@@ -20,6 +20,8 @@ export interface ApiEntry {
   headers: Record<string, string>;
   body: string;
   params: Record<string, string>;
+  formData?: { key: string; value: string; type?: string; src?: string }[];
+  bodyMode?: string;
 }
 
 export interface Collection {
@@ -52,7 +54,7 @@ interface ApiCollectionsContextType {
   selectCollection: (id: number) => void;
   addApi: (api: Omit<ApiEntry, 'id'>) => Promise<void>;
   selectApi: (id: number) => void;
-  importCurlToCollection: (curl: string, collectionId: number, name?: string) => Promise<void>;
+  importCurlToCollection: (curl: string, collectionId: number, name?: string, options?: { formData?: { key: string; value: string; type?: string; src?: string }[]; bodyMode?: string }) => Promise<void>;
   updateApi: (api: ApiEntry) => Promise<void>;
   deleteCollection: (collectionId: number) => Promise<void>;
   unsavedApiIds: Set<number>;
@@ -129,7 +131,12 @@ export const ApiCollectionsProvider: React.FC<{ children: React.ReactNode }> = (
   };
 
   // Placeholder for cURL import logic
-  const importCurlToCollection = async (curl: string, collectionId: number, name?: string) => {
+  const importCurlToCollection = async (
+    curl: string,
+    collectionId: number,
+    name?: string,
+    options?: { formData?: { key: string; value: string; type?: string; src?: string }[]; bodyMode?: string }
+  ) => {
     try {
       const parsed = parseCurlCommand(curl);
       await addApi({
@@ -140,6 +147,8 @@ export const ApiCollectionsProvider: React.FC<{ children: React.ReactNode }> = (
         headers: parsed.headers || {},
         body: parsed.body || '',
         params: parsed.queryParams || {},
+        ...(options?.formData ? { formData: options.formData } : {}),
+        ...(options?.bodyMode ? { bodyMode: options.bodyMode } : {}),
       });
     } catch (e) {
       console.error('Failed to import cURL:', e);
@@ -152,6 +161,8 @@ export const ApiCollectionsProvider: React.FC<{ children: React.ReactNode }> = (
         headers: {},
         body: '',
         params: {},
+        ...(options?.formData ? { formData: options.formData } : {}),
+        ...(options?.bodyMode ? { bodyMode: options.bodyMode } : {}),
       });
     }
   };

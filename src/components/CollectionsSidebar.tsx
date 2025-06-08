@@ -189,6 +189,13 @@ interface ImportCollectionModalProps {
   error: string | null;
 }
 
+interface FormDataItem {
+  key: string;
+  value: string;
+  type?: 'text' | 'file';
+  src?: string;
+}
+
 const ImportCollectionModal: React.FC<ImportCollectionModalProps> = ({ isOpen, onClose, onImport, loading, error }) => {
   const [file, setFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -345,30 +352,83 @@ const CollectionsSidebar: React.FC = () => {
       if (json.info && json.item) {
         // Postman format
         collectionName = json.info.name || 'Imported Collection';
-        apis = json.item.map((item: any) => ({
-          name: item.name,
-          method: item.request?.method || 'GET',
-          url: item.request?.url?.raw || '',
-          headers: (item.request?.header || []).reduce((acc: any, h: any) => { acc[h.key] = h.value; return acc; }, {}),
-          body: item.request?.body?.raw || '',
-          params: (item.request?.url?.query || []).reduce((acc: any, q: any) => { acc[q.key] = q.value; return acc; }, {}),
-        }));
+        apis = json.item.map((item: any) => {
+          let formData = undefined;
+          let body = item.request?.body?.raw || '';
+          if (item.request?.body?.mode === 'formdata' && Array.isArray(item.request.body.formdata)) {
+            formData = item.request.body.formdata.map((fd: any) => {
+              // Determine the type based on the formdata item properties
+              let type: 'text' | 'file' = 'text';
+              if (fd.type === 'file' || fd.src) {
+                type = 'file';
+              }
+              return {
+                key: fd.key,
+                value: fd.value || '',
+                type: type,
+                src: fd.src || undefined
+              };
+            });
+            body = '';
+          }
+          return {
+            name: item.name,
+            method: item.request?.method || 'GET',
+            url: item.request?.url?.raw || '',
+            headers: (item.request?.header || []).reduce((acc: any, h: any) => { acc[h.key] = h.value; return acc; }, {}),
+            body,
+            params: (item.request?.url?.query || []).reduce((acc: any, q: any) => { acc[q.key] = q.value; return acc; }, {}),
+            formData,
+            bodyMode: item.request?.body?.mode,
+          };
+        });
       } else if (json.name && Array.isArray(json.apis)) {
         // Our own format
         collectionName = json.name;
-        apis = json.apis;
+        apis = json.apis.map((api: any) => {
+          // Ensure formData has proper type information
+          if (api.formData && Array.isArray(api.formData)) {
+            api.formData = api.formData.map((fd: any) => ({
+              key: fd.key,
+              value: fd.value || '',
+              type: fd.type || 'text',
+              src: fd.src || undefined
+            }));
+          }
+          return api;
+        });
       } else {
         throw new Error('Unsupported collection format');
       }
       // Always add a new collection
       const newCollectionId = await addCollection(collectionName);
       for (const api of apis) {
+        let curlStr = `curl '${api.url}'${api.method && api.method !== 'GET' ? ` -X ${api.method}` : ''}` +
+          Object.entries(api.headers || {}).map(([k, v]) => ` -H '${k}: ${v}'`).join('');
+        if (api.formData && Array.isArray(api.formData)) {
+          curlStr += api.formData.map((fd: FormDataItem) => {
+            if (fd.type === 'file') {
+              return ` -F '${fd.key}=@${fd.src || ''}'`;
+            } else {
+              return ` -F '${fd.key}=${fd.value || ''}'`;
+            }
+          }).join('');
+        } else if (api.body) {
+          curlStr += ` -d '${api.body}'`;
+        }
         await importCurlToCollection(
-          `curl '${api.url}'${api.method && api.method !== 'GET' ? ` -X ${api.method}` : ''}` +
-            Object.entries(api.headers || {}).map(([k, v]) => ` -H '${k}: ${v}'`).join('') +
-            (api.body ? ` -d '${api.body}'` : ''),
+          curlStr,
           newCollectionId,
-          api.name || 'Imported API'
+          api.name || 'Imported API',
+          api.formData && Array.isArray(api.formData) ? { 
+            formData: api.formData.map((fd: FormDataItem) => ({
+              key: fd.key,
+              value: fd.value,
+              type: fd.type,
+              src: fd.src
+            })),
+            bodyMode: api.bodyMode 
+          } : undefined
         );
       }
       setImportCollectionLoading(false);
