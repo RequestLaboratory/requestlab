@@ -47,18 +47,7 @@ const WelcomePopup: React.FC<WelcomePopupProps> = ({ isOpen, onClose }) => {
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <button
-                  onClick={() => handleOptionSelect('/api-interceptor')}
-                  className="flex flex-col items-center p-6 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-orange-500 dark:hover:border-orange-500 transition-colors duration-200 group"
-                >
-                  <Network className="h-8 w-8 text-orange-500 mb-3 group-hover:scale-110 transition-transform duration-200" />
-                  <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-2">API Interceptor</h4>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 text-center">
-                    Intercept and monitor API requests with detailed request/response logging
-                  </p>
-                </button>
-
-                <button
-                  onClick={() => handleOptionSelect('/api-testing')}
+                  onClick={() => handleOptionSelect('/')}
                   className="flex flex-col items-center p-6 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-orange-500 dark:hover:border-orange-500 transition-colors duration-200 group"
                 >
                   <Terminal className="h-8 w-8 text-orange-500 mb-3 group-hover:scale-110 transition-transform duration-200" />
@@ -69,13 +58,24 @@ const WelcomePopup: React.FC<WelcomePopupProps> = ({ isOpen, onClose }) => {
                 </button>
 
                 <button
-                  onClick={() => handleOptionSelect('/')}
+                  onClick={() => handleOptionSelect('/json-compare')}
                   className="flex flex-col items-center p-6 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-orange-500 dark:hover:border-orange-500 transition-colors duration-200 group"
                 >
                   <GitCompare className="h-8 w-8 text-orange-500 mb-3 group-hover:scale-110 transition-transform duration-200" />
                   <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-2">JSON/cURL Comparison</h4>
                   <p className="text-sm text-gray-500 dark:text-gray-400 text-center">
                     Compare and visualize differences between JSON objects or cURL responses
+                  </p>
+                </button>
+
+                <button
+                  onClick={() => handleOptionSelect('/api-interceptor')}
+                  className="flex flex-col items-center p-6 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-orange-500 dark:hover:border-orange-500 transition-colors duration-200 group"
+                >
+                  <Network className="h-8 w-8 text-orange-500 mb-3 group-hover:scale-110 transition-transform duration-200" />
+                  <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-2">API Interceptor</h4>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 text-center">
+                    Intercept and monitor API requests with detailed request/response logging
                   </p>
                 </button>
               </div>

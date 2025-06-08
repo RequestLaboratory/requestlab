@@ -210,7 +210,7 @@ const rightExample = JSON.stringify({
 }, null, 2);
 
 function AppContent() {
-  const [activePage, setActivePage] = useState<'compare' | 'api-testing' | 'api-interceptor' | 'sql-compare'>('compare');
+  const [activePage, setActivePage] = useState<'compare' | 'api-testing' | 'api-interceptor' | 'sql-compare'>('api-testing');
   const [mode, setMode] = useState<ComparisonMode>('json');
   const [showWelcomePopup, setShowWelcomePopup] = useState(true);
   const { isDarkMode, toggleTheme } = useContext(ThemeContext);
@@ -281,14 +281,14 @@ function AppContent() {
 
   // Update activePage based on current route
   useEffect(() => {
-    if (location.pathname === '/api-testing') {
+    if (location.pathname === '/') {
       setActivePage('api-testing');
+    } else if (location.pathname === '/json-compare') {
+      setActivePage('compare');
     } else if (location.pathname === '/api-interceptor') {
       setActivePage('api-interceptor');
     } else if (location.pathname === '/sql-compare') {
       setActivePage('sql-compare');
-    } else {
-      setActivePage('compare');
     }
   }, [location.pathname]);
 
@@ -357,29 +357,6 @@ function AppContent() {
                   stroke="currentColor" 
                   viewBox="0 0 24 24"
                 >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                </svg>
-                <span className="ml-3 font-medium">
-                  JSON Compare
-                </span>
-              </div>
-            </button>
-
-            <button
-              onClick={() => navigate('/api-testing')}
-              className={`group relative flex items-center rounded-lg p-2.5 ${
-                location.pathname === '/api-testing'
-                  ? 'bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400'
-                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50'
-              } transition-colors duration-200`}
-            >
-              <div className="flex items-center w-full">
-                <svg 
-                  className="w-5 h-5" 
-                  fill="none" 
-                  stroke="currentColor" 
-                  viewBox="0 0 24 24"
-                >
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
                 <span className="ml-3 font-medium">
@@ -406,6 +383,29 @@ function AppContent() {
                 </div>
               </div>
             )}
+
+            <button
+              onClick={() => navigate('/json-compare')}
+              className={`group relative flex items-center rounded-lg p-2.5 ${
+                location.pathname === '/json-compare'
+                  ? 'bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400'
+                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50'
+              } transition-colors duration-200`}
+            >
+              <div className="flex items-center w-full">
+                <svg 
+                  className="w-5 h-5" 
+                  fill="none" 
+                  stroke="currentColor" 
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+                <span className="ml-3 font-medium">
+                  JSON Compare
+                </span>
+              </div>
+            </button>
 
             <button
               onClick={() => navigate('/api-interceptor')}
@@ -479,7 +479,8 @@ function AppContent() {
       <div className="flex-1 overflow-hidden relative">
         {isLoading && <Loader />}
         <Routes>
-          <Route path="/" element={
+          <Route path="/" element={<ApiTesting />} />
+          <Route path="/json-compare" element={
             <div className="h-full overflow-auto">
               <div className="max-w-7xl mx-auto p-6">
                 <div className="mb-8">
@@ -613,7 +614,6 @@ function AppContent() {
               </div>
             </div>
           } />
-          <Route path="/api-testing" element={<ApiTesting />} />
           <Route path="/api-interceptor" element={<ApiInterceptor />} />
           <Route path="/interceptor-logs" element={<InterceptorLogs />} />
           <Route path="/sql-compare" element={<SQLCompare />} />
