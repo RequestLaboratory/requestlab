@@ -5,6 +5,8 @@ import SqlEditor from './SqlEditor';
 import ComparisonResults from './ComparisonResults';
 import { Share2Icon, FileUpIcon, RefreshCwIcon, DatabaseIcon, ArrowLeftRightIcon } from 'lucide-react';
 import { TableSchema } from '../types/sqlTypes';
+// @ts-ignore: If using JS, ignore missing types for file-saver
+import { saveAs } from 'file-saver';
 
 const SqlCompare: React.FC = () => {
   const [leftSql, setLeftSql] = useState('');
@@ -107,6 +109,19 @@ const SqlCompare: React.FC = () => {
     navigator.clipboard.writeText(shareUrl);
     setShowCopiedMessage(true);
     setTimeout(() => setShowCopiedMessage(false), 2000);
+  };
+
+  const exportSchemas = () => {
+    try {
+      const leftSchema = parseMySQLDDL(leftSql);
+      const rightSchema = parseMySQLDDL(rightSql);
+      const leftBlob = new Blob([JSON.stringify(leftSchema, null, 2)], { type: 'application/json' });
+      const rightBlob = new Blob([JSON.stringify(rightSchema, null, 2)], { type: 'application/json' });
+      saveAs(leftBlob, 'left-schema.json');
+      saveAs(rightBlob, 'right-schema.json');
+    } catch (e) {
+      alert('Failed to export schemas. Please check the SQL syntax.');
+    }
   };
 
   return (
