@@ -19,6 +19,10 @@ import WelcomePopup from './components/WelcomePopup';
 import ApiInterceptor from './pages/ApiInterceptor';
 import InterceptorLogs from './pages/InterceptorLogs';
 import SQLCompare from './components/sqlCompare';
+import CollectionsSidebar from './components/CollectionsSidebar';
+import { ApiCollectionsProvider } from './contexts/ApiCollectionsContext';
+import Loader from './components/Loader';
+import { LoaderProvider, useLoader } from './contexts/LoaderContext';
 
 const leftExample = JSON.stringify({
   name: "Ford Mustang GT",
@@ -215,6 +219,7 @@ function AppContent() {
   
   const jsonComparison = useJsonComparison();
   const curlComparison = useCurlComparison();
+  const { isLoading } = useLoader();
 
   const {
     leftInput: jsonLeftInput,
@@ -293,10 +298,10 @@ function AppContent() {
     // When switching from curl to json mode, populate JSON inputs with curl responses
     if (newMode === 'json' && (leftResponse || rightResponse)) {
       if (leftResponse) {
-        updateLeftJson(formatCurlResponse(leftResponse));
+        updateLeftJson(leftResponse);
       }
       if (rightResponse) {
-        updateRightJson(formatCurlResponse(rightResponse));
+        updateRightJson(rightResponse);
       }
     }
   };
@@ -316,6 +321,8 @@ function AppContent() {
       setCurlRightInput(rightCurl);
     }
   };
+
+  const showCollections = location.pathname === '/api-testing';
 
   return (
     <div className="h-screen flex bg-white dark:bg-gray-900">
@@ -380,6 +387,25 @@ function AppContent() {
                 </span>
               </div>
             </button>
+
+            {showCollections && (
+              <div
+                className="ml-4 mt-1 max-h-[50vh] overflow-y-auto overflow-x-hidden"
+                style={{
+                  scrollbarWidth: 'none',
+                  msOverflowStyle: 'none',
+                }}
+              >
+                <style>{`
+                  .sidebar-scrollbar::-webkit-scrollbar {
+                    display: none;
+                  }
+                `}</style>
+                <div className="sidebar-scrollbar">
+                  <CollectionsSidebar />
+                </div>
+              </div>
+            )}
 
             <button
               onClick={() => navigate('/api-interceptor')}
@@ -450,7 +476,8 @@ function AppContent() {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 overflow-hidden relative">
+        {isLoading && <Loader />}
         <Routes>
           <Route path="/" element={
             <div className="h-full overflow-auto">
@@ -577,7 +604,7 @@ function AppContent() {
                   <div className="h-[calc(100vh-600px)] min-h-[400px] overflow-y-auto">
                     <DiffViewer 
                       diff={mode === 'json' ? jsonDiff : curlDiff} 
-                      error={mode === 'json' ? jsonError : curlError} 
+                      error={(mode === 'json' ? jsonError : curlError) || undefined} 
                       leftJson={mode === 'json' ? jsonLeftInput : leftResponse}
                       rightJson={mode === 'json' ? jsonRightInput : rightResponse}
                     />
@@ -599,7 +626,11 @@ function AppContent() {
 function App() {
   return (
     <Router>
-      <AppContent />
+      <ApiCollectionsProvider>
+        <LoaderProvider>
+          <AppContent />
+        </LoaderProvider>
+      </ApiCollectionsProvider>
     </Router>
   );
 }
