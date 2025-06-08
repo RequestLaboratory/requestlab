@@ -14,7 +14,21 @@
     {
       "src": "/(.*\\.js)",
       "headers": {
-        "content-type": "application/javascript"
+        "content-type": "text/javascript"
+      },
+      "continue": true
+    },
+    {
+      "src": "/(.*\\.mjs)",
+      "headers": {
+        "content-type": "text/javascript"
+      },
+      "continue": true
+    },
+    {
+      "src": "/(.*\\.module\\.js)",
+      "headers": {
+        "content-type": "text/javascript"
       },
       "continue": true
     },
