@@ -23,6 +23,7 @@ import {
 import 'chartjs-adapter-date-fns';
 import { ThemeContext } from '../contexts/ThemeContext';
 import LoadTestTab from '../components/api-testing/LoadTestTab';
+import K6LoadTesting from '../components/api-testing/k6LoadTesting';
 import { useApiCollections } from '../contexts/ApiCollectionsContext';
 import { useLoader } from '../contexts/LoaderContext';
 
@@ -139,9 +140,9 @@ const syncEnabledHeaders = (headers: Record<string, string>, prevEnabled: Record
   return newEnabled;
 };
 
-type ApiTestingTab = 'params' | 'headers' | 'body' | 'pre-request' | 'tests' | 'load-test';
+type ApiTestingTab = 'params' | 'headers' | 'body' | 'pre-request' | 'tests' | 'load-test' | 'k6-load-test';
 const validTabs: ApiTestingTab[] = [
-  'params', 'headers', 'body', 'pre-request', 'tests', 'load-test'
+  'params', 'headers', 'body', 'pre-request', 'tests', 'load-test', 'k6-load-test'
 ];
 function isValidTab(tab: string | null): tab is ApiTestingTab {
   return typeof tab === 'string' && validTabs.includes(tab as ApiTestingTab);
@@ -152,6 +153,9 @@ const getInitialTab = (): ApiTestingTab => {
   const savedTab = sessionStorage.getItem('apiTestingActiveTab');
   return isValidTab(savedTab) ? savedTab : 'headers';
 };
+
+// Add tabs constant
+const tabs: ApiTestingTab[] = ['params', 'headers', 'body', 'pre-request', 'tests', 'load-test', 'k6-load-test'];
 
 const ApiTesting: React.FC = () => {
   const { isDarkMode } = useContext(ThemeContext);
@@ -291,6 +295,16 @@ const ApiTesting: React.FC = () => {
 
   const [isImportCurlOpen, setIsImportCurlOpen] = useState(false);
   const [curlInput, setCurlInput] = useState('');
+
+  // Add new state for current API
+  const [currentApi, setCurrentApi] = useState<RequestDetails | null>(null);
+
+  // Function to update current API and build cURL
+  const updateCurrentApi = (api: RequestDetails) => {
+    setCurrentApi(api);
+    const curlCommand = buildCurlCommand(api);
+    setCurlInput(curlCommand);
+  };
 
   // Save state to session storage whenever it changes
   useEffect(() => {
@@ -521,11 +535,19 @@ const ApiTesting: React.FC = () => {
   };
 
   const handleMethodChange = (method: string) => {
-    setRequestDetails(prev => ({ ...prev, method }));
+    setRequestDetails(prev => {
+      const updated = { ...prev, method };
+      updateCurrentApi(updated);
+      return updated;
+    });
   };
 
   const handleUrlChange = (url: string) => {
-    setRequestDetails(prev => ({ ...prev, url }));
+    setRequestDetails(prev => {
+      const updated = { ...prev, url };
+      updateCurrentApi(updated);
+      return updated;
+    });
   };
 
   const handleHeaderToggle = (key: string) => {
@@ -539,25 +561,33 @@ const ApiTesting: React.FC = () => {
   };
 
   const handleHeaderChange = (key: string, value: string) => {
-    setRequestDetails(prev => ({
-      ...prev,
-      headers: { ...prev.headers, [key]: value },
-      enabledHeaders: {
-        ...prev.enabledHeaders,
-        [key]: true
-      }
-    }));
+    setRequestDetails(prev => {
+      const updated = {
+        ...prev,
+        headers: { ...prev.headers, [key]: value }
+      };
+      updateCurrentApi(updated);
+      return updated;
+    });
   };
 
   const handleBodyChange = (body: string) => {
-    setRequestDetails(prev => ({ ...prev, body }));
+    setRequestDetails(prev => {
+      const updated = { ...prev, body };
+      updateCurrentApi(updated);
+      return updated;
+    });
   };
 
   const handleQueryParamChange = (key: string, value: string) => {
-    setRequestDetails(prev => ({
-      ...prev,
-      queryParams: { ...prev.queryParams, [key]: value }
-    }));
+    setRequestDetails(prev => {
+      const updated = {
+        ...prev,
+        queryParams: { ...prev.queryParams, [key]: value }
+      };
+      updateCurrentApi(updated);
+      return updated;
+    });
   };
 
   const handleCopyResponse = () => {
@@ -573,25 +603,47 @@ const ApiTesting: React.FC = () => {
     }, 2000);
   };
 
-  const buildCurlCommand = () => {
-    let curlCommand = `curl '${requestDetails.url}' \\\n`;
-    if (requestDetails.method !== 'GET') {
-      curlCommand += `  -X ${requestDetails.method} \\\n`;
+  const buildCurlCommand = (api: RequestDetails) => {
+    let curl = 'curl';
+    
+    // Add method
+    if (api.method !== 'GET') {
+      curl += ` -X ${api.method}`;
     }
-    Object.entries(requestDetails.headers).forEach(([key, value]) => {
-      if (key && value) {
-        curlCommand += `  -H '${key}: ${value}' \\\n`;
+
+    // Add headers
+    Object.entries(api.headers).forEach(([key, value]) => {
+      if (api.enabledHeaders[key]) {
+        curl += ` -H "${key}: ${value}"`;
       }
     });
-    if (requestDetails.body) {
-      curlCommand += `  -d '${requestDetails.body}' \\\n`;
+
+    // Add query parameters
+    const queryString = Object.entries(api.queryParams)
+      .filter(([_, value]) => value.trim() !== '')
+      .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
+      .join('&');
+
+    const url = queryString ? `${api.url}?${queryString}` : api.url;
+    curl += ` "${url}"`;
+
+    // Add body for non-GET requests
+    if (api.method !== 'GET' && api.body) {
+      try {
+        // Try to parse as JSON to format it nicely
+        const bodyObj = JSON.parse(api.body);
+        curl += ` -d '${JSON.stringify(bodyObj)}'`;
+      } catch {
+        // If not valid JSON, use as is
+        curl += ` -d '${api.body}'`;
+      }
     }
-    curlCommand = curlCommand.slice(0, -3);
-    return curlCommand;
+
+    return curl;
   };
 
   const handleCopyCurlInDrawer = () => {
-    navigator.clipboard.writeText(buildCurlCommand());
+    navigator.clipboard.writeText(buildCurlCommand(requestDetails));
     setCurlCopied(true);
     setTimeout(() => setCurlCopied(false), 2000);
   };
@@ -1206,16 +1258,14 @@ const ApiTesting: React.FC = () => {
 
   // Update the tab change handler
   const handleTabChange = (_: React.SyntheticEvent, newValue: number) => {
-    // Cleanup charts when switching tabs
-    if (resultTab === 1) { // If leaving the charts tab
-      if (lineChartRef.current) {
-        lineChartRef.current.destroy();
-      }
-      if (barChartRef.current) {
-        barChartRef.current.destroy();
+    const tab = tabs[newValue];
+    if (isValidTab(tab)) {
+      setActiveTab(tab);
+      // If switching to k6-load-test tab, update the cURL
+      if (tab === 'k6-load-test' && currentApi) {
+        updateCurrentApi(currentApi);
       }
     }
-    setResultTab(newValue);
   };
 
   const handleMaximizeChart = (chartType: 'line' | 'bar') => {
@@ -1427,6 +1477,11 @@ const ApiTesting: React.FC = () => {
     }
   }, [requestDetails, apis, selectedApiId, markApiUnsaved, unmarkApiUnsaved]);
 
+  // Function to get current cURL command
+  const getCurrentCurlCommand = () => {
+    return buildCurlCommand(requestDetails);
+  };
+
   return (
     <ThemeProvider theme={muiTheme}>
       <div className="h-screen flex bg-white dark:bg-gray-900">
@@ -1613,6 +1668,16 @@ const ApiTesting: React.FC = () => {
                       }`}
                   >
                     Load Test
+              </button>
+              <button
+                onClick={() => setActiveTab('k6-load-test')}
+                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === 'k6-load-test'
+                    ? 'border-orange-500 text-orange-600 dark:text-orange-400'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400'
+                }`}
+              >
+                K6 Load Test
               </button>
             </nav>
           </div>
@@ -1946,6 +2011,14 @@ const ApiTesting: React.FC = () => {
                     onDownloadResults={downloadResultsAsCSV}
                   />
             )}
+
+{activeTab === 'k6-load-test' && (
+              <div className="h-full overflow-y-auto pr-4">
+                <K6LoadTesting curlCommand={getCurrentCurlCommand()} />
+              </div>
+            )}
+
+            
           </div>
         </div>
 
@@ -2220,7 +2293,7 @@ const ApiTesting: React.FC = () => {
                   }}
                   wrapLines={true}
                 >
-                  {buildCurlCommand()}
+                  {buildCurlCommand(requestDetails)}
                 </SyntaxHighlighter>
               </div>
               <div className="flex items-center justify-end gap-2 px-4 py-3 border-t border-gray-200 dark:border-gray-700">
