@@ -21,7 +21,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    checkSession();
+    // Check for session ID in URL first (from callback)
+    const urlParams = new URLSearchParams(window.location.search);
+    const sessionId = urlParams.get('session');
+    
+    if (sessionId) {
+      // Store the session ID and remove it from URL
+      localStorage.setItem('sessionId', sessionId);
+      window.history.replaceState({}, document.title, window.location.pathname);
+      checkSession();
+    } else {
+      checkSession();
+    }
   }, []);
 
   const checkSession = async () => {
