@@ -205,11 +205,33 @@ export default {
           await createSession(sessionData);
           console.log('Stored session:', sessionId);
 
-          // Redirect to frontend with session
-          const redirectUrl = new URL(FRONTEND_URL);
-          redirectUrl.searchParams.set('session', sessionId);
-          console.log('Redirecting to:', redirectUrl.toString());
-          return Response.redirect(redirectUrl.toString());
+          // Ensure FRONTEND_URL includes www and has a trailing slash
+          const frontendUrl = (FRONTEND_URL.includes('www.') ? FRONTEND_URL : FRONTEND_URL.replace('requestlab.cc', 'www.requestlab.cc')).replace(/\/?$/, '/');
+          console.log('Using frontend URL:', frontendUrl);
+
+          // Create a simple HTML page that will redirect after a short delay
+          const html = `
+            <!DOCTYPE html>
+            <html>
+              <head>
+                <title>Redirecting...</title>
+                <meta http-equiv="refresh" content="0;url=${frontendUrl}?session=${sessionId}">
+                <script>
+                  // Backup redirect in case meta refresh doesn't work
+                  window.location.href = "${frontendUrl}?session=${sessionId}";
+                </script>
+              </head>
+              <body>
+                <p>Redirecting to RequestLab...</p>
+              </body>
+            </html>
+          `;
+
+          return new Response(html, {
+            headers: {
+              'Content-Type': 'text/html',
+            },
+          });
         } catch (error) {
           console.error('Failed to store session:', error);
           return Response.redirect(`${FRONTEND_URL}?error=session_storage_failed`);
