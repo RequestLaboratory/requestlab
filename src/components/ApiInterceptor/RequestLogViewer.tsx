@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { format } from 'date-fns';
 
 interface Log {
@@ -24,42 +24,143 @@ interface Props {
   selectedLogId?: string;
 }
 
-const API_BASE_URL = 'https://interceptorworker.yadev64.workers.dev';
-
 export default function RequestLogViewer({ interceptorId, onSelectLog, selectedLogId }: Props) {
   const [logs, setLogs] = useState<Log[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [autoRefresh, setAutoRefresh] = useState(true);
+  const [isConnected, setIsConnected] = useState(false);
+  const eventSourceRef = useRef<EventSource | null>(null);
 
   useEffect(() => {
-    fetchLogs();
-    let interval: NodeJS.Timeout;
-    if (autoRefresh) {
-      interval = setInterval(fetchLogs, 5000);
-    }
+    let retryCount = 0;
+    const maxRetries = 3;
+    const retryDelay = 2000; // 2 seconds
+    let retryTimeout: NodeJS.Timeout;
+    let isComponentMounted = true;
+    let lastHeartbeat = Date.now();
+    let heartbeatCheckInterval: NodeJS.Timeout;
+
+    const connectSSE = () => {
+      // Close existing connection if any
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
+      }
+
+      // Clear any existing heartbeat check
+      if (heartbeatCheckInterval) {
+        clearInterval(heartbeatCheckInterval);
+      }
+
+      // Connect to SSE
+      const eventSource = new EventSource('https://interceptorworker.yadev64.workers.dev/events', {
+        withCredentials: false
+      });
+      eventSourceRef.current = eventSource;
+
+      // Set up heartbeat check
+      heartbeatCheckInterval = setInterval(() => {
+        if (!isComponentMounted) return;
+        
+        const now = Date.now();
+        if (now - lastHeartbeat > 35000) { // No heartbeat for 35 seconds
+          console.log('No heartbeat received, reconnecting...');
+          eventSource.close();
+          connectSSE();
+        }
+      }, 5000); // Check every 5 seconds
+
+      eventSource.onopen = () => {
+        if (!isComponentMounted) return;
+        console.log('SSE connected');
+        setIsConnected(true);
+        setIsLoading(false);
+        retryCount = 0; // Reset retry count on successful connection
+        lastHeartbeat = Date.now();
+      };
+
+      eventSource.onmessage = (event) => {
+        if (!isComponentMounted) return;
+        try {
+          const message = JSON.parse(event.data);
+          if (message.type === 'connected') {
+            console.log('Received connected message');
+            return;
+          }
+          if (message.type === 'heartbeat') {
+            console.log('Received heartbeat');
+            lastHeartbeat = Date.now();
+            return;
+          }
+          if (message.type === 'log' && message.data.interceptor_id === interceptorId) {
+            console.log('Received log message:', message.data);
+            // Transform the log data to match our interface
+            const log: Log = {
+              id: message.data.id,
+              timestamp: message.data.timestamp,
+              method: message.data.method,
+              originalUrl: message.data.original_url,
+              proxyUrl: message.data.proxy_url,
+              status: message.data.response_status,
+              duration: message.data.duration,
+              headers: JSON.parse(message.data.headers),
+              body: message.data.body,
+              response: {
+                status: message.data.response_status,
+                headers: JSON.parse(message.data.response_headers),
+                body: message.data.response_body
+              }
+            };
+            
+            setLogs(prevLogs => [log, ...prevLogs]);
+          }
+        } catch (err) {
+          console.error('Error processing SSE message:', err);
+        }
+      };
+
+      eventSource.onerror = (error) => {
+        if (!isComponentMounted) return;
+        console.error('SSE error:', error);
+        setError('Failed to connect to event stream');
+        setIsLoading(false);
+        setIsConnected(false);
+
+        // Close the current connection
+        eventSource.close();
+
+        // Clear any existing retry timeout
+        if (retryTimeout) {
+          clearTimeout(retryTimeout);
+        }
+
+        // Attempt to reconnect if we haven't exceeded max retries
+        if (retryCount < maxRetries) {
+          retryCount++;
+          console.log(`Retrying connection (${retryCount}/${maxRetries})...`);
+          retryTimeout = setTimeout(connectSSE, retryDelay);
+        } else {
+          setError('Failed to connect after multiple attempts. Please refresh the page.');
+        }
+      };
+    };
+
+    // Initial connection
+    connectSSE();
+
+    // Cleanup on unmount
     return () => {
-      if (interval) {
-        clearInterval(interval);
+      isComponentMounted = false;
+      if (retryTimeout) {
+        clearTimeout(retryTimeout);
+      }
+      if (heartbeatCheckInterval) {
+        clearInterval(heartbeatCheckInterval);
+      }
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
       }
     };
-  }, [interceptorId, autoRefresh]);
-
-  const fetchLogs = async () => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/interceptors/${interceptorId}/logs`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch logs');
-      }
-      const data = await response.json();
-      console.log('Received logs:', data);
-      setLogs(data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch logs');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  }, [interceptorId]);
 
   if (isLoading) {
     return (
@@ -80,22 +181,20 @@ export default function RequestLogViewer({ interceptorId, onSelectLog, selectedL
   return (
     <div className="h-[calc(100vh-20rem)] flex flex-col">
       <div className="flex-shrink-0 p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Request Logs</h2>
-        <label className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
-          <input
-            type="checkbox"
-            checked={autoRefresh}
-            onChange={(e) => setAutoRefresh(e.target.checked)}
-            className="rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500"
-          />
-          <span>Auto-refresh</span>
-        </label>
+        <div className="flex items-center space-x-2">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Request Logs</h2>
+          <span className={`inline-flex items-center px-2 py-1 text-xs font-medium rounded ${
+            isConnected ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400' : 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
+          }`}>
+            {isConnected ? 'Connected' : 'Disconnected'}
+          </span>
+        </div>
       </div>
 
       <div className="flex-1 min-h-0 overflow-y-auto">
         {logs.length === 0 ? (
           <div className="p-4 text-center text-gray-500 dark:text-gray-400">
-            No logs found
+            Waiting for requests...
           </div>
         ) : (
           <div className="divide-y divide-gray-200 dark:divide-gray-700">

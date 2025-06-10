@@ -623,7 +623,7 @@ function AppContent() {
             </div>
           } />
           <Route path="/api-interceptor" element={<ApiInterceptor />} />
-          <Route path="/interceptor-logs" element={<InterceptorLogs />} />
+          <Route path="/interceptors/:id/logs" element={<InterceptorLogs />} />
           <Route path="/sql-compare" element={<SQLCompare />} />
         </Routes>
       </div>
