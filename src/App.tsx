@@ -277,16 +277,22 @@ function AppContent() {
     }
   }, []);
 
-  // Update activePage based on current route
+  // Update activePage based on current route, but only if there's no session in URL
   useEffect(() => {
-    if (location.pathname === '/') {
-      navigate('/');
-    } else if (location.pathname === '/json-compare') {
-      navigate('/json-compare');
-    } else if (location.pathname === '/api-interceptor') {
-      navigate('/api-interceptor');
-    } else if (location.pathname === '/sql-compare') {
-      navigate('/sql-compare');
+    const urlParams = new URLSearchParams(window.location.search);
+    const sessionId = urlParams.get('session');
+    
+    // Only navigate if there's no session in URL
+    if (!sessionId) {
+      if (location.pathname === '/') {
+        navigate('/');
+      } else if (location.pathname === '/json-compare') {
+        navigate('/json-compare');
+      } else if (location.pathname === '/api-interceptor') {
+        navigate('/api-interceptor');
+      } else if (location.pathname === '/sql-compare') {
+        navigate('/sql-compare');
+      }
     }
   }, [location.pathname, navigate]);
 

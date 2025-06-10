@@ -19,8 +19,11 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isCheckingSession, setIsCheckingSession] = useState(false);
 
   useEffect(() => {
+    let mounted = true;
+
     const handleInitialAuth = async () => {
       try {
         // Check for session ID in URL first (from callback)
@@ -38,41 +41,55 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           
           // Check the session first
           console.log('Starting session check...');
+          setIsCheckingSession(true);
           const isAuthenticated = await checkSession(sessionId);
           console.log('Session check result:', isAuthenticated);
           
-          if (isAuthenticated) {
+          if (isAuthenticated && mounted) {
             console.log('Session is valid, storing in localStorage');
             localStorage.setItem('sessionId', sessionId);
             console.log('Stored session ID in localStorage:', localStorage.getItem('sessionId'));
             
-            // Only clean up URL after successful storage
-            const newUrl = new URL(window.location.href);
-            newUrl.searchParams.delete('session');
-            window.history.replaceState({}, document.title, newUrl.toString());
-            console.log('Cleaned up URL:', window.location.href);
+            // Only clean up URL after successful storage and a small delay
+            setTimeout(() => {
+              if (mounted) {
+                const newUrl = new URL(window.location.href);
+                newUrl.searchParams.delete('session');
+                window.history.replaceState({}, document.title, newUrl.toString());
+                console.log('Cleaned up URL:', window.location.href);
+              }
+            }, 1000);
           } else {
-            console.log('Session check failed, not storing session');
+            console.log('Session check failed or component unmounted, not storing session');
           }
+          setIsCheckingSession(false);
         } else {
           console.log('No session ID in URL, checking localStorage');
           const storedSessionId = localStorage.getItem('sessionId');
           console.log('Stored session ID from localStorage:', storedSessionId);
           if (storedSessionId) {
             console.log('Found stored session, checking validity...');
+            setIsCheckingSession(true);
             await checkSession(storedSessionId);
+            setIsCheckingSession(false);
           } else {
             console.log('No stored session found');
-            setIsLoading(false);
           }
         }
       } catch (error) {
         console.error('Error in handleInitialAuth:', error);
-        setIsLoading(false);
+      } finally {
+        if (mounted) {
+          setIsLoading(false);
+        }
       }
     };
 
     handleInitialAuth();
+
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   const checkSession = async (sessionId: string): Promise<boolean> => {
@@ -82,7 +99,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       if (!sessionId) {
         console.log('No session ID provided');
-        setIsLoading(false);
         return false;
       }
 
@@ -112,8 +128,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       localStorage.removeItem('sessionId');
       setUser(null);
       return false;
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -141,7 +155,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, logout }}>
+    <AuthContext.Provider value={{ user, isLoading: isLoading || isCheckingSession, login, logout }}>
       {children}
     </AuthContext.Provider>
   );
