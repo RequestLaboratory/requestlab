@@ -22,37 +22,53 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const handleInitialAuth = async () => {
-      // Check for session ID in URL first (from callback)
-      const urlParams = new URLSearchParams(window.location.search);
-      const sessionId = urlParams.get('session');
-      
-      console.log('URL Session ID:', sessionId);
-      console.log('Current URL:', window.location.href);
-      console.log('All URL params:', Object.fromEntries(urlParams));
-      
-      if (sessionId) {
-        console.log('Found session ID in URL:', sessionId);
+      try {
+        // Check for session ID in URL first (from callback)
+        const urlParams = new URLSearchParams(window.location.search);
+        const sessionId = urlParams.get('session');
         
-        // Check the session first
-        const isAuthenticated = await checkSession(sessionId);
+        console.log('=== Auth Flow Debug ===');
+        console.log('URL Session ID:', sessionId);
+        console.log('Current URL:', window.location.href);
+        console.log('All URL params:', Object.fromEntries(urlParams));
+        console.log('Current localStorage:', localStorage.getItem('sessionId'));
         
-        if (isAuthenticated) {
-          // Only store and cleanup URL if authentication was successful
-          localStorage.setItem('sessionId', sessionId);
-          const newUrl = new URL(window.location.href);
-          newUrl.searchParams.delete('session');
-          window.history.replaceState({}, document.title, newUrl.toString());
-          console.log('Stored session ID and cleaned up URL');
-        }
-      } else {
-        console.log('No session ID in URL, checking localStorage');
-        const storedSessionId = localStorage.getItem('sessionId');
-        console.log('Stored session ID from localStorage:', storedSessionId);
-        if (storedSessionId) {
-          await checkSession(storedSessionId);
+        if (sessionId) {
+          console.log('Found session ID in URL:', sessionId);
+          
+          // Check the session first
+          console.log('Starting session check...');
+          const isAuthenticated = await checkSession(sessionId);
+          console.log('Session check result:', isAuthenticated);
+          
+          if (isAuthenticated) {
+            console.log('Session is valid, storing in localStorage');
+            localStorage.setItem('sessionId', sessionId);
+            console.log('Stored session ID in localStorage:', localStorage.getItem('sessionId'));
+            
+            // Only clean up URL after successful storage
+            const newUrl = new URL(window.location.href);
+            newUrl.searchParams.delete('session');
+            window.history.replaceState({}, document.title, newUrl.toString());
+            console.log('Cleaned up URL:', window.location.href);
+          } else {
+            console.log('Session check failed, not storing session');
+          }
         } else {
-          setIsLoading(false);
+          console.log('No session ID in URL, checking localStorage');
+          const storedSessionId = localStorage.getItem('sessionId');
+          console.log('Stored session ID from localStorage:', storedSessionId);
+          if (storedSessionId) {
+            console.log('Found stored session, checking validity...');
+            await checkSession(storedSessionId);
+          } else {
+            console.log('No stored session found');
+            setIsLoading(false);
+          }
         }
+      } catch (error) {
+        console.error('Error in handleInitialAuth:', error);
+        setIsLoading(false);
       }
     };
 
@@ -61,23 +77,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const checkSession = async (sessionId: string): Promise<boolean> => {
     try {
+      console.log('=== Session Check Debug ===');
       console.log('Checking session with ID:', sessionId);
       
       if (!sessionId) {
-        console.log('No session ID found');
+        console.log('No session ID provided');
         setIsLoading(false);
         return false;
       }
 
-      console.log('Making session check request...');
+      console.log('Making session check request to worker...');
       const response = await fetch('https://googleauth.yadev64.workers.dev/auth/session', {
         headers: {
           Authorization: `Bearer ${sessionId}`,
         },
       });
 
+      console.log('Session check response status:', response.status);
       const data = await response.json();
-      console.log('Session check response:', data);
+      console.log('Session check response data:', data);
       
       if (data.authenticated === false) {
         console.log('Session not authenticated');
