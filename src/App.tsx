@@ -8,10 +8,7 @@ import DiffViewer from './components/DiffViewer';
 import ShareLink from './components/ShareLink';
 import ExampleButton from './components/ExampleButton';
 import ModeSwitcher, { ComparisonMode } from './components/ModeSwitcher';
-import Layout from './components/Layout';
-import Header from './components/Header';
 import { decodeJsonFromUrl } from './utils/urlUtils';
-import { formatCurlResponse } from './utils/curlUtils';
 import ApiTesting from './pages/ApiTesting';
 import { GitCompare, Sun, Moon } from 'lucide-react';
 import { ThemeContext } from './contexts/ThemeContext';
@@ -23,6 +20,8 @@ import CollectionsSidebar from './components/CollectionsSidebar';
 import { ApiCollectionsProvider } from './contexts/ApiCollectionsContext';
 import Loader from './components/Loader';
 import { LoaderProvider, useLoader } from './contexts/LoaderContext';
+import { AuthProvider } from './contexts/AuthContext';
+import LoginButton from './components/LoginButton';
 
 const leftExample = JSON.stringify({
   name: "Ford Mustang GT",
@@ -210,7 +209,6 @@ const rightExample = JSON.stringify({
 }, null, 2);
 
 function AppContent() {
-  const [activePage, setActivePage] = useState<'compare' | 'api-testing' | 'api-interceptor' | 'sql-compare'>('api-testing');
   const [mode, setMode] = useState<ComparisonMode>('json');
   const [showWelcomePopup, setShowWelcomePopup] = useState(true);
   const { isDarkMode, toggleTheme } = useContext(ThemeContext);
@@ -249,11 +247,11 @@ function AppContent() {
     executeRightCurl,
   } = curlComparison;
 
-  const [leftCurl, setLeftCurl] = useState<string>(`curl 'https://api.github.com/repos/facebook/react' \\
+  const [leftCurl] = useState<string>(`curl 'https://api.github.com/repos/facebook/react' \\
   -H 'Accept: application/vnd.github.v3+json' \\
   -H 'User-Agent: RequestLab'`);
 
-  const [rightCurl, setRightCurl] = useState<string>(`curl 'https://api.github.com/repos/vuejs/vue' \\
+  const [rightCurl] = useState<string>(`curl 'https://api.github.com/repos/vuejs/vue' \\
   -H 'Accept: application/vnd.github.v3+json' \\
   -H 'User-Agent: RequestLab'`);
 
@@ -282,15 +280,15 @@ function AppContent() {
   // Update activePage based on current route
   useEffect(() => {
     if (location.pathname === '/') {
-      setActivePage('api-testing');
+      navigate('/');
     } else if (location.pathname === '/json-compare') {
-      setActivePage('compare');
+      navigate('/json-compare');
     } else if (location.pathname === '/api-interceptor') {
-      setActivePage('api-interceptor');
+      navigate('/api-interceptor');
     } else if (location.pathname === '/sql-compare') {
-      setActivePage('sql-compare');
+      navigate('/sql-compare');
     }
-  }, [location.pathname]);
+  }, [location.pathname, navigate]);
 
   // Handle mode change
   const handleModeChange = (newMode: ComparisonMode) => {
@@ -463,8 +461,9 @@ function AppContent() {
             </button>
           </nav>
 
-          {/* Dark Mode Toggle at bottom */}
-          <div className="mt-auto pt-4 border-t border-gray-200 dark:border-gray-700">
+          {/* Login Button and Dark Mode Toggle at bottom */}
+          <div className="mt-auto pt-4 border-t border-gray-200 dark:border-gray-700 space-y-2">
+            <LoginButton />
             <button
               onClick={toggleTheme}
               className="w-full flex items-center px-3 py-2.5 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-200"
@@ -634,11 +633,13 @@ function AppContent() {
 function App() {
   return (
     <Router>
-      <ApiCollectionsProvider>
-        <LoaderProvider>
-          <AppContent />
-        </LoaderProvider>
-      </ApiCollectionsProvider>
+      <AuthProvider>
+        <ApiCollectionsProvider>
+          <LoaderProvider>
+            <AppContent />
+          </LoaderProvider>
+        </ApiCollectionsProvider>
+      </AuthProvider>
     </Router>
   );
 }
