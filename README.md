@@ -1,6 +1,6 @@
 # RequestLab - API Testing & Comparison Tool
 
-A modern web application that provides a comprehensive API development platform. Built with React and TypeScript, RequestLab offers powerful features for API testing, JSON comparison, and cURL command analysis.
+A modern web application that provides a comprehensive API development platform. Built with React and TypeScript, RequestLab offers powerful features for API testing, JSON comparison, cURL command analysis, and API request interception.
 
 ## Features
 
@@ -35,6 +35,40 @@ A modern web application that provides a comprehensive API development platform.
   - Real-time diff visualization
   - Share comparison results via unique URLs
 
+### API Interceptor
+
+- **Request Interception**
+
+  - Create custom interceptors for any API endpoint
+  - Real-time request/response monitoring
+  - Detailed request and response logging
+  - Support for all HTTP methods
+  - Automatic request forwarding
+
+- **Interceptor Management**
+
+  - Create, edit, and delete interceptors
+  - Unique proxy URLs for each interceptor
+  - Active/Inactive status toggle
+  - Base URL configuration
+  - Request path mapping
+
+- **Real-time Logging**
+  - Server-Sent Events (SSE) for real-time updates
+  - Heartbeat mechanism for connection stability
+  - Automatic reconnection handling
+  - Detailed request/response information
+  - Connection status monitoring
+
+### SQL Schema Comparison
+
+- **Schema Analysis**
+  - Compare MySQL database schemas
+  - Visualize schema differences
+  - Support for complex SQL structures
+  - File upload support
+  - Example schema loading
+
 ### General Features
 
 - **User Experience**
@@ -51,12 +85,31 @@ A modern web application that provides a comprehensive API development platform.
   - Request/response history
   - Shareable links with encoded parameters
 
+## Architecture
+
+### Frontend
+
+- React with TypeScript
+- Tailwind CSS for styling
+- React Router for navigation
+- Context API for state management
+- Server-Sent Events for real-time updates
+
+### Backend (Cloudflare Worker)
+
+- Serverless architecture
+- KV storage for interceptor data
+- Durable Objects for WebSocket management
+- CORS support
+- Request/response logging
+
 ## Getting Started
 
 ### Prerequisites
 
 - Node.js (v14 or higher)
 - npm or yarn
+- Cloudflare account (for API Interceptor feature)
 
 ### Installation
 
@@ -75,7 +128,15 @@ npm install
 yarn install
 ```
 
-3. Start the development server:
+3. Configure environment variables:
+
+```bash
+# Create .env file
+cp .env.example .env
+# Edit .env with your configuration
+```
+
+4. Start the development server:
 
 ```bash
 npm run dev
@@ -83,7 +144,7 @@ npm run dev
 yarn dev
 ```
 
-4. Open [http://localhost:5173](http://localhost:5173) in your browser
+5. Open [http://localhost:5173](http://localhost:5173) in your browser
 
 ## Usage
 
@@ -105,40 +166,56 @@ yarn dev
 3. View the differences with color-coded highlighting
 4. Share the comparison using the generated URL
 
-## Use Cases
+### API Interceptor
 
-- **API Development**
+1. Create a new interceptor:
+   - Enter a name
+   - Specify the base URL to intercept
+   - Configure any path mappings
+2. Use the generated proxy URL in your application
+3. Monitor requests in real-time through the logs interface
+4. View detailed request/response information
 
-  - Test API endpoints
-  - Debug API responses
-  - Compare API versions
-  - Validate request/response formats
+### SQL Schema Comparison
 
-- **JSON Processing**
+1. Navigate to the SQL Compare page
+2. Input or upload your MySQL schema dumps
+3. View the differences between schemas
+4. Export or share the comparison results
 
-  - Compare JSON objects
-  - Validate JSON schemas
-  - Format and beautify JSON
-  - Track JSON changes
+## Development
 
-- **cURL Testing**
-  - Execute cURL commands
-  - Compare cURL responses
-  - Debug API calls
-  - Share API requests
+### Project Structure
 
-## Technologies Used
+```
+src/
+├── components/         # React components
+├── contexts/          # React contexts
+├── hooks/            # Custom React hooks
+├── pages/            # Page components
+├── utils/            # Utility functions
+└── types/            # TypeScript type definitions
+```
 
-- React
-- TypeScript
-- Tailwind CSS
-- React Router
-- Lucide Icons
-- React Syntax Highlighter
+### Key Components
+
+- `ApiTesting`: Main API testing interface
+- `JsonInput`: JSON input and formatting
+- `CurlInput`: cURL command input and execution
+- `DiffViewer`: JSON/cURL comparison visualization
+- `ApiInterceptor`: Interceptor management interface
+- `RequestLogViewer`: Real-time request logging
+- `SqlCompare`: SQL schema comparison tool
 
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
 ## License
 
