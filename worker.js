@@ -58,7 +58,8 @@ async function dbQuery(query, params = []) {
       name: params[1],
       base_url: params[2],
       created_at: params[3],
-      is_active: params[4]
+      is_active: params[4],
+      user_id: params[5]
     })
   });
 
@@ -238,14 +239,60 @@ export default {
     if (path.startsWith('/api/interceptors')) {
       try {
         if (request.method === 'GET' && path === '/api/interceptors') {
-          // List all interceptors
-          const interceptors = await dbSelect('order=created_at.desc');
+          // Get user ID from Authorization header
+          const authHeader = request.headers.get('Authorization');
+          if (!authHeader) {
+            return addCorsHeaders(new Response('Unauthorized', { status: 401 }));
+          }
+          const sessionId = authHeader.replace('Bearer ', '');
+          
+          // Verify session and get user ID
+          const sessionResponse = await fetch('https://googleauth.yadev64.workers.dev/auth/session', {
+            headers: {
+              Authorization: `Bearer ${sessionId}`,
+            },
+          });
+          
+          if (!sessionResponse.ok) {
+            return addCorsHeaders(new Response('Unauthorized', { status: 401 }));
+          }
+          
+          const sessionData = await sessionResponse.json();
+          if (!sessionData.authenticated) {
+            return addCorsHeaders(new Response('Unauthorized', { status: 401 }));
+          }
+          
+          // List interceptors for the user
+          const interceptors = await dbSelect(`user_id=eq.${sessionData.user.id}&order=created_at.desc`);
           return addCorsHeaders(new Response(JSON.stringify(interceptors), {
             headers: { 'Content-Type': 'application/json' },
           }));
         }
 
         if (request.method === 'POST' && path === '/api/interceptors') {
+          // Get user ID from Authorization header
+          const authHeader = request.headers.get('Authorization');
+          if (!authHeader) {
+            return addCorsHeaders(new Response('Unauthorized', { status: 401 }));
+          }
+          const sessionId = authHeader.replace('Bearer ', '');
+          
+          // Verify session and get user ID
+          const sessionResponse = await fetch('https://googleauth.yadev64.workers.dev/auth/session', {
+            headers: {
+              Authorization: `Bearer ${sessionId}`,
+            },
+          });
+          
+          if (!sessionResponse.ok) {
+            return addCorsHeaders(new Response('Unauthorized', { status: 401 }));
+          }
+          
+          const sessionData = await sessionResponse.json();
+          if (!sessionData.authenticated) {
+            return addCorsHeaders(new Response('Unauthorized', { status: 401 }));
+          }
+          
           // Create new interceptor
           const data = await request.json();
           const uniqueCode = generateUniqueCode();
@@ -254,7 +301,8 @@ export default {
             name: data.name,
             base_url: data.baseUrl,
             created_at: new Date().toISOString(),
-            is_active: true
+            is_active: true,
+            user_id: sessionData.user.id
           };
 
           const result = await dbQuery('', [
@@ -262,7 +310,8 @@ export default {
             interceptor.name,
             interceptor.base_url,
             interceptor.created_at,
-            interceptor.is_active
+            interceptor.is_active,
+            interceptor.user_id
           ]);
 
           return addCorsHeaders(new Response(JSON.stringify(result[0]), {
@@ -271,8 +320,38 @@ export default {
         }
 
         if (request.method === 'DELETE' && path.startsWith('/api/interceptors/')) {
+          // Get user ID from Authorization header
+          const authHeader = request.headers.get('Authorization');
+          if (!authHeader) {
+            return addCorsHeaders(new Response('Unauthorized', { status: 401 }));
+          }
+          const sessionId = authHeader.replace('Bearer ', '');
+          
+          // Verify session and get user ID
+          const sessionResponse = await fetch('https://googleauth.yadev64.workers.dev/auth/session', {
+            headers: {
+              Authorization: `Bearer ${sessionId}`,
+            },
+          });
+          
+          if (!sessionResponse.ok) {
+            return addCorsHeaders(new Response('Unauthorized', { status: 401 }));
+          }
+          
+          const sessionData = await sessionResponse.json();
+          if (!sessionData.authenticated) {
+            return addCorsHeaders(new Response('Unauthorized', { status: 401 }));
+          }
+          
           // Delete interceptor
           const id = path.split('/')[3];
+          
+          // Verify the interceptor belongs to the user
+          const interceptors = await dbSelect(`id=eq.${id}&user_id=eq.${sessionData.user.id}`);
+          if (interceptors.length === 0) {
+            return addCorsHeaders(new Response('Not found', { status: 404 }));
+          }
+          
           await dbDelete(id);
           return addCorsHeaders(new Response(null, { status: 204 }));
         }

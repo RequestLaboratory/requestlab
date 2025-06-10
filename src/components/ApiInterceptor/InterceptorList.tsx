@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { PlusIcon, TrashIcon, PencilIcon, ClipboardIcon, CheckIcon } from '@heroicons/react/24/outline';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface Interceptor {
   id: string;
@@ -22,15 +23,30 @@ export default function InterceptorList({ onSelectInterceptor, onCreateIntercept
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const { user } = useAuth();
 
   useEffect(() => {
-    fetchInterceptors();
-  }, []);
+    if (user) {
+      fetchInterceptors();
+    } else {
+      setInterceptors([]);
+      setIsLoading(false);
+    }
+  }, [user]);
 
   const fetchInterceptors = async () => {
     try {
       setIsLoading(true);
-      const response = await fetch(`${API_BASE_URL}/api/interceptors`);
+      const sessionId = localStorage.getItem('sessionId');
+      if (!sessionId) {
+        throw new Error('No session ID found');
+      }
+
+      const response = await fetch(`${API_BASE_URL}/api/interceptors`, {
+        headers: {
+          'Authorization': `Bearer ${sessionId}`
+        }
+      });
       if (!response.ok) {
         const errorText = await response.text();
         throw new Error(`Failed to fetch interceptors: ${errorText}`);
@@ -48,8 +64,16 @@ export default function InterceptorList({ onSelectInterceptor, onCreateIntercept
   const deleteInterceptor = async (id: string) => {
     if (!confirm('Are you sure you want to delete this interceptor?')) return;
     try {
+      const sessionId = localStorage.getItem('sessionId');
+      if (!sessionId) {
+        throw new Error('No session ID found');
+      }
+
       const response = await fetch(`${API_BASE_URL}/api/interceptors/${id}`, {
         method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${sessionId}`
+        }
       });
       if (!response.ok) {
         const errorText = await response.text();
@@ -68,6 +92,14 @@ export default function InterceptorList({ onSelectInterceptor, onCreateIntercept
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
   };
+
+  if (!user) {
+    return (
+      <div className="p-4 text-center text-gray-500 dark:text-gray-400">
+        Please log in to view your interceptors.
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (
