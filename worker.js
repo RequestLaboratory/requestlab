@@ -1,20 +1,26 @@
-// In-memory storage
-const interceptors = new Map();
-const requestLogs = new Map();
+// Supabase configuration
+const SUPABASE_URL = 'ADD-YOUR-SUPABASE-URL-HERE';
+const SUPABASE_ANON_KEY = 'ADD-YOUR-SUPABASE-ANON-KEY-HERE';
+const DB_CONNECTION_STRING = 'ADD-YOUR-DB-CONNECTION-STRING-HERE';
 
 // CORS headers
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization, apikey, Upgrade, Connection',
   'Access-Control-Max-Age': '86400',
+  'Access-Control-Allow-Credentials': 'true',
 };
 
 // Helper to handle CORS preflight
 function handleCors(request) {
   if (request.method === 'OPTIONS') {
     return new Response(null, {
-      headers: corsHeaders,
+      headers: {
+        ...corsHeaders,
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization, apikey, Upgrade, Connection',
+        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS, CONNECT',
+      },
     });
   }
 }
@@ -37,122 +43,69 @@ function generateUniqueCode() {
   return Math.random().toString(36).substring(2, 8);
 }
 
-export default {
-  async fetch(request, env, ctx) {
-    // Handle CORS preflight
-    const corsResponse = handleCors(request);
-    if (corsResponse) return corsResponse;
+// Database helper
+async function dbQuery(query, params = []) {
+  const response = await fetch(`${SUPABASE_URL}/rest/v1/interceptors`, {
+    method: 'POST',
+    headers: {
+      'apikey': SUPABASE_ANON_KEY,
+      'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+      'Content-Type': 'application/json',
+      'Prefer': 'return=representation'
+    },
+    body: JSON.stringify({
+      id: params[0],
+      name: params[1],
+      base_url: params[2],
+      created_at: params[3],
+      is_active: params[4]
+    })
+  });
 
-    const url = new URL(request.url);
-    const path = url.pathname;
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Database query failed: ${response.statusText} - ${errorText}`);
+  }
 
-    // API endpoints
-    if (path.startsWith('/api/interceptors')) {
-      if (request.method === 'GET' && path === '/api/interceptors') {
-        // List all interceptors
-        const interceptorsList = Array.from(interceptors.values());
-        return addCorsHeaders(new Response(JSON.stringify(interceptorsList), {
-          headers: { 'Content-Type': 'application/json' },
-        }));
-      }
+  return response.json();
+}
 
-      if (request.method === 'POST' && path === '/api/interceptors') {
-        // Create new interceptor
-        const data = await request.json();
-        const uniqueCode = generateUniqueCode();
-        const interceptor = {
-          id: uniqueCode,
-          name: data.name,
-          baseUrl: data.baseUrl,
-          createdAt: new Date().toISOString(),
-          isActive: true
-        };
-        interceptors.set(uniqueCode, interceptor);
-        return addCorsHeaders(new Response(JSON.stringify(interceptor), {
-          headers: { 'Content-Type': 'application/json' },
-        }));
-      }
-
-      if (path.startsWith('/api/interceptors/') && path.endsWith('/logs')) {
-        // Get logs for specific interceptor
-        const id = path.split('/')[3];
-        const logs = requestLogs.get(id) || [];
-        return addCorsHeaders(new Response(JSON.stringify(logs), {
-          headers: { 'Content-Type': 'application/json' },
-        }));
-      }
-
-      if (request.method === 'DELETE' && path.startsWith('/api/interceptors/')) {
-        // Delete interceptor
-        const id = path.split('/')[3];
-        interceptors.delete(id);
-        requestLogs.delete(id);
-        return addCorsHeaders(new Response(null, { status: 204 }));
-      }
+// Database helper for SELECT queries
+async function dbSelect(query, params = []) {
+  const response = await fetch(`${SUPABASE_URL}/rest/v1/interceptors?${query}`, {
+    headers: {
+      'apikey': SUPABASE_ANON_KEY,
+      'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+      'Content-Type': 'application/json'
     }
+  });
 
-    // Handle proxy requests
-    const pathParts = path.split('/').filter(Boolean);
-    if (pathParts.length > 0) {
-      const uniqueCode = pathParts[0];
-      const interceptor = interceptors.get(uniqueCode);
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Database query failed: ${response.statusText} - ${errorText}`);
+  }
 
-      if (interceptor && interceptor.isActive) {
-        try {
-          // Reconstruct the path without the unique code
-          const targetPath = '/' + pathParts.slice(1).join('/') + url.search;
-          const originalUrl = new URL(targetPath, interceptor.baseUrl);
-          
-          const startTime = Date.now();
-          const response = await fetch(originalUrl.toString(), {
-            method: request.method,
-            headers: request.headers,
-            body: request.body,
-          });
-          const duration = Date.now() - startTime;
+  return response.json();
+}
 
-          // Clone the response for logging
-          const responseClone = response.clone();
-          const responseBody = await responseClone.text();
-
-          // Log the request
-          const log = {
-            id: crypto.randomUUID(),
-            interceptorId: interceptor.id,
-            originalUrl: originalUrl.toString(),
-            proxyUrl: url.toString(),
-            method: request.method,
-            headers: Object.fromEntries(request.headers),
-            body: request.body ? await request.text() : null,
-            response: {
-              status: response.status,
-              headers: Object.fromEntries(response.headers),
-              body: responseBody,
-            },
-            timestamp: new Date().toISOString(),
-            duration: duration
-          };
-
-          // Store the log
-          const logs = requestLogs.get(interceptor.id) || [];
-          logs.unshift(log);
-          if (logs.length > 100) logs.pop(); // Keep only last 100 logs
-          requestLogs.set(interceptor.id, logs);
-
-          // Return the original response
-          return addCorsHeaders(new Response(responseBody, {
-            status: response.status,
-            headers: response.headers,
-          }));
-        } catch (error) {
-          return addCorsHeaders(new Response('Error forwarding request: ' + error.message, { status: 500 }));
-        }
-      }
+// Database helper for DELETE queries
+async function dbDelete(id) {
+  const response = await fetch(`${SUPABASE_URL}/rest/v1/interceptors?id=eq.${id}`, {
+    method: 'DELETE',
+    headers: {
+      'apikey': SUPABASE_ANON_KEY,
+      'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+      'Content-Type': 'application/json'
     }
+  });
 
-    return addCorsHeaders(new Response('Not found', { status: 404 }));
-  },
-};
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Database query failed: ${response.statusText} - ${errorText}`);
+  }
+
+  return response.json();
+}
 
 // WebSocket Manager Durable Object
 export class WebSocketManager {
@@ -171,12 +124,9 @@ export class WebSocketManager {
     }
 
     if (url.pathname === '/connect') {
-      const { 0: client, 1: server } = new WebSocketPair();
-      await this.handleWebSocket(server);
-      return new Response(null, {
-        status: 101,
-        webSocket: client,
-      });
+      const { webSocket } = await request.json();
+      await this.handleWebSocket(webSocket);
+      return new Response('OK');
     }
 
     return new Response('Not found', { status: 404 });
@@ -219,4 +169,198 @@ export class WebSocketManager {
       }
     }
   }
-} 
+}
+
+export default {
+  async fetch(request, env, ctx) {
+    // Handle CORS preflight
+    const corsResponse = handleCors(request);
+    if (corsResponse) return corsResponse;
+
+    const url = new URL(request.url);
+    const path = url.pathname;
+
+    // Handle SSE connection
+    if (path === '/events') {
+      // Initialize controllers set if it doesn't exist
+      if (!env.EVENT_CONTROLLERS) {
+        env.EVENT_CONTROLLERS = new Set();
+      }
+
+      const encoder = new TextEncoder();
+      const stream = new ReadableStream({
+        start(controller) {
+          // Send initial connection message with a retry field
+          controller.enqueue(encoder.encode('retry: 1000\n'));
+          controller.enqueue(encoder.encode('data: {"type":"connected"}\n\n'));
+          
+          // Store the controller
+          env.EVENT_CONTROLLERS.add(controller);
+          
+          // Set up heartbeat interval
+          const heartbeatInterval = setInterval(() => {
+            try {
+              controller.enqueue(encoder.encode('data: {"type":"heartbeat"}\n\n'));
+            } catch (error) {
+              console.error('Error sending heartbeat:', error);
+              clearInterval(heartbeatInterval);
+              env.EVENT_CONTROLLERS.delete(controller);
+            }
+          }, 30000); // Send heartbeat every 30 seconds
+          
+          // Remove controller when connection closes
+          request.signal.addEventListener('abort', () => {
+            clearInterval(heartbeatInterval);
+            env.EVENT_CONTROLLERS.delete(controller);
+          });
+        },
+        cancel() {
+          // Clean up when the stream is cancelled
+          env.EVENT_CONTROLLERS.delete(controller);
+        }
+      });
+
+      return new Response(stream, {
+        headers: {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache, no-transform',
+          'Connection': 'keep-alive',
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type',
+          'X-Accel-Buffering': 'no', // Disable proxy buffering
+          'Transfer-Encoding': 'chunked'
+        }
+      });
+    }
+
+    // API endpoints
+    if (path.startsWith('/api/interceptors')) {
+      try {
+        if (request.method === 'GET' && path === '/api/interceptors') {
+          // List all interceptors
+          const interceptors = await dbSelect('order=created_at.desc');
+          return addCorsHeaders(new Response(JSON.stringify(interceptors), {
+            headers: { 'Content-Type': 'application/json' },
+          }));
+        }
+
+        if (request.method === 'POST' && path === '/api/interceptors') {
+          // Create new interceptor
+          const data = await request.json();
+          const uniqueCode = generateUniqueCode();
+          const interceptor = {
+            id: uniqueCode,
+            name: data.name,
+            base_url: data.baseUrl,
+            created_at: new Date().toISOString(),
+            is_active: true
+          };
+
+          const result = await dbQuery('', [
+            interceptor.id,
+            interceptor.name,
+            interceptor.base_url,
+            interceptor.created_at,
+            interceptor.is_active
+          ]);
+
+          return addCorsHeaders(new Response(JSON.stringify(result[0]), {
+            headers: { 'Content-Type': 'application/json' },
+          }));
+        }
+
+        if (request.method === 'DELETE' && path.startsWith('/api/interceptors/')) {
+          // Delete interceptor
+          const id = path.split('/')[3];
+          await dbDelete(id);
+          return addCorsHeaders(new Response(null, { status: 204 }));
+        }
+      } catch (error) {
+        return addCorsHeaders(new Response('Error: ' + error.message, { status: 500 }));
+      }
+    }
+
+    // Handle proxy requests
+    const pathParts = path.split('/').filter(Boolean);
+    if (pathParts.length > 0) {
+      const uniqueCode = pathParts[0];
+      try {
+        const interceptors = await dbSelect(`id=eq.${uniqueCode}&is_active=eq.true`);
+        const interceptor = interceptors[0];
+
+        if (interceptor) {
+          try {
+            // Reconstruct the path without the unique code
+            const targetPath = '/' + pathParts.slice(1).join('/') + url.search;
+            const originalUrl = new URL(targetPath, interceptor.base_url);
+            
+            const startTime = Date.now();
+            const response = await fetch(originalUrl.toString(), {
+              method: request.method,
+              headers: request.headers,
+              body: request.body,
+            });
+            const duration = Date.now() - startTime;
+
+            // Clone the response for logging
+            const responseClone = response.clone();
+            const responseBody = await responseClone.text();
+
+            // Create log object
+            const log = {
+              id: crypto.randomUUID(),
+              interceptor_id: interceptor.id,
+              original_url: originalUrl.toString(),
+              proxy_url: url.toString(),
+              method: request.method,
+              headers: JSON.stringify(Object.fromEntries(request.headers)),
+              body: request.body ? await request.text() : null,
+              response_status: response.status,
+              response_headers: JSON.stringify(Object.fromEntries(response.headers)),
+              response_body: responseBody,
+              timestamp: new Date().toISOString(),
+              duration: duration
+            };
+
+            // Broadcast log to all connected clients using SSE
+            if (env.EVENT_CONTROLLERS && env.EVENT_CONTROLLERS.size > 0) {
+              const encoder = new TextEncoder();
+              const message = `data: ${JSON.stringify({
+                type: 'log',
+                data: log
+              })}\n\n`;
+              
+              const deadControllers = new Set();
+              for (const controller of env.EVENT_CONTROLLERS) {
+                try {
+                  controller.enqueue(encoder.encode(message));
+                } catch (error) {
+                  console.error('Error sending SSE message:', error);
+                  deadControllers.add(controller);
+                }
+              }
+              
+              // Clean up dead controllers
+              for (const controller of deadControllers) {
+                env.EVENT_CONTROLLERS.delete(controller);
+              }
+            }
+
+            // Return the original response
+            return addCorsHeaders(new Response(responseBody, {
+              status: response.status,
+              headers: response.headers,
+            }));
+          } catch (error) {
+            return addCorsHeaders(new Response('Error forwarding request: ' + error.message, { status: 500 }));
+          }
+        }
+      } catch (error) {
+        return addCorsHeaders(new Response('Error: ' + error.message, { status: 500 }));
+      }
+    }
+
+    return addCorsHeaders(new Response('Not found', { status: 404 }));
+  },
+}; 
