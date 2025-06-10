@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { GitCompare, Terminal, Github, Linkedin, Network } from 'lucide-react';
+import { GitCompare, Terminal, Github, Linkedin, Network, Database } from 'lucide-react';
 
 interface WelcomePopupProps {
   isOpen: boolean;
@@ -78,37 +78,54 @@ const WelcomePopup: React.FC<WelcomePopupProps> = ({ isOpen, onClose }) => {
                     Intercept and monitor API requests with detailed request/response logging
                   </p>
                 </button>
+
+                <button
+                  onClick={() => handleOptionSelect('/sql-compare')}
+                  className="flex flex-col items-center p-6 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-orange-500 dark:hover:border-orange-500 transition-colors duration-200 group"
+                >
+                  <Database className="h-8 w-8 text-orange-500 mb-3 group-hover:scale-110 transition-transform duration-200" />
+                  <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-2">SQL Compare</h4>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 text-center">
+                    Compare and analyze differences between SQL queries and their results
+                  </p>
+                </button>
               </div>
 
               {/* Footer */}
               <div className="mt-8 pt-4 border-t border-gray-200 dark:border-gray-700">
                 <div className="flex justify-between items-center">
                   <a
-                    href="https://github.com/yadev64/jsoncompare"
+                    href="https://github.com/RequestLaboratory/requestlab"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors duration-200"
+                    className="flex items-center text-gray-500 dark:text-gray-400 hover:text-purple-500 dark:hover:text-purple-400 transition-colors duration-200"
                   >
                     <Github className="h-5 w-5 mr-2" />
                     <span className="text-sm">Star on GitHub ⭐</span>
                   </a>
                   <div className="flex items-center text-gray-500 dark:text-gray-400">
+                    <span className="text-sm mr-2">Made with ☕ by </span>
                     <a
                       href="https://www.linkedin.com/in/yadev-jayachandran/"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="hover:text-gray-700 dark:hover:text-gray-300 transition-colors duration-200"
+                      className="hover:text-orange-500 dark:hover:text-orange-400 transition-colors duration-200"
                     >
-                      <span className="text-sm mr-2">Made with ☕ by Yadev | </span>
+                      Yadev
                     </a>
+                    <span className="text-sm mx-1">&</span>
                     <a
-                      href="https://www.linkedin.com/in/yadev-jayachandran/"
+                      href="https://www.linkedin.com/in/ashrit-v/"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="hover:text-gray-700 dark:hover:text-gray-300 transition-colors duration-200"
+                      className="hover:text-blue-500 dark:hover:text-blue-400 transition-colors duration-200"
                     >
+                      Ashrit
+                    </a>
+                    <span className="text-sm mx-2">|</span>
+                   
                       <Linkedin className="h-5 w-5" />
-                    </a>
+                    
                   </div>
                 </div>
               </div>
