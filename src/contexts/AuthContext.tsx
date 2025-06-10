@@ -31,16 +31,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log('All URL params:', Object.fromEntries(urlParams));
       
       if (sessionId) {
-        // Store the session ID and remove it from URL
-        localStorage.setItem('sessionId', sessionId);
-        const newUrl = new URL(window.location.href);
-        newUrl.searchParams.delete('session');
-        window.history.replaceState({}, document.title, newUrl.toString());
-        console.log('Stored session ID:', sessionId);
-        console.log('New URL after cleanup:', window.location.href);
+        console.log('Found session ID in URL:', sessionId);
         
-        // Immediately check the session
-        await checkSession(sessionId);
+        // Check the session first
+        const isAuthenticated = await checkSession(sessionId);
+        
+        if (isAuthenticated) {
+          // Only store and cleanup URL if authentication was successful
+          localStorage.setItem('sessionId', sessionId);
+          const newUrl = new URL(window.location.href);
+          newUrl.searchParams.delete('session');
+          window.history.replaceState({}, document.title, newUrl.toString());
+          console.log('Stored session ID and cleaned up URL');
+        }
       } else {
         console.log('No session ID in URL, checking localStorage');
         const storedSessionId = localStorage.getItem('sessionId');
@@ -56,14 +59,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     handleInitialAuth();
   }, []);
 
-  const checkSession = async (sessionId: string) => {
+  const checkSession = async (sessionId: string): Promise<boolean> => {
     try {
       console.log('Checking session with ID:', sessionId);
       
       if (!sessionId) {
         console.log('No session ID found');
         setIsLoading(false);
-        return;
+        return false;
       }
 
       console.log('Making session check request...');
@@ -80,14 +83,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.log('Session not authenticated');
         localStorage.removeItem('sessionId');
         setUser(null);
+        return false;
       } else {
         console.log('Session authenticated, setting user:', data.user);
         setUser(data.user);
+        return true;
       }
     } catch (error) {
       console.error('Session check failed:', error);
       localStorage.removeItem('sessionId');
       setUser(null);
+      return false;
     } finally {
       setIsLoading(false);
     }
