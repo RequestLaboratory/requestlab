@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { GitCompare, Terminal, Github, Linkedin, Network, Database } from 'lucide-react';
 
@@ -9,6 +9,23 @@ interface WelcomePopupProps {
 
 const WelcomePopup: React.FC<WelcomePopupProps> = ({ isOpen, onClose }) => {
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const checkLastShown = () => {
+      const lastShown = localStorage.getItem('welcomePopupLastShown');
+      const today = new Date().toDateString();
+      
+      if (lastShown !== today) {
+        localStorage.setItem('welcomePopupLastShown', today);
+        return true;
+      }
+      return false;
+    };
+
+    if (isOpen && !checkLastShown()) {
+      onClose();
+    }
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 

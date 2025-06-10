@@ -335,10 +335,18 @@ function AppContent() {
       <div className="w-64 border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex flex-col">
         <div className="flex flex-col h-full px-0 py-4">
           <div className="flex items-center mb-8 px-2">
-            <GitCompare className="w-8 h-8 text-blue-600 dark:text-blue-400" />
-            <h1 className="ml-3 text-xl font-bold text-gray-900 dark:text-white">
-              RequestLab
-            </h1>
+            <button 
+              onClick={() => {
+                localStorage.removeItem('welcomePopupLastShown');
+                setShowWelcomePopup(true);
+              }}
+              className="flex items-center hover:opacity-80 transition-opacity duration-200"
+            >
+              <GitCompare className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+              <h1 className="ml-3 text-xl font-bold text-gray-900 dark:text-white">
+                RequestLab
+              </h1>
+            </button>
           </div>
 
           <nav className="flex flex-col space-y-2">
