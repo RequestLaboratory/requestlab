@@ -27,16 +27,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     
     console.log('URL Session ID:', sessionId);
     console.log('Current URL:', window.location.href);
+    console.log('All URL params:', Object.fromEntries(urlParams));
     
     if (sessionId) {
       // Store the session ID and remove it from URL
       localStorage.setItem('sessionId', sessionId);
-      window.history.replaceState({}, document.title, window.location.pathname);
+      const newUrl = new URL(window.location.href);
+      newUrl.searchParams.delete('session');
+      window.history.replaceState({}, document.title, newUrl.toString());
       console.log('Stored session ID:', sessionId);
+      console.log('New URL after cleanup:', window.location.href);
       checkSession();
     } else {
       console.log('No session ID in URL, checking localStorage');
-      checkSession();
+      const storedSessionId = localStorage.getItem('sessionId');
+      console.log('Stored session ID from localStorage:', storedSessionId);
+      if (storedSessionId) {
+        checkSession();
+      } else {
+        setIsLoading(false);
+      }
     }
   }, []);
 
@@ -51,6 +61,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
+      console.log('Making session check request...');
       const response = await fetch('https://googleauth.yadev64.workers.dev/auth/session', {
         headers: {
           Authorization: `Bearer ${sessionId}`,

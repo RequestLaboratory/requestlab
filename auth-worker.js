@@ -4,6 +4,10 @@ const GOOGLE_CLIENT_SECRET = env.GOOGLE_CLIENT_SECRET;
 const GOOGLE_REDIRECT_URI = env.GOOGLE_REDIRECT_URI;
 const FRONTEND_URL = env.FRONTEND_URL;
 
+// Supabase configuration
+const SUPABASE_URL = env.SUPABASE_URL;
+const SUPABASE_ANON_KEY = env.SUPABASE_ANON_KEY;
+
 // CORS headers
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -34,6 +38,63 @@ function addCorsHeaders(response) {
   });
 }
 
+// Supabase helper functions
+async function createSession(sessionData) {
+  const response = await fetch(`${SUPABASE_URL}/rest/v1/sessions`, {
+    method: 'POST',
+    headers: {
+      'apikey': SUPABASE_ANON_KEY,
+      'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+      'Content-Type': 'application/json',
+      'Prefer': 'return=representation'
+    },
+    body: JSON.stringify(sessionData)
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to create session: ${response.statusText} - ${errorText}`);
+  }
+
+  return response.json();
+}
+
+async function getSession(sessionId) {
+  const response = await fetch(`${SUPABASE_URL}/rest/v1/sessions?id=eq.${sessionId}`, {
+    headers: {
+      'apikey': SUPABASE_ANON_KEY,
+      'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+      'Content-Type': 'application/json'
+    }
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to get session: ${response.statusText} - ${errorText}`);
+  }
+
+  const sessions = await response.json();
+  return sessions[0];
+}
+
+async function deleteSession(sessionId) {
+  const response = await fetch(`${SUPABASE_URL}/rest/v1/sessions?id=eq.${sessionId}`, {
+    method: 'DELETE',
+    headers: {
+      'apikey': SUPABASE_ANON_KEY,
+      'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+      'Content-Type': 'application/json'
+    }
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to delete session: ${response.statusText} - ${errorText}`);
+  }
+
+  return response.json();
+}
+
 export default {
   async fetch(request, env, ctx) {
     // Handle CORS preflight
@@ -59,33 +120,54 @@ export default {
     // Google OAuth callback endpoint
     if (path === '/auth/google/callback') {
       const code = url.searchParams.get('code');
+      console.log('Received callback with code:', code);
+      console.log('Frontend URL:', FRONTEND_URL);
+      console.log('Full URL:', url.toString());
+      console.log('All search params:', Object.fromEntries(url.searchParams));
+      
       if (!code) {
+        console.log('No code received, redirecting to error');
         return Response.redirect(`${FRONTEND_URL}?error=no_code`);
       }
 
       try {
         // Exchange code for tokens
+        const tokenRequestBody = new URLSearchParams({
+          code,
+          client_id: GOOGLE_CLIENT_ID,
+          client_secret: GOOGLE_CLIENT_SECRET,
+          redirect_uri: GOOGLE_REDIRECT_URI,
+          grant_type: 'authorization_code',
+        });
+
+        console.log('Token request body:', tokenRequestBody.toString());
+        console.log('Redirect URI being used:', GOOGLE_REDIRECT_URI);
+
         const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
           },
-          body: new URLSearchParams({
-            code,
-            client_id: GOOGLE_CLIENT_ID,
-            client_secret: GOOGLE_CLIENT_SECRET,
-            redirect_uri: GOOGLE_REDIRECT_URI,
-            grant_type: 'authorization_code',
-          }),
+          body: tokenRequestBody,
         });
 
+        const responseText = await tokenResponse.text();
+        console.log('Token response status:', tokenResponse.status);
+        console.log('Token response text:', responseText);
+
         if (!tokenResponse.ok) {
-          const error = await tokenResponse.json();
+          let error;
+          try {
+            error = JSON.parse(responseText);
+          } catch (e) {
+            error = { error: 'unknown', error_description: responseText };
+          }
           console.error('Token exchange error:', error);
-          return Response.redirect(`${FRONTEND_URL}?error=token_exchange_failed`);
+          return Response.redirect(`${FRONTEND_URL}?error=token_exchange_failed&details=${encodeURIComponent(error.error_description || error.error)}`);
         }
 
-        const tokens = await tokenResponse.json();
+        const tokens = JSON.parse(responseText);
+        console.log('Successfully exchanged code for tokens');
 
         // Get user info
         const userResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
@@ -101,30 +183,40 @@ export default {
         }
 
         const userInfo = await userResponse.json();
+        console.log('Successfully got user info:', userInfo.email);
 
-        // Create session
+        // Create session data
         const sessionId = crypto.randomUUID();
-        const session = {
+        const now = new Date();
+        const expiresAt = new Date(now.getTime() + 24 * 60 * 60 * 1000); // 24 hours
+
+        const sessionData = {
           id: sessionId,
-          user: {
-            id: userInfo.id,
-            email: userInfo.email,
-            name: userInfo.name,
-            picture: userInfo.picture,
-          },
-          expiresAt: Date.now() + 24 * 60 * 60 * 1000, // 24 hours
+          user_id: userInfo.id,
+          email: userInfo.email,
+          name: userInfo.name,
+          picture: userInfo.picture,
+          created_at: now.toISOString().replace('Z', '+00:00'),
+          expires_at: expiresAt.toISOString().replace('Z', '+00:00')
         };
 
-        // Store session in KV
-        await env.SESSIONS.put(sessionId, JSON.stringify(session), {
-          expirationTtl: 86400, // 24 hours
-        });
+        try {
+          // Store session in Supabase
+          await createSession(sessionData);
+          console.log('Stored session:', sessionId);
 
-        // Redirect to frontend with session cookie
-        return Response.redirect(`${FRONTEND_URL}?session=${sessionId}`);
+          // Redirect to frontend with session
+          const redirectUrl = new URL(FRONTEND_URL);
+          redirectUrl.searchParams.set('session', sessionId);
+          console.log('Redirecting to:', redirectUrl.toString());
+          return Response.redirect(redirectUrl.toString());
+        } catch (error) {
+          console.error('Failed to store session:', error);
+          return Response.redirect(`${FRONTEND_URL}?error=session_storage_failed`);
+        }
       } catch (error) {
         console.error('Auth error:', error);
-        return Response.redirect(`${FRONTEND_URL}?error=auth_failed`);
+        return Response.redirect(`${FRONTEND_URL}?error=auth_failed&details=${encodeURIComponent(error.message)}`);
       }
     }
 
@@ -137,23 +229,50 @@ export default {
         }));
       }
 
-      const session = await env.SESSIONS.get(sessionId);
-      if (!session) {
+      try {
+        const session = await getSession(sessionId);
+        if (!session) {
+          return addCorsHeaders(new Response(JSON.stringify({ authenticated: false }), {
+            headers: { 'Content-Type': 'application/json' },
+          }));
+        }
+
+        // Check if session is expired
+        if (new Date(session.expires_at) < new Date()) {
+          await deleteSession(sessionId);
+          return addCorsHeaders(new Response(JSON.stringify({ authenticated: false }), {
+            headers: { 'Content-Type': 'application/json' },
+          }));
+        }
+
+        return addCorsHeaders(new Response(JSON.stringify({
+          authenticated: true,
+          user: {
+            id: session.user_id,
+            email: session.email,
+            name: session.name,
+            picture: session.picture
+          }
+        }), {
+          headers: { 'Content-Type': 'application/json' },
+        }));
+      } catch (error) {
+        console.error('Session validation error:', error);
         return addCorsHeaders(new Response(JSON.stringify({ authenticated: false }), {
           headers: { 'Content-Type': 'application/json' },
         }));
       }
-
-      return addCorsHeaders(new Response(session, {
-        headers: { 'Content-Type': 'application/json' },
-      }));
     }
 
     // Logout endpoint
     if (path === '/auth/logout') {
       const sessionId = request.headers.get('Authorization')?.split(' ')[1];
       if (sessionId) {
-        await env.SESSIONS.delete(sessionId);
+        try {
+          await deleteSession(sessionId);
+        } catch (error) {
+          console.error('Failed to delete session:', error);
+        }
       }
 
       return addCorsHeaders(new Response(JSON.stringify({ success: true }), {
