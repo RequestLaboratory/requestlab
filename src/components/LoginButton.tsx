@@ -1,9 +1,13 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { LogIn, LogOut } from 'lucide-react';
 
 const LoginButton: React.FC = () => {
   const { user, login, logout } = useAuth();
+
+  useEffect(() => {
+    console.log('LoginButton - Current user:', user);
+  }, [user]);
 
   return (
     <button

@@ -25,12 +25,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const urlParams = new URLSearchParams(window.location.search);
     const sessionId = urlParams.get('session');
     
+    console.log('URL Session ID:', sessionId);
+    console.log('Current URL:', window.location.href);
+    
     if (sessionId) {
       // Store the session ID and remove it from URL
       localStorage.setItem('sessionId', sessionId);
       window.history.replaceState({}, document.title, window.location.pathname);
+      console.log('Stored session ID:', sessionId);
       checkSession();
     } else {
+      console.log('No session ID in URL, checking localStorage');
       checkSession();
     }
   }, []);
@@ -38,7 +43,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const checkSession = async () => {
     try {
       const sessionId = localStorage.getItem('sessionId');
+      console.log('Checking session with ID:', sessionId);
+      
       if (!sessionId) {
+        console.log('No session ID found');
         setIsLoading(false);
         return;
       }
@@ -50,10 +58,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
 
       const data = await response.json();
+      console.log('Session check response:', data);
+      
       if (data.authenticated === false) {
+        console.log('Session not authenticated');
         localStorage.removeItem('sessionId');
         setUser(null);
       } else {
+        console.log('Session authenticated, setting user:', data.user);
         setUser(data.user);
       }
     } catch (error) {
@@ -66,10 +78,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const login = () => {
+    console.log('Initiating login...');
     window.location.href = 'https://googleauth.yadev64.workers.dev/auth/google';
   };
 
   const logout = async () => {
+    console.log('Initiating logout...');
     const sessionId = localStorage.getItem('sessionId');
     if (sessionId) {
       try {
