@@ -21,38 +21,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Check for session ID in URL first (from callback)
-    const urlParams = new URLSearchParams(window.location.search);
-    const sessionId = urlParams.get('session');
-    
-    console.log('URL Session ID:', sessionId);
-    console.log('Current URL:', window.location.href);
-    console.log('All URL params:', Object.fromEntries(urlParams));
-    
-    if (sessionId) {
-      // Store the session ID and remove it from URL
-      localStorage.setItem('sessionId', sessionId);
-      const newUrl = new URL(window.location.href);
-      newUrl.searchParams.delete('session');
-      window.history.replaceState({}, document.title, newUrl.toString());
-      console.log('Stored session ID:', sessionId);
-      console.log('New URL after cleanup:', window.location.href);
-      checkSession();
-    } else {
-      console.log('No session ID in URL, checking localStorage');
-      const storedSessionId = localStorage.getItem('sessionId');
-      console.log('Stored session ID from localStorage:', storedSessionId);
-      if (storedSessionId) {
-        checkSession();
+    const handleInitialAuth = async () => {
+      // Check for session ID in URL first (from callback)
+      const urlParams = new URLSearchParams(window.location.search);
+      const sessionId = urlParams.get('session');
+      
+      console.log('URL Session ID:', sessionId);
+      console.log('Current URL:', window.location.href);
+      console.log('All URL params:', Object.fromEntries(urlParams));
+      
+      if (sessionId) {
+        // Store the session ID and remove it from URL
+        localStorage.setItem('sessionId', sessionId);
+        const newUrl = new URL(window.location.href);
+        newUrl.searchParams.delete('session');
+        window.history.replaceState({}, document.title, newUrl.toString());
+        console.log('Stored session ID:', sessionId);
+        console.log('New URL after cleanup:', window.location.href);
+        
+        // Immediately check the session
+        await checkSession(sessionId);
       } else {
-        setIsLoading(false);
+        console.log('No session ID in URL, checking localStorage');
+        const storedSessionId = localStorage.getItem('sessionId');
+        console.log('Stored session ID from localStorage:', storedSessionId);
+        if (storedSessionId) {
+          await checkSession(storedSessionId);
+        } else {
+          setIsLoading(false);
+        }
       }
-    }
+    };
+
+    handleInitialAuth();
   }, []);
 
-  const checkSession = async () => {
+  const checkSession = async (sessionId: string) => {
     try {
-      const sessionId = localStorage.getItem('sessionId');
       console.log('Checking session with ID:', sessionId);
       
       if (!sessionId) {
