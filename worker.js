@@ -3,6 +3,9 @@ const SUPABASE_URL = 'ADD-YOUR-SUPABASE-URL-HERE';
 const SUPABASE_ANON_KEY = 'ADD-YOUR-SUPABASE-ANON-KEY-HERE';
 const DB_CONNECTION_STRING = 'ADD-YOUR-DB-CONNECTION-STRING-HERE';
 
+// Debug flag for global access (1 = bypass auth, 0 = require auth)
+const GLOBAL_ACCESS = 1;
+
 // CORS headers
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -239,38 +242,85 @@ export default {
     if (path.startsWith('/api/interceptors')) {
       try {
         if (request.method === 'GET' && path === '/api/interceptors') {
-          // Get user ID from Authorization header
+          // If global access is enabled, return all interceptors without auth
+          if (GLOBAL_ACCESS === 1) {
+            console.log('Global access enabled, bypassing auth');
+            const interceptors = await dbSelect('order=created_at.desc');
+            return addCorsHeaders(new Response(JSON.stringify(interceptors), {
+              headers: { 'Content-Type': 'application/json' },
+            }));
+          }
+
+          // Otherwise, proceed with normal auth flow
           const authHeader = request.headers.get('Authorization');
+          console.log('Auth header:', authHeader);
           if (!authHeader) {
+            console.log('No auth header found');
             return addCorsHeaders(new Response('Unauthorized', { status: 401 }));
           }
           const sessionId = authHeader.replace('Bearer ', '');
+          console.log('Session ID:', sessionId);
           
           // Verify session and get user ID
+          console.log('Verifying session with auth worker...');
           const sessionResponse = await fetch('https://googleauth.yadev64.workers.dev/auth/session', {
             headers: {
               Authorization: `Bearer ${sessionId}`,
             },
           });
           
+          console.log('Session response status:', sessionResponse.status);
           if (!sessionResponse.ok) {
+            console.log('Session response not OK:', await sessionResponse.text());
             return addCorsHeaders(new Response('Unauthorized', { status: 401 }));
           }
           
           const sessionData = await sessionResponse.json();
+          console.log('Session data:', sessionData);
           if (!sessionData.authenticated) {
+            console.log('Session not authenticated');
             return addCorsHeaders(new Response('Unauthorized', { status: 401 }));
           }
           
           // List interceptors for the user
+          console.log('Fetching interceptors for user:', sessionData.user.id);
           const interceptors = await dbSelect(`user_id=eq.${sessionData.user.id}&order=created_at.desc`);
+          console.log('Found interceptors:', interceptors);
           return addCorsHeaders(new Response(JSON.stringify(interceptors), {
             headers: { 'Content-Type': 'application/json' },
           }));
         }
 
         if (request.method === 'POST' && path === '/api/interceptors') {
-          // Get user ID from Authorization header
+          // If global access is enabled, allow creation without auth
+          if (GLOBAL_ACCESS === 1) {
+            console.log('Global access enabled, bypassing auth for creation');
+            const data = await request.json();
+            const uniqueCode = generateUniqueCode();
+            const interceptor = {
+              id: uniqueCode,
+              name: data.name,
+              base_url: data.baseUrl,
+              created_at: new Date().toISOString(),
+              is_active: true,
+              user_id: 'system' // Use a default user ID for global access
+            };
+
+            const result = await dbQuery('', [
+              interceptor.id,
+              interceptor.name,
+              interceptor.base_url,
+              interceptor.created_at,
+              interceptor.is_active,
+              interceptor.user_id
+            ]);
+
+            return addCorsHeaders(new Response(JSON.stringify(result[0]), {
+              headers: { 'Content-Type': 'application/json' },
+            }));
+          }
+
+          // Otherwise, proceed with normal auth flow
           const authHeader = request.headers.get('Authorization');
           if (!authHeader) {
             return addCorsHeaders(new Response('Unauthorized', { status: 401 }));
@@ -320,7 +370,15 @@ export default {
         }
 
         if (request.method === 'DELETE' && path.startsWith('/api/interceptors/')) {
-          // Get user ID from Authorization header
+          // If global access is enabled, allow deletion without auth
+          if (GLOBAL_ACCESS === 1) {
+            console.log('Global access enabled, bypassing auth for deletion');
+            const id = path.split('/')[3];
+            await dbDelete(id);
+            return addCorsHeaders(new Response(null, { status: 204 }));
+          }
+
+          // Otherwise, proceed with normal auth flow
           const authHeader = request.headers.get('Authorization');
           if (!authHeader) {
             return addCorsHeaders(new Response('Unauthorized', { status: 401 }));
