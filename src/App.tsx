@@ -326,7 +326,7 @@ function AppContent() {
     }
   };
 
-  const showCollections = location.pathname === '/api-testing';
+  const showCollections = location.pathname === '/';
 
   return (
     <div className="h-screen flex bg-white dark:bg-gray-900">
