@@ -22,6 +22,8 @@ import Loader from './components/Loader';
 import { LoaderProvider, useLoader } from './contexts/LoaderContext';
 import { AuthProvider } from './contexts/AuthContext';
 import LoginButton from './components/LoginButton';
+import HomePage from './components/homePage';
+import { WelcomePopupProvider, useWelcomePopup } from './contexts/WelcomePopupContext';
 
 const leftExample = JSON.stringify({
   name: "Ford Mustang GT",
@@ -210,7 +212,7 @@ const rightExample = JSON.stringify({
 
 function AppContent() {
   const [mode, setMode] = useState<ComparisonMode>('json');
-  const [showWelcomePopup, setShowWelcomePopup] = useState(true);
+  const [showWelcomePopup, setShowWelcomePopup] = useState(false);
   const { isDarkMode, toggleTheme } = useContext(ThemeContext);
   const navigate = useNavigate();
   const location = useLocation();
@@ -286,6 +288,9 @@ function AppContent() {
     if (!sessionId) {
       if (location.pathname === '/') {
         navigate('/');
+      } else if (location.pathname === '/api-testing') {
+        navigate('/api-testing');
+        setShowWelcomePopup(true);
       } else if (location.pathname === '/json-compare') {
         navigate('/json-compare');
       } else if (location.pathname === '/api-interceptor') {
@@ -295,6 +300,23 @@ function AppContent() {
       }
     }
   }, [location.pathname, navigate]);
+
+  // Handle welcome popup close
+  const handleWelcomePopupClose = () => {
+    setShowWelcomePopup(false);
+  };
+
+  // Add effect to show welcome popup when api-testing page is opened
+  useEffect(() => {
+    if (location.pathname === '/api-testing') {
+      const lastShown = localStorage.getItem('welcomePopupLastShown');
+      const today = new Date().toDateString();
+      
+      if (lastShown !== today) {
+        setShowWelcomePopup(true);
+      }
+    }
+  }, [location.pathname]);
 
   // Handle mode change
   const handleModeChange = (newMode: ComparisonMode) => {
@@ -326,173 +348,185 @@ function AppContent() {
     }
   };
 
-  const showCollections = location.pathname === '/';
+  const showCollections = location.pathname === '/api-testing';
+  const isHomePage = location.pathname === '/';
 
   return (
     <div className="h-screen flex bg-white dark:bg-gray-900">
       <WelcomePopup 
         isOpen={showWelcomePopup} 
-        onClose={() => setShowWelcomePopup(false)} 
+        onClose={handleWelcomePopupClose} 
       />
       
-      {/* Left Sidebar - Now persistent */}
-      <div className="w-64 border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex flex-col">
-        <div className="flex flex-col h-full px-0 py-4">
-          <div className="flex items-center mb-8 px-2">
-            <button 
-              onClick={() => {
-                localStorage.removeItem('welcomePopupLastShown');
-                setShowWelcomePopup(true);
-              }}
-              className="flex items-center hover:opacity-80 transition-opacity duration-200"
-            >
-              <GitCompare className="w-8 h-8 text-blue-600 dark:text-blue-400" />
-              <h1 className="ml-3 text-xl font-bold text-gray-900 dark:text-white">
-                RequestLab
-              </h1>
-            </button>
-          </div>
-
-          <nav className="flex flex-col space-y-2">
-            <button
-              onClick={() => navigate('/')}
-              className={`group relative flex items-center rounded-lg p-2.5 ${
-                location.pathname === '/'
-                  ? 'bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400'
-                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50'
-              } transition-colors duration-200`}
-            >
-              <div className="flex items-center w-full">
-                <svg 
-                  className="w-5 h-5" 
-                  fill="none" 
-                  stroke="currentColor" 
-                  viewBox="0 0 24 24"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-                <span className="ml-3 font-medium">
-                  API Testing
-                </span>
-              </div>
-            </button>
-
-            {showCollections && (
-              <div
-                className="ml-4 mt-1 max-h-[50vh] overflow-y-auto overflow-x-hidden"
-                style={{
-                  scrollbarWidth: 'none',
-                  msOverflowStyle: 'none',
-                }}
+      {/* Left Sidebar - Only show when not on home page */}
+      {!isHomePage && (
+        <div className="w-64 border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex flex-col">
+          <div className="flex flex-col h-full px-0 py-4">
+            <div className="flex items-center mb-8 px-2">
+              <button 
+                onClick={() => navigate('/')}
+                className="flex items-center hover:opacity-80 transition-opacity duration-200"
               >
-                <style>{`
-                  .sidebar-scrollbar::-webkit-scrollbar {
-                    display: none;
-                  }
-                `}</style>
-                <div className="sidebar-scrollbar">
-                  <CollectionsSidebar />
+                <GitCompare className="w-8 h-8 text-orange-600 dark:text-orange-400" />
+                <h1 className="ml-3 text-xl font-bold text-gray-900 dark:text-white">
+                  RequestLab
+                </h1>
+              </button>
+            </div>
+
+            <nav className="flex flex-col space-y-2">
+              <button
+                onClick={() => navigate('/api-testing')}
+                className={`group relative flex items-center rounded-lg p-2.5 ${
+                  location.pathname === '/api-testing'
+                    ? 'bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400'
+                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50'
+                } transition-colors duration-200`}
+              >
+                <div className="flex items-center w-full">
+                  <svg 
+                    className="w-5 h-5" 
+                    fill="none" 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  <span className="ml-3 font-medium">
+                    API Testing
+                  </span>
                 </div>
-              </div>
-            )}
+              </button>
 
-            <button
-              onClick={() => navigate('/json-compare')}
-              className={`group relative flex items-center rounded-lg p-2.5 ${
-                location.pathname === '/json-compare'
-                  ? 'bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400'
-                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50'
-              } transition-colors duration-200`}
-            >
-              <div className="flex items-center w-full">
-                <svg 
-                  className="w-5 h-5" 
-                  fill="none" 
-                  stroke="currentColor" 
-                  viewBox="0 0 24 24"
+              {showCollections && (
+                <div
+                  className="ml-4 mt-1 max-h-[50vh] overflow-y-auto overflow-x-hidden"
+                  style={{
+                    scrollbarWidth: 'none',
+                    msOverflowStyle: 'none',
+                  }}
                 >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                </svg>
-                <span className="ml-3 font-medium">
-                  JSON Compare
-                </span>
-              </div>
-            </button>
-
-            <button
-              onClick={() => navigate('/api-interceptor')}
-              className={`group relative flex items-center rounded-lg p-2.5 ${
-                location.pathname === '/api-interceptor'
-                  ? 'bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400'
-                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50'
-              } transition-colors duration-200`}
-            >
-              <div className="flex items-center w-full">
-                <svg 
-                  className="w-5 h-5" 
-                  fill="none" 
-                  stroke="currentColor" 
-                  viewBox="0 0 24 24"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                </svg>
-                <span className="ml-3 font-medium">
-                  API Interceptor
-                </span>
-              </div>
-            </button>
-
-            <button
-              onClick={() => navigate('/sql-compare')}
-              className={`group relative flex items-center rounded-lg p-2.5 ${
-                location.pathname === '/sql-compare'
-                  ? 'bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400'
-                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50'
-              } transition-colors duration-200`}
-            >
-              <div className="flex items-center w-full">
-                <svg
-                  className="w-5 h-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <ellipse cx="12" cy="7" rx="8" ry="3" />
-                  <path d="M4 7v10c0 1.657 3.582 3 8 3s8-1.343 8-3V7" />
-                </svg>
-                <span className="ml-3 font-medium">
-                  SQL Compare
-                </span>
-              </div>
-            </button>
-          </nav>
-
-          {/* Login Button and Dark Mode Toggle at bottom */}
-          <div className="mt-auto pt-4 border-t border-gray-200 dark:border-gray-700 space-y-2">
-            <LoginButton />
-            <button
-              onClick={toggleTheme}
-              className="w-full flex items-center px-3 py-2.5 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-200"
-              aria-label={isDarkMode ? "Switch to light mode" : "Switch to dark mode"}
-            >
-              {isDarkMode ? (
-                <Sun className="h-5 w-5 text-yellow-400" />
-              ) : (
-                <Moon className="h-5 w-5 text-gray-700" />
+                  <style>{`
+                    .sidebar-scrollbar::-webkit-scrollbar {
+                      display: none;
+                    }
+                  `}</style>
+                  <div className="sidebar-scrollbar">
+                    <CollectionsSidebar />
+                  </div>
+                </div>
               )}
-              <span className="ml-3 font-medium">
-                {isDarkMode ? 'Light Mode' : 'Dark Mode'}
-              </span>
-            </button>
+
+              <button
+                onClick={() => navigate('/json-compare')}
+                className={`group relative flex items-center rounded-lg p-2.5 ${
+                  location.pathname === '/json-compare'
+                    ? 'bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400'
+                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50'
+                } transition-colors duration-200`}
+              >
+                <div className="flex items-center w-full">
+                  <svg 
+                    className="w-5 h-5" 
+                    fill="none" 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                  </svg>
+                  <span className="ml-3 font-medium">
+                    JSON Compare
+                  </span>
+                </div>
+              </button>
+
+              <button
+                onClick={() => navigate('/api-interceptor')}
+                className={`group relative flex items-center rounded-lg p-2.5 ${
+                  location.pathname === '/api-interceptor'
+                    ? 'bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400'
+                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50'
+                } transition-colors duration-200`}
+              >
+                <div className="flex items-center w-full">
+                  <svg 
+                    className="w-5 h-5" 
+                    fill="none" 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  </svg>
+                  <span className="ml-3 font-medium">
+                    API Interceptor
+                  </span>
+                </div>
+              </button>
+
+              <button
+                onClick={() => navigate('/sql-compare')}
+                className={`group relative flex items-center rounded-lg p-2.5 ${
+                  location.pathname === '/sql-compare'
+                    ? 'bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400'
+                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50'
+                } transition-colors duration-200`}
+              >
+                <div className="flex items-center w-full">
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <ellipse cx="12" cy="7" rx="8" ry="3" />
+                    <path d="M4 7v10c0 1.657 3.582 3 8 3s8-1.343 8-3V7" />
+                  </svg>
+                  <span className="ml-3 font-medium">
+                    MySQL Compare
+                  </span>
+                </div>
+              </button>
+            </nav>
+
+            {/* Login Button and Dark Mode Toggle at bottom */}
+            <div className="mt-auto pt-4 border-t border-gray-200 dark:border-gray-700 space-y-2">
+              <LoginButton />
+              <button
+                onClick={toggleTheme}
+                className="w-full flex items-center px-3 py-2.5 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-200"
+                aria-label={isDarkMode ? "Switch to light mode" : "Switch to dark mode"}
+              >
+                {isDarkMode ? (
+                  <Sun className="h-5 w-5 text-yellow-400" />
+                ) : (
+                  <Moon className="h-5 w-5 text-gray-700" />
+                )}
+                <span className="ml-3 font-medium">
+                  {isDarkMode ? 'Light Mode' : 'Dark Mode'}
+                </span>
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Main Content */}
-      <div className="flex-1 overflow-hidden relative">
+      <div 
+        className={`flex-1 relative ${isHomePage ? 'overflow-y-auto' : 'overflow-hidden'} scrollbar-hide`}
+        style={{
+          scrollbarWidth: 'none',
+          msOverflowStyle: 'none',
+        }}
+      >
+        <style>{`
+          .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+          }
+        `}</style>
         {isLoading && <Loader />}
         <Routes>
-          <Route path="/" element={<ApiTesting />} />
+          <Route path="/" element={<HomePage />} />
+          <Route path="/api-testing" element={<ApiTesting />} />
           <Route path="/json-compare" element={
             <div className="h-full overflow-auto">
               <div className="max-w-7xl mx-auto p-6">
@@ -503,58 +537,6 @@ function AppContent() {
                   <p className="text-center text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
                     Compare two JSON objects or cURL responses side by side, visualize the differences, and share the results with a unique URL.
                   </p>
-                  
-                  {/* SEO content - hidden from users but visible to crawlers */}
-                  <div className="sr-only" aria-hidden="true">
-                    <h2>RequestLab - All-in-One API Development Platform</h2>
-                    <p>Your comprehensive API playground for testing, comparison, and debugging. Compare JSON objects, test APIs with cURL commands, and analyze responses in real-time. The most powerful and intuitive API development tool available.</p>
-                    
-                    <h3>Why Choose RequestLab?</h3>
-                    <ul>
-                      <li>Comprehensive API testing with full request configuration</li>
-                      <li>Advanced JSON and cURL comparison with instant results</li>
-                      <li>Real-time response analysis and visualization</li>
-                      <li>Intuitive difference highlighting with color coding</li>
-                      <li>Share results via unique, secure URLs</li>
-                      <li>Support for multiple request methods and content types</li>
-                      <li>Dark mode support for reduced eye strain</li>
-                      <li>Responsive design for all devices</li>
-                    </ul>
-
-                    <h3>Key Features</h3>
-                    <ul>
-                      <li>JSON object comparison with visual diff</li>
-                      <li>cURL command testing and response analysis</li>
-                      <li>API endpoint testing with full request configuration</li>
-                      <li>Headers and query parameters management</li>
-                      <li>Request body formatting and validation</li>
-                      <li>Response time and size tracking</li>
-                    </ul>
-
-                    <h3>Advanced Capabilities</h3>
-                    <ul>
-                      <li>Deep JSON comparison with nested object support</li>
-                      <li>Real-time API response visualization</li>
-                      <li>cURL command execution and analysis</li>
-                      <li>Request/response history tracking</li>
-                      <li>Secure URL sharing with encoded parameters</li>
-                      <li>Cross-browser compatibility</li>
-                    </ul>
-
-                    <p>RequestLab is your all-in-one API development platform. Test APIs, compare JSON objects, and analyze cURL responses with ease. No installation required, works directly in your browser. Share your API testing results with team members using unique URLs. Supports both light and dark themes for comfortable viewing. The most powerful and intuitive API development tool available online.</p>
-
-                    <h3>Top Search Terms</h3>
-                    <p>API testing tool, JSON comparison, cURL testing, API debugging, JSON diff, API development platform, request testing, API response analysis, JSON visualization, cURL comparison, API playground, request lab, API testing platform, JSON validation, API development tool</p>
-
-                    <h3>RequestLab Benefits</h3>
-                    <ul>
-                      <li>Streamline API development workflow</li>
-                      <li>Accelerate API testing and debugging</li>
-                      <li>Simplify JSON comparison and validation</li>
-                      <li>Enhance team collaboration with shareable results</li>
-                      <li>Improve API development efficiency</li>
-                    </ul>
-                  </div>
                 </div>
 
                 <ModeSwitcher mode={mode} onModeChange={handleModeChange} />
@@ -642,7 +624,9 @@ function App() {
       <AuthProvider>
         <ApiCollectionsProvider>
           <LoaderProvider>
-            <AppContent />
+            <WelcomePopupProvider>
+              <AppContent />
+            </WelcomePopupProvider>
           </LoaderProvider>
         </ApiCollectionsProvider>
       </AuthProvider>

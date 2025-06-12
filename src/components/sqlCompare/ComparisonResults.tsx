@@ -136,6 +136,10 @@ const ComparisonResults: React.FC<ComparisonResultsProps> = ({ diff, leftSchema,
           <RefreshCwIcon className="w-4 h-4 text-yellow-500 dark:text-yellow-400" />
           <span className="text-sm text-gray-700 dark:text-gray-300">Modified fields</span>
         </div>
+        <div className="flex items-center space-x-2">
+          
+          <span className="text-sm text-gray-700 dark:text-gray-300">( Click on each table to expand )</span>
+        </div>
       </div>
 
       {/* Table-by-table side-by-side diff */}
