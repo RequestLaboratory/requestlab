@@ -1,5 +1,5 @@
 import React from 'react';
-import { Code, Twitter, Github, Linkedin, Mail, ExternalLink, GitCompare } from 'lucide-react';
+import { Github, Linkedin, ExternalLink, GitCompare } from 'lucide-react';
 
 export default function Footer() {
   return (
@@ -30,10 +30,6 @@ export default function Footer() {
                 <Linkedin className="h-5 w-5 mr-2" />
                 <span className="text-sm">Ashrit</span>
               </a>
-              {/* <a href="mailto:contact@requestlab.com" className="p-2 bg-gray-800 dark:bg-gray-900 rounded-lg hover:bg-gray-700 dark:hover:bg-gray-800 transition-colors duration-200 flex items-center">
-                <Mail className="h-5 w-5 mr-2" />
-                <span className="text-sm">Contact Us</span>
-              </a> */}
             </div>
           </div>
 
@@ -56,20 +52,6 @@ export default function Footer() {
           <p className="text-gray-400 text-sm">
             © 2024 RequestLab. All rights reserved. Built for developers, by developers.
           </p>
-          {/* <div className="flex space-x-6 mt-4 md:mt-0">
-            <a href="#" className="text-gray-400 hover:text-white text-sm transition-colors duration-200">
-              Privacy Policy
-            </a>
-            <a href="#" className="text-gray-400 hover:text-white text-sm transition-colors duration-200">
-              Terms of Service
-            </a>
-            <a href="#" className="text-gray-400 hover:text-white text-sm transition-colors duration-200">
-              Security
-            </a>
-            <a href="#" className="text-gray-400 hover:text-white text-sm transition-colors duration-200">
-              Cookie Policy
-            </a>
-          </div> */}
         </div>
       </div>
     </footer>

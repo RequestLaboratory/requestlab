@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Menu, X, Code, Moon, Sun, User, LogOut, Settings, GitCompare } from 'lucide-react';
+import { Menu, X, Moon, Sun, User, LogOut, Settings, GitCompare } from 'lucide-react';
 import { ThemeContext } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -11,7 +11,7 @@ export default function Header({ onSignInClick }: HeaderProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const { isDarkMode, toggleTheme } = React.useContext(ThemeContext);
-  const { user, isLoading, login, logout } = useAuth();
+  const { user, logout } = useAuth();
 
   const handleSignOut = async () => {
     await logout();
@@ -35,15 +35,6 @@ export default function Header({ onSignInClick }: HeaderProps) {
             <a href="#features" className="text-gray-700 dark:text-gray-300 hover:text-orange-600 dark:hover:text-orange-400 transition-colors duration-200">
               Features
             </a>
-            {/* <a href="#tools" className="text-gray-700 dark:text-gray-300 hover:text-orange-600 dark:hover:text-orange-400 transition-colors duration-200">
-              Tools
-            </a>
-            <a href="#pricing" className="text-gray-700 dark:text-gray-300 hover:text-orange-600 dark:hover:text-orange-400 transition-colors duration-200">
-              Pricing
-            </a>
-            <a href="#docs" className="text-gray-700 dark:text-gray-300 hover:text-orange-600 dark:hover:text-orange-400 transition-colors duration-200">
-              Documentation
-            </a> */}
             
             {/* Theme Toggle */}
             <button
@@ -129,15 +120,6 @@ export default function Header({ onSignInClick }: HeaderProps) {
               <a href="#features" className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:text-orange-600 dark:hover:text-orange-400 transition-colors duration-200">
                 Features
               </a>
-              {/* <a href="#tools" className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:text-orange-600 dark:hover:text-orange-400 transition-colors duration-200">
-                Tools
-              </a>
-              <a href="#pricing" className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:text-orange-600 dark:hover:text-orange-400 transition-colors duration-200">
-                Pricing
-              </a>
-              <a href="#docs" className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:text-orange-600 dark:hover:text-orange-400 transition-colors duration-200">
-                Documentation
-              </a> */}
               
               {user ? (
                 <div className="px-4 py-2 border-t border-gray-200 dark:border-gray-700">

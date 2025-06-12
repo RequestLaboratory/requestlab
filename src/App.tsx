@@ -10,7 +10,7 @@ import ExampleButton from './components/ExampleButton';
 import ModeSwitcher, { ComparisonMode } from './components/ModeSwitcher';
 import { decodeJsonFromUrl } from './utils/urlUtils';
 import ApiTesting from './pages/ApiTesting';
-import { GitCompare, Sun, Moon } from 'lucide-react';
+import { GitCompare, Sun, Moon, Monitor, Smartphone } from 'lucide-react';
 import { ThemeContext } from './contexts/ThemeContext';
 import WelcomePopup from './components/WelcomePopup';
 import ApiInterceptor from './pages/ApiInterceptor';
@@ -23,7 +23,7 @@ import { LoaderProvider, useLoader } from './contexts/LoaderContext';
 import { AuthProvider } from './contexts/AuthContext';
 import LoginButton from './components/LoginButton';
 import HomePage from './components/homePage';
-import { WelcomePopupProvider, useWelcomePopup } from './contexts/WelcomePopupContext';
+import { WelcomePopupProvider } from './contexts/WelcomePopupContext';
 
 const leftExample = JSON.stringify({
   name: "Ford Mustang GT",
@@ -210,9 +210,46 @@ const rightExample = JSON.stringify({
   }
 }, null, 2);
 
+// Add DesktopOnlyPrompt component
+const DesktopOnlyPrompt: React.FC = () => {
+  return (
+    <div className="fixed inset-0 bg-gray-900/95 dark:bg-black/95 z-50 flex items-center justify-center p-4">
+      <div className="max-w-md w-full bg-white dark:bg-gray-800 rounded-xl shadow-2xl p-8 text-center transform transition-all duration-500 animate-fade-in">
+        <div className="flex justify-center mb-6">
+          <div className="relative">
+            <Monitor className="w-16 h-16 text-orange-500 animate-bounce" />
+            <Smartphone className="w-8 h-8 text-gray-400 absolute -bottom-2 -right-2 animate-pulse" />
+          </div>
+        </div>
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
+          Desktop Experience Required
+        </h2>
+        <p className="text-gray-600 dark:text-gray-300 mb-6">
+          RequestLab is optimized for desktop browsers to provide the best development experience. Please switch to a desktop device to access all features.
+        </p>
+        <div className="space-y-3">
+          <div className="flex items-center justify-center space-x-2 text-sm text-gray-500 dark:text-gray-400">
+            <span className="w-2 h-2 bg-orange-500 rounded-full animate-pulse"></span>
+            <span>Full-screen code editor</span>
+          </div>
+          <div className="flex items-center justify-center space-x-2 text-sm text-gray-500 dark:text-gray-400">
+            <span className="w-2 h-2 bg-orange-500 rounded-full animate-pulse"></span>
+            <span>Advanced API testing tools</span>
+          </div>
+          <div className="flex items-center justify-center space-x-2 text-sm text-gray-500 dark:text-gray-400">
+            <span className="w-2 h-2 bg-orange-500 rounded-full animate-pulse"></span>
+            <span>Real-time response visualization</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 function AppContent() {
   const [mode, setMode] = useState<ComparisonMode>('json');
   const [showWelcomePopup, setShowWelcomePopup] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const { isDarkMode, toggleTheme } = useContext(ThemeContext);
   const navigate = useNavigate();
   const location = useLocation();
@@ -348,11 +385,26 @@ function AppContent() {
     }
   };
 
+  // Add mobile detection
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 1024);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
   const showCollections = location.pathname === '/api-testing';
   const isHomePage = location.pathname === '/';
+  const showDesktopPrompt = isMobile && !isHomePage;
 
   return (
     <div className="h-screen flex bg-white dark:bg-gray-900">
+      {showDesktopPrompt && <DesktopOnlyPrompt />}
+      
       <WelcomePopup 
         isOpen={showWelcomePopup} 
         onClose={handleWelcomePopupClose} 
