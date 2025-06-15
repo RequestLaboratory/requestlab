@@ -22,7 +22,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isCheckingSession, setIsCheckingSession] = useState(false);
-  const [noLoginRequired, setNoLoginRequired] = useState(true); // Default to true for development
+  const [noLoginRequired, setNoLoginRequired] = useState(false); // Default to true for development
 
   useEffect(() => {
     let mounted = true;
