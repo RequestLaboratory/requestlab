@@ -60,7 +60,7 @@ ${Object.entries(requestHeaders)
   };
 
   return (
-    <div className="h-[calc(100vh-20rem)] flex flex-col">
+    <div className="h-[calc(100vh-12rem)] flex flex-col">
       {/* Fixed Tabs */}
       <div className="flex-shrink-0 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
         <nav className="flex -mb-px">

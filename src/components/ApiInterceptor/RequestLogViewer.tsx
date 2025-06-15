@@ -22,9 +22,10 @@ interface Props {
   interceptorId: string;
   onSelectLog: (log: Log) => void;
   selectedLogId?: string;
+  searchQuery: string;
 }
 
-export default function RequestLogViewer({ interceptorId, onSelectLog, selectedLogId }: Props) {
+export default function RequestLogViewer({ interceptorId, onSelectLog, selectedLogId, searchQuery }: Props) {
   const [logs, setLogs] = useState<Log[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -162,6 +163,17 @@ export default function RequestLogViewer({ interceptorId, onSelectLog, selectedL
     };
   }, [interceptorId]);
 
+  const filteredLogs = logs.filter(log => {
+    if (!searchQuery) return true;
+    const query = searchQuery.toLowerCase();
+    return (
+      log.method.toLowerCase().includes(query) ||
+      log.originalUrl.toLowerCase().includes(query) ||
+      log.response.status.toString().includes(query) ||
+      log.duration.toString().includes(query)
+    );
+  });
+
   if (isLoading) {
     return (
       <div className="p-4 flex items-center justify-center">
@@ -189,16 +201,19 @@ export default function RequestLogViewer({ interceptorId, onSelectLog, selectedL
             {isConnected ? 'Connected' : 'Disconnected'}
           </span>
         </div>
+        <div className="text-sm text-gray-500 dark:text-gray-400">
+          {filteredLogs.length} {filteredLogs.length === 1 ? 'request' : 'requests'}
+        </div>
       </div>
 
       <div className="flex-1 min-h-0 overflow-y-auto">
-        {logs.length === 0 ? (
+        {filteredLogs.length === 0 ? (
           <div className="p-4 text-center text-gray-500 dark:text-gray-400">
-            Waiting for requests...
+            {searchQuery ? 'No matching requests found' : 'Waiting for requests...'}
           </div>
         ) : (
           <div className="divide-y divide-gray-200 dark:divide-gray-700">
-            {logs.map((log) => (
+            {filteredLogs.map((log) => (
               <button
                 key={log.id}
                 onClick={() => onSelectLog(log)}
@@ -224,6 +239,9 @@ export default function RequestLogViewer({ interceptorId, onSelectLog, selectedL
                     }`}>
                       {log.response.status}
                     </span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                      {log.duration}ms
+                    </span>
                   </div>
                   <span className="text-xs text-gray-500 dark:text-gray-400">
                     {format(new Date(log.timestamp), 'HH:mm:ss')}
@@ -231,9 +249,6 @@ export default function RequestLogViewer({ interceptorId, onSelectLog, selectedL
                 </div>
                 <div className="text-sm text-gray-900 dark:text-white truncate">
                   {log.originalUrl}
-                </div>
-                <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  {log.duration}ms
                 </div>
               </button>
             ))}
