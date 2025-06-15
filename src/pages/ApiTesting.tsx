@@ -246,7 +246,7 @@ const ApiTesting: React.FC = () => {
   const [activeTab, setActiveTab] = useState<ApiTestingTab>(() => getInitialTab());
   const [bodyType, setBodyType] = useState<'none' | 'raw' | 'form-data' | 'x-www-form-urlencoded'>(() => {
     const savedBodyType = sessionStorage.getItem('apiTestingBodyType');
-    return (savedBodyType as any) || 'none';
+    return (savedBodyType as any) || 'raw';
   });
   const [contentType, setContentType] = useState(() => {
     const savedContentType = sessionStorage.getItem('apiTestingContentType');

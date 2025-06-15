@@ -16,11 +16,12 @@ export default {
         ],
       },
       animation: {
-        'fade-in': 'fadeIn 0.5s ease-in-out',
+        'fade-in': 'fade-in 0.5s ease-out',
         'spin-slower': 'spin 3s linear infinite',
         'ping-slow': 'ping 2s cubic-bezier(0, 0, 0.2, 1) infinite',
         'glow': 'glow 1.6s ease-in-out infinite',
         'rotate-path': 'rotatePath 6s linear infinite',
+        'bounce-slow': 'bounce-slow 2s infinite'
       },
       keyframes: {
         fadeIn: {
@@ -39,6 +40,14 @@ export default {
           '0%': { transform: 'rotate(0deg)' },
           '100%': { transform: 'rotate(360deg)' },
         },
+        'fade-in': {
+          '0%': { opacity: '0', transform: 'scale(0.95)' },
+          '100%': { opacity: '1', transform: 'scale(1)' }
+        },
+        'bounce-slow': {
+          '0%, 100%': { transform: 'translateY(-5%)' },
+          '50%': { transform: 'translateY(0)' }
+        }
       },
     },
   },

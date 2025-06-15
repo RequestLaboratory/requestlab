@@ -11,40 +11,40 @@ const WelcomePopup: React.FC<WelcomePopupProps> = ({ isOpen, onClose }) => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const checkLastShown = () => {
+    if (isOpen) {
       const lastShown = localStorage.getItem('welcomePopupLastShown');
       const today = new Date().toDateString();
       
-      if (lastShown !== today) {
-        localStorage.setItem('welcomePopupLastShown', today);
-        return true;
+      if (lastShown === today) {
+        onClose();
       }
-      return false;
-    };
-
-    if (isOpen && !checkLastShown()) {
-      onClose();
     }
   }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
   const handleOptionSelect = (path: string) => {
+    localStorage.setItem('welcomePopupLastShown', new Date().toDateString());
     onClose();
     navigate(path);
+  };
+
+  const handleClose = () => {
+    localStorage.setItem('welcomePopupLastShown', new Date().toDateString());
+    onClose();
   };
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
       <div className="flex min-h-screen items-center justify-center p-4 text-center">
-        <div className="fixed inset-0 bg-black bg-opacity-50 transition-opacity" onClick={onClose} />
+        <div className="fixed inset-0 bg-black bg-opacity-50 transition-opacity" onClick={handleClose} />
 
         <div className="relative transform overflow-hidden rounded-lg bg-white dark:bg-gray-800 px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg sm:p-6">
           <div className="absolute right-0 top-0 pr-4 pt-4">
             <button
               type="button"
               className="rounded-md bg-white dark:bg-gray-800 text-gray-400 hover:text-gray-500 dark:hover:text-gray-300 focus:outline-none"
-              onClick={onClose}
+              onClick={handleClose}
             >
               <span className="sr-only">Close</span>
               <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
@@ -64,7 +64,7 @@ const WelcomePopup: React.FC<WelcomePopupProps> = ({ isOpen, onClose }) => {
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <button
-                  onClick={() => handleOptionSelect('/')}
+                  onClick={() => handleOptionSelect('/api-testing')}
                   className="flex flex-col items-center p-6 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-orange-500 dark:hover:border-orange-500 transition-colors duration-200 group"
                 >
                   <Terminal className="h-8 w-8 text-orange-500 mb-3 group-hover:scale-110 transition-transform duration-200" />
@@ -140,9 +140,7 @@ const WelcomePopup: React.FC<WelcomePopupProps> = ({ isOpen, onClose }) => {
                       Ashrit
                     </a>
                     <span className="text-sm mx-2">|</span>
-                   
-                      <Linkedin className="h-5 w-5" />
-                    
+                    <Linkedin className="h-5 w-5" />
                   </div>
                 </div>
               </div>
