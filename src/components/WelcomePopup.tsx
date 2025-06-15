@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { GitCompare, Terminal, Github, Linkedin, Network, Database } from 'lucide-react';
+import { GitCompare, Terminal, Linkedin, Network, Database } from 'lucide-react';
 
 interface WelcomePopupProps {
   isOpen: boolean;
@@ -111,15 +111,15 @@ const WelcomePopup: React.FC<WelcomePopupProps> = ({ isOpen, onClose }) => {
               {/* Footer */}
               <div className="mt-8 pt-4 border-t border-gray-200 dark:border-gray-700">
                 <div className="flex justify-between items-center">
-                  <a
-                    // href="https://github.com/RequestLaboratory/requestlab"
-                    href="#"
+                  {/* <a
+                    href="https://github.com/RequestLaboratory/requestlab"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
                   >
-                    GitHub
-                  </a>
+                    <Github className="h-5 w-5 mr-2" />
+                    <span className="text-sm">Star on GitHub ⭐</span>
+                  </a> */}
                   <div className="flex items-center text-gray-500 dark:text-gray-400">
                     <span className="text-sm mr-2">Made with ☕ by </span>
                     <a
