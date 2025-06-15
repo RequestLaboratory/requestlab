@@ -1,5 +1,20 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { format } from 'date-fns';
+import { Switch } from '@headlessui/react';
+
+interface ApiLog {
+  id: string;
+  timestamp: string;
+  method: string;
+  original_url: string;
+  proxy_url: string;
+  response_status: number;
+  duration: number;
+  headers: string;
+  body: string | null;
+  response_headers: string;
+  response_body: string | null;
+}
 
 interface Log {
   id: string;
@@ -30,9 +45,68 @@ export default function RequestLogViewer({ interceptorId, onSelectLog, selectedL
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
+  const [useSSE, setUseSSE] = useState(true);
   const eventSourceRef = useRef<EventSource | null>(null);
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Function to fetch logs via API
+  const fetchLogs = async () => {
+    try {
+      const response = await fetch(`https://interceptorworker.yadev64.workers.dev/api/interceptors/${interceptorId}/logs?limit=100&offset=0`);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch logs: ${response.statusText}`);
+      }
+      const data = await response.json();
+      
+      // Transform the logs to match our interface
+      const transformedLogs = data.map((log: ApiLog) => ({
+        id: log.id,
+        timestamp: log.timestamp,
+        method: log.method,
+        originalUrl: log.original_url,
+        proxyUrl: log.proxy_url,
+        status: log.response_status,
+        duration: log.duration,
+        headers: JSON.parse(log.headers),
+        body: log.body,
+        response: {
+          status: log.response_status,
+          headers: JSON.parse(log.response_headers),
+          body: log.response_body
+        }
+      }));
+      
+      setLogs(transformedLogs);
+      setIsLoading(false);
+      setError(null);
+    } catch (err) {
+      console.error('Error fetching logs:', err);
+      setError('Failed to fetch logs');
+      setIsLoading(false);
+    }
+  };
+
+  // Setup polling for API mode
   useEffect(() => {
+    if (!useSSE) {
+      // Initial fetch
+      fetchLogs();
+      
+      // Setup polling every 5 seconds
+      pollingIntervalRef.current = setInterval(fetchLogs, 5000);
+      
+      return () => {
+        if (pollingIntervalRef.current) {
+          clearInterval(pollingIntervalRef.current);
+        }
+      };
+    }
+  }, [useSSE, interceptorId]);
+
+  // SSE connection setup
+  useEffect(() => {
+    if (!useSSE) return;
+
     let retryCount = 0;
     const maxRetries = 3;
     const retryDelay = 2000; // 2 seconds
@@ -161,7 +235,7 @@ export default function RequestLogViewer({ interceptorId, onSelectLog, selectedL
         eventSourceRef.current.close();
       }
     };
-  }, [interceptorId]);
+  }, [interceptorId, useSSE]);
 
   const filteredLogs = logs.filter(log => {
     if (!searchQuery) return true;
@@ -195,14 +269,35 @@ export default function RequestLogViewer({ interceptorId, onSelectLog, selectedL
       <div className="flex-shrink-0 p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
         <div className="flex items-center space-x-2">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Request Logs</h2>
-          <span className={`inline-flex items-center px-2 py-1 text-xs font-medium rounded ${
-            isConnected ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400' : 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
-          }`}>
-            {isConnected ? 'Connected' : 'Disconnected'}
-          </span>
+          {useSSE && (
+            <span className={`inline-flex items-center px-2 py-1 text-xs font-medium rounded ${
+              isConnected ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400' : 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
+            }`}>
+              {isConnected ? 'Connected' : 'Disconnected'}
+            </span>
+          )}
         </div>
-        <div className="text-sm text-gray-500 dark:text-gray-400">
-          {filteredLogs.length} {filteredLogs.length === 1 ? 'request' : 'requests'}
+        <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-2">
+            <span className="text-sm text-gray-500 dark:text-gray-400">API Mode</span>
+            <Switch
+              checked={!useSSE}
+              onChange={() => setUseSSE(!useSSE)}
+              className={`${
+                !useSSE ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'
+              } relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2`}
+            >
+              <span
+                className={`${
+                  !useSSE ? 'translate-x-6' : 'translate-x-1'
+                } inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
+              />
+            </Switch>
+            <span className="text-sm text-gray-500 dark:text-gray-400">SSE Mode</span>
+          </div>
+          <div className="text-sm text-gray-500 dark:text-gray-400">
+            {filteredLogs.length} {filteredLogs.length === 1 ? 'request' : 'requests'}
+          </div>
         </div>
       </div>
 
