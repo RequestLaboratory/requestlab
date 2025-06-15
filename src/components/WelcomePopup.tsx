@@ -111,7 +111,7 @@ const WelcomePopup: React.FC<WelcomePopupProps> = ({ isOpen, onClose }) => {
               {/* Footer */}
               <div className="mt-8 pt-4 border-t border-gray-200 dark:border-gray-700">
                 <div className="flex justify-between items-center">
-                  <a
+                  {/* <a
                     href="https://github.com/RequestLaboratory/requestlab"
                     target="_blank"
                     rel="noopener noreferrer"
@@ -119,7 +119,7 @@ const WelcomePopup: React.FC<WelcomePopupProps> = ({ isOpen, onClose }) => {
                   >
                     <Github className="h-5 w-5 mr-2" />
                     <span className="text-sm">Star on GitHub ⭐</span>
-                  </a>
+                  </a> */}
                   <div className="flex items-center text-gray-500 dark:text-gray-400">
                     <span className="text-sm mr-2">Made with ☕ by </span>
                     <a

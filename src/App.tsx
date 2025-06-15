@@ -24,6 +24,8 @@ import { AuthProvider } from './contexts/AuthContext';
 import LoginButton from './components/LoginButton';
 import HomePage from './components/homePage';
 import { WelcomePopupProvider } from './contexts/WelcomePopupContext';
+import FloatingButton from './components/FloatingButton';
+import Head from './components/Head';
 
 const leftExample = JSON.stringify({
   name: "Ford Mustang GT",
@@ -401,6 +403,9 @@ function AppContent() {
   const isHomePage = location.pathname === '/';
   const showDesktopPrompt = isMobile && !isHomePage;
 
+  // Update to use Google Form URL
+  const sheetUrl = 'https://forms.gle/fE7FPEYsowmwKRnKA';
+
   return (
     <div className="h-screen flex bg-white dark:bg-gray-900">
       {showDesktopPrompt && <DesktopOnlyPrompt />}
@@ -487,7 +492,7 @@ function AppContent() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                   </svg>
                   <span className="ml-3 font-medium">
-                    JSON Compare
+                    cURL / JSON Compare
                   </span>
                 </div>
               </button>
@@ -666,6 +671,9 @@ function AppContent() {
           <Route path="/sql-compare" element={<SQLCompare />} />
         </Routes>
       </div>
+
+      {/* Add FloatingButton */}
+      {!isHomePage && <FloatingButton sheetUrl={sheetUrl} />}
     </div>
   );
 }
@@ -673,6 +681,7 @@ function AppContent() {
 function App() {
   return (
     <Router>
+      <Head />
       <AuthProvider>
         <ApiCollectionsProvider>
           <LoaderProvider>

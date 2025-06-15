@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Menu, X, Moon, Sun, User, LogOut, Settings, GitCompare } from 'lucide-react';
+import { Menu, X, Moon, Sun, User, LogOut, Settings, GitCompare, Terminal } from 'lucide-react';
 import { ThemeContext } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 interface HeaderProps {
   onSignInClick: () => void;
@@ -12,10 +13,15 @@ export default function Header({ onSignInClick }: HeaderProps) {
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const { isDarkMode, toggleTheme } = React.useContext(ThemeContext);
   const { user, logout } = useAuth();
+  const navigate = useNavigate();
 
   const handleSignOut = async () => {
     await logout();
     setIsUserMenuOpen(false);
+  };
+
+  const handleDevKitClick = () => {
+    navigate('/api-testing');
   };
 
   return (
@@ -87,12 +93,22 @@ export default function Header({ onSignInClick }: HeaderProps) {
                 )}
               </div>
             ) : (
-              <button
-                onClick={onSignInClick}
-                className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-6 py-2 rounded-lg hover:from-orange-600 hover:to-orange-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
-              >
-                Sign In
-              </button>
+              <>
+                {/* DevKit Button */}
+                <button
+                  onClick={handleDevKitClick}
+                  className="flex items-center space-x-2 bg-gradient-to-r from-orange-500 to-orange-600 text-white px-4 py-2 rounded-lg hover:from-orange-600 hover:to-orange-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                >
+                  <Terminal className="h-4 w-4" />
+                  <span>DevKit</span>
+                </button>
+                <button
+                  onClick={onSignInClick}
+                  className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-6 py-2 rounded-lg hover:from-orange-600 hover:to-orange-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                >
+                  Sign In
+                </button>
+              </>
             )}
           </nav>
 
@@ -148,12 +164,22 @@ export default function Header({ onSignInClick }: HeaderProps) {
                   </button>
                 </div>
               ) : (
-                <button
-                  onClick={onSignInClick}
-                  className="mx-4 bg-gradient-to-r from-orange-500 to-orange-600 text-white px-6 py-2 rounded-lg hover:from-orange-600 hover:to-orange-700 transition-all duration-200"
-                >
-                  Sign In
-                </button>
+                <>
+                  {/* DevKit Button in Mobile Menu */}
+                  <button
+                    onClick={handleDevKitClick}
+                    className="mx-4 flex items-center justify-center space-x-2 bg-gradient-to-r from-orange-500 to-orange-600 text-white px-4 py-2 rounded-lg hover:from-orange-600 hover:to-orange-700 transition-all duration-200"
+                  >
+                    <Terminal className="h-4 w-4" />
+                    <span>DevKit</span>
+                  </button>
+                  <button
+                    onClick={onSignInClick}
+                    className="mx-4 bg-gradient-to-r from-orange-500 to-orange-600 text-white px-6 py-2 rounded-lg hover:from-orange-600 hover:to-orange-700 transition-all duration-200"
+                  >
+                    Sign In
+                  </button>
+                </>
               )}
             </div>
           </div>

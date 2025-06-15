@@ -18,10 +18,10 @@ export default function Footer() {
               Born from JSON comparison, evolved into a complete platform. All your development tools in one place.
             </p>
             <div className="flex flex-wrap gap-4">
-              <a href="https://github.com/RequestLaboratory/requestlab" target="_blank" rel="noopener noreferrer" className="p-2 bg-gray-800 dark:bg-gray-900 rounded-lg hover:bg-gray-700 dark:hover:bg-gray-800 transition-colors duration-200 flex items-center">
+              {/* <a href="https://github.com/RequestLaboratory/requestlab" target="_blank" rel="noopener noreferrer" className="p-2 bg-gray-800 dark:bg-gray-900 rounded-lg hover:bg-gray-700 dark:hover:bg-gray-800 transition-colors duration-200 flex items-center">
                 <Github className="h-5 w-5 mr-2" />
                 <span className="text-sm">Star on GitHub</span>
-              </a>
+              </a> */}
               <a href="https://www.linkedin.com/in/yadev-jayachandran/" target="_blank" rel="noopener noreferrer" className="p-2 bg-gray-800 dark:bg-gray-900 rounded-lg hover:bg-gray-700 dark:hover:bg-gray-800 transition-colors duration-200 flex items-center">
                 <Linkedin className="h-5 w-5 mr-2" />
                 <span className="text-sm">Yadev</span>

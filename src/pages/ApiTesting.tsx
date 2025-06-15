@@ -1609,7 +1609,7 @@ const ApiTesting: React.FC = () => {
                     onClick={() => isValidTab('load-test') && setActiveTab('load-test')}
                     className={`py-2 px-1 border-b-2 font-medium text-sm ${activeTab === 'load-test'
                       ? 'border-orange-500 text-orange-600 dark:text-orange-400'
-                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400'
                       }`}
                   >
                     Load Test
