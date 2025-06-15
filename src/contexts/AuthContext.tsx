@@ -12,6 +12,8 @@ interface AuthContextType {
   isLoading: boolean;
   login: () => void;
   logout: () => void;
+  noLoginRequired: boolean;
+  setNoLoginRequired: (value: boolean) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -20,6 +22,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isCheckingSession, setIsCheckingSession] = useState(false);
+  const [noLoginRequired, setNoLoginRequired] = useState(true); // Default to true for development
 
   useEffect(() => {
     let mounted = true;
@@ -155,7 +158,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, isLoading: isLoading || isCheckingSession, login, logout }}>
+    <AuthContext.Provider value={{ user, isLoading: isLoading || isCheckingSession, login, logout, noLoginRequired, setNoLoginRequired }}>
       {children}
     </AuthContext.Provider>
   );

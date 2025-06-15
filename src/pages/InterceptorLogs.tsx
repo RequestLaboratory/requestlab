@@ -8,9 +8,9 @@ import { useAuth } from '../contexts/AuthContext';
 interface Interceptor {
   id: string;
   name: string;
-  baseUrl: string;
-  createdAt: string;
-  isActive: boolean;
+  base_url: string;
+  created_at: string;
+  is_active: boolean;
 }
 
 interface Log {
@@ -40,29 +40,37 @@ export default function InterceptorLogs() {
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [selectedLog, setSelectedLog] = useState<Log | null>(null);
-  const { user } = useAuth();
+  const { user, noLoginRequired } = useAuth();
 
   useEffect(() => {
-    if (user) {
+    if (user || noLoginRequired) {
       fetchInterceptor();
     } else {
       setError('Please log in to view interceptor logs');
       setIsLoading(false);
     }
-  }, [id, user]);
+  }, [id, user, noLoginRequired]);
 
   const fetchInterceptor = async () => {
     try {
       setIsLoading(true);
       const sessionId = localStorage.getItem('sessionId');
-      if (!sessionId) {
+      if (!sessionId && !noLoginRequired) {
         throw new Error('No session ID found');
       }
 
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+
+      if (noLoginRequired) {
+        headers['Authorization'] = 'Bearer no-login';
+      } else {
+        headers['Authorization'] = `Bearer ${sessionId}`;
+      }
+
       const response = await fetch(`${API_BASE_URL}/api/interceptors`, {
-        headers: {
-          'Authorization': `Bearer ${sessionId}`
-        }
+        headers,
       });
       if (!response.ok) {
         throw new Error('Failed to fetch interceptors');
@@ -88,7 +96,7 @@ export default function InterceptorLogs() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  if (!user) {
+  if (!user && !noLoginRequired) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
         <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
@@ -146,7 +154,7 @@ export default function InterceptorLogs() {
                     {interceptor.name}
                   </h2>
                   <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                    {interceptor.baseUrl}
+                    {interceptor.base_url}
                   </p>
                 </div>
                 <button

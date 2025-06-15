@@ -1,87 +1,102 @@
 import React, { useState, useEffect } from 'react';
-import { PlusIcon, TrashIcon, PencilIcon, ClipboardIcon, CheckIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, TrashIcon, ArrowTopRightOnSquareIcon, ClipboardIcon, CheckIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '../../contexts/AuthContext';
 
 interface Interceptor {
   id: string;
   name: string;
-  baseUrl: string;
-  createdAt: string;
-  isActive: boolean;
+  base_url: string;
+  created_at: string;
+  is_active: boolean;
 }
 
 interface Props {
   onSelectInterceptor: (interceptor: Interceptor) => void;
   onCreateInterceptor: () => void;
-  onEditInterceptor: (interceptor: Interceptor) => void;
 }
 
 const API_BASE_URL = 'https://interceptorworker.yadev64.workers.dev';
 
-export default function InterceptorList({ onSelectInterceptor, onCreateInterceptor, onEditInterceptor }: Props) {
+export default function InterceptorList({ onSelectInterceptor, onCreateInterceptor }: Props) {
+  const { user, noLoginRequired } = useAuth();
   const [interceptors, setInterceptors] = useState<Interceptor[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const { user } = useAuth();
 
   useEffect(() => {
-    if (user) {
+    if (user || noLoginRequired) {
       fetchInterceptors();
     } else {
-      setInterceptors([]);
-      setIsLoading(false);
+      setLoading(false);
     }
-  }, [user]);
+  }, [user, noLoginRequired]);
 
   const fetchInterceptors = async () => {
     try {
-      setIsLoading(true);
+      setLoading(true);
       const sessionId = localStorage.getItem('sessionId');
-      if (!sessionId) {
+      if (!sessionId && !noLoginRequired) {
         throw new Error('No session ID found');
       }
 
-      const response = await fetch(`${API_BASE_URL}/api/interceptors`, {
-        headers: {
-          'Authorization': `Bearer ${sessionId}`
-        }
-      });
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Failed to fetch interceptors: ${errorText}`);
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+
+      if (noLoginRequired) {
+        headers['Authorization'] = 'Bearer no-login';
+      } else {
+        headers['Authorization'] = `Bearer ${sessionId}`;
       }
+
+      const response = await fetch(`${API_BASE_URL}/api/interceptors`, {
+        headers,
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch interceptors');
+      }
+
       const data = await response.json();
       setInterceptors(data);
     } catch (err) {
-      console.error('Error fetching interceptors:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch interceptors');
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
   const deleteInterceptor = async (id: string) => {
     if (!confirm('Are you sure you want to delete this interceptor?')) return;
+    
     try {
       const sessionId = localStorage.getItem('sessionId');
-      if (!sessionId) {
+      if (!sessionId && !noLoginRequired) {
         throw new Error('No session ID found');
+      }
+
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+
+      if (noLoginRequired) {
+        headers['Authorization'] = 'Bearer no-login';
+      } else {
+        headers['Authorization'] = `Bearer ${sessionId}`;
       }
 
       const response = await fetch(`${API_BASE_URL}/api/interceptors/${id}`, {
         method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${sessionId}`
-        }
+        headers,
       });
+
       if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Failed to delete interceptor: ${errorText}`);
+        throw new Error('Failed to delete interceptor');
       }
-      await fetchInterceptors();
+
+      setInterceptors(interceptors.filter(i => i.id !== id));
     } catch (err) {
-      console.error('Error deleting interceptor:', err);
       setError(err instanceof Error ? err.message : 'Failed to delete interceptor');
     }
   };
@@ -93,17 +108,23 @@ export default function InterceptorList({ onSelectInterceptor, onCreateIntercept
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  if (!user) {
+  if (!user && !noLoginRequired) {
     return (
-      <div className="p-4 text-center text-gray-500 dark:text-gray-400">
-        Please log in to view your interceptors.
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+        <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+          <div className="px-4 py-6 sm:px-0">
+            <div className="p-4 text-center text-gray-500 dark:text-gray-400">
+              Please log in to use the API interceptor.
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
 
-  if (isLoading) {
+  if (loading) {
     return (
-      <div className="flex items-center justify-center h-full">
+      <div className="flex items-center justify-center h-screen">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
       </div>
     );
@@ -111,8 +132,14 @@ export default function InterceptorList({ onSelectInterceptor, onCreateIntercept
 
   if (error) {
     return (
-      <div className="p-4 text-red-500 bg-red-50 dark:bg-red-900/20 rounded-lg">
-        {error}
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+        <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+          <div className="px-4 py-6 sm:px-0">
+            <div className="p-4 text-red-500 bg-red-50 dark:bg-red-900/20 rounded-lg">
+              {error}
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -120,101 +147,98 @@ export default function InterceptorList({ onSelectInterceptor, onCreateIntercept
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+        <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
           API Interceptors
-        </h2>
+        </h1>
         <button
           onClick={onCreateInterceptor}
-          className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          className="inline-flex items-center px-3 py-1.5 text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
         >
-          <PlusIcon className="h-4 w-4 mr-1" />
+          <PlusIcon className="h-4 w-4 mr-1.5" />
           New Interceptor
         </button>
       </div>
 
-      <div className="bg-white dark:bg-gray-800 shadow rounded-lg divide-y divide-gray-200 dark:divide-gray-700">
+      <div className="space-y-2.5">
         {interceptors.length === 0 ? (
-          <div className="p-4 text-center text-gray-500 dark:text-gray-400">
+          <div className="p-4 text-center text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
             No interceptors found. Create one to get started.
           </div>
         ) : (
           interceptors.map((interceptor) => (
-            <div key={interceptor.id}>
-              <div className="p-4 bg-gray-50 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700">
-                <div className="flex items-center justify-between">
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">Proxy URL</div>
-                    <div className="flex items-center space-x-2">
-                      <code className="flex-1 px-3 py-2 bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-600 text-sm font-mono">
-                        {`${API_BASE_URL}/${interceptor.id}`}
-                      </code>
-                      <button
-                        onClick={() => copyProxyUrl(interceptor.id)}
-                        className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700"
-                        title="Copy to clipboard"
-                      >
-                        {copiedId === interceptor.id ? (
-                          <CheckIcon className="h-5 w-5 text-green-500" />
-                        ) : (
-                          <ClipboardIcon className="h-5 w-5" />
-                        )}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div
-                className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer"
-                onClick={() => onSelectInterceptor(interceptor)}
-              >
+            <div 
+              key={interceptor.id} 
+              className="bg-white dark:bg-gray-800 shadow-sm rounded-lg overflow-hidden hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer"
+              onClick={() => onSelectInterceptor(interceptor)}
+            >
+              <div className="p-4">
                 <div className="flex items-center justify-between">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center space-x-3">
-                      <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+                      <h3 className="text-sm font-medium text-gray-900 dark:text-white truncate">
                         {interceptor.name}
                       </h3>
                       <span
-                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          interceptor.isActive
+                        className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                          interceptor.is_active
                             ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
                             : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
                         }`}
                       >
-                        {interceptor.isActive ? 'Active' : 'Inactive'}
+                        {interceptor.is_active ? 'Active' : 'Inactive'}
                       </span>
                     </div>
-                    <div className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                      <div className="truncate">
-                        <span className="font-mono bg-gray-100 dark:bg-gray-700 px-1 py-0.5 rounded">
-                          {interceptor.id}
-                        </span>
-                        {' → '}
-                        {interceptor.baseUrl}
+                    <div className="mt-2 space-y-1.5">
+                      <div className="flex items-center space-x-2">
+                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Target URL:</span>
+                        <p className="text-sm text-gray-600 dark:text-gray-300 truncate">
+                          {interceptor.base_url}
+                        </p>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Proxy URL:</span>
+                        <div className="flex items-center space-x-2 flex-1 min-w-0">
+                          <code className="text-sm font-mono text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-gray-700/50 px-2 py-1 rounded flex-1 truncate">
+                            {`${API_BASE_URL}/${interceptor.id}`}
+                          </code>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              copyProxyUrl(interceptor.id);
+                            }}
+                            className="inline-flex items-center p-1.5 text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 rounded-md"
+                            title="Copy Proxy URL"
+                          >
+                            {copiedId === interceptor.id ? (
+                              <CheckIcon className="h-4 w-4 text-green-500" />
+                            ) : (
+                              <ClipboardIcon className="h-4 w-4" />
+                            )}
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center space-x-2">
+                  <div className="flex items-center space-x-2 ml-4">
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        onEditInterceptor(interceptor);
+                        onSelectInterceptor(interceptor);
                       }}
-                      className={`p-1 rounded-md ${
-                        interceptor.isActive
-                          ? 'text-green-600 hover:bg-green-100 dark:text-green-400 dark:hover:bg-green-900/30'
-                          : 'text-gray-400 hover:bg-gray-100 dark:text-gray-500 dark:hover:bg-gray-700'
-                      }`}
+                      className="inline-flex items-center p-1.5 text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 rounded-md"
+                      title="View Logs"
                     >
-                      <PencilIcon className="h-5 w-5" />
+                      <ArrowTopRightOnSquareIcon className="h-4 w-4" />
                     </button>
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
                         deleteInterceptor(interceptor.id);
                       }}
-                      className="p-1 rounded-md text-red-600 hover:bg-red-100 dark:text-red-400 dark:hover:bg-red-900/30"
+                      className="inline-flex items-center p-1.5 text-sm text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 rounded-md"
+                      title="Delete Interceptor"
                     >
-                      <TrashIcon className="h-5 w-5" />
+                      <TrashIcon className="h-4 w-4" />
                     </button>
                   </div>
                 </div>
