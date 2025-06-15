@@ -142,36 +142,40 @@ export default function InterceptorLogs() {
             <div className="flex items-center space-x-4">
               <button
                 onClick={() => navigate('/api-interceptor')}
-                className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                className="inline-flex items-center p-2 border border-transparent text-sm leading-4 font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
               >
-                <ArrowLeftIcon className="h-4 w-4 mr-1" />
-                Back to Interceptors
+                <ArrowLeftIcon className="h-5 w-5" />
               </button>
               <div>
                 <h2 className="text-lg font-medium text-gray-900 dark:text-white">
                   {interceptor.name}
                 </h2>
-                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                  {interceptor.base_url}
-                </p>
+                <div className="mt-1 space-y-1">
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    {interceptor.base_url}
+                  </p>
+                  <div className="flex items-center space-x-2">
+                    <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Proxy URL:</span>
+                    <div className="flex items-center space-x-2 flex-1 min-w-0">
+                      <code className="text-sm font-mono text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-gray-700/50 px-2 py-1 rounded flex-1 truncate">
+                        {`${API_BASE_URL}/${interceptor.id}`}
+                      </code>
+                      <button
+                        onClick={copyProxyUrl}
+                        className="inline-flex items-center p-1.5 text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 rounded-md"
+                        title="Copy Proxy URL"
+                      >
+                        {copied ? (
+                          <CheckIcon className="h-4 w-4 text-green-500" />
+                        ) : (
+                          <ClipboardIcon className="h-4 w-4" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
-            <button
-              onClick={copyProxyUrl}
-              className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-            >
-              {copied ? (
-                <>
-                  <CheckIcon className="h-4 w-4 mr-1 text-green-500" />
-                  Copied!
-                </>
-              ) : (
-                <>
-                  <ClipboardIcon className="h-4 w-4 mr-1" />
-                  Copy Proxy URL
-                </>
-              )}
-            </button>
           </div>
 
           {/* Search Bar */}
