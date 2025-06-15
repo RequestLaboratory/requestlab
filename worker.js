@@ -1,7 +1,7 @@
-// Supabase configuration
-const SUPABASE_URL = 'ADD-YOUR-SUPABASE-URL-HERE';
-const SUPABASE_ANON_KEY = 'ADD-YOUR-SUPABASE-ANON-KEY-HERE';
-const DB_CONNECTION_STRING = 'ADD-YOUR-DB-CONNECTION-STRING-HERE';
+// Supabase configuration for database access
+const SUPABASE_URL = 'masked';
+const SUPABASE_ANON_KEY = 'masked';
+const DB_CONNECTION_STRING = 'masked';
 
 // Debug flag for global access (1 = bypass auth, 0 = require auth)
 const GLOBAL_ACCESS = 1;
@@ -111,7 +111,7 @@ async function dbDelete(id) {
   return response.json();
 }
 
-// WebSocket Manager Durable Object
+// WebSocket Manager for handling real-time connections
 export class WebSocketManager {
   constructor(state) {
     this.connections = new Map();
@@ -121,12 +121,14 @@ export class WebSocketManager {
   async fetch(request) {
     const url = new URL(request.url);
 
+    // Handle broadcast messages to all connected clients
     if (url.pathname === '/broadcast') {
       const data = await request.json();
       await this.broadcast(data);
       return new Response('OK');
     }
 
+    // Handle new WebSocket connections
     if (url.pathname === '/connect') {
       const { webSocket } = await request.json();
       await this.handleWebSocket(webSocket);
@@ -136,9 +138,11 @@ export class WebSocketManager {
     return new Response('Not found', { status: 404 });
   }
 
+  // Handle individual WebSocket connections
   async handleWebSocket(ws) {
     ws.accept();
     
+    // Handle incoming messages
     ws.addEventListener('message', async (msg) => {
       try {
         const data = JSON.parse(msg.data);
@@ -150,18 +154,22 @@ export class WebSocketManager {
       }
     });
 
+    // Clean up on connection close
     ws.addEventListener('close', () => {
       this.connections.delete(ws.toString());
     });
 
+    // Handle WebSocket errors
     ws.addEventListener('error', (error) => {
       console.error('WebSocket error:', error);
       this.connections.delete(ws.toString());
     });
 
+    // Store the connection
     this.connections.set(ws.toString(), ws);
   }
 
+  // Broadcast message to all connected clients
   async broadcast(data) {
     const message = JSON.stringify(data);
     for (const ws of this.connections.values()) {
@@ -175,16 +183,17 @@ export class WebSocketManager {
   }
 }
 
+// Main worker handler
 export default {
   async fetch(request, env, ctx) {
-    // Handle CORS preflight
+    // Handle CORS preflight requests
     const corsResponse = handleCors(request);
     if (corsResponse) return corsResponse;
 
     const url = new URL(request.url);
     const path = url.pathname;
 
-    // Handle SSE connection
+    // Handle Server-Sent Events (SSE) connections
     if (path === '/events') {
       // Initialize controllers set if it doesn't exist
       if (!env.EVENT_CONTROLLERS) {
@@ -198,29 +207,48 @@ export default {
           controller.enqueue(encoder.encode('retry: 1000\n'));
           controller.enqueue(encoder.encode('data: {"type":"connected"}\n\n'));
           
-          // Store the controller
-          env.EVENT_CONTROLLERS.add(controller);
+          // Store the controller with metadata for connection tracking
+          const controllerInfo = {
+            controller,
+            lastActivity: Date.now(),
+            isAlive: true
+          };
+          env.EVENT_CONTROLLERS.add(controllerInfo);
           
-          // Set up heartbeat interval
+          // Set up heartbeat to keep connection alive and detect dead connections
           const heartbeatInterval = setInterval(() => {
             try {
+              if (!controllerInfo.isAlive) {
+                clearInterval(heartbeatInterval);
+                env.EVENT_CONTROLLERS.delete(controllerInfo);
+                return;
+              }
+
               controller.enqueue(encoder.encode('data: {"type":"heartbeat"}\n\n'));
+              controllerInfo.lastActivity = Date.now();
             } catch (error) {
               console.error('Error sending heartbeat:', error);
               clearInterval(heartbeatInterval);
-              env.EVENT_CONTROLLERS.delete(controller);
+              controllerInfo.isAlive = false;
+              env.EVENT_CONTROLLERS.delete(controllerInfo);
             }
           }, 30000); // Send heartbeat every 30 seconds
           
-          // Remove controller when connection closes
+          // Clean up on connection close
           request.signal.addEventListener('abort', () => {
             clearInterval(heartbeatInterval);
-            env.EVENT_CONTROLLERS.delete(controller);
+            controllerInfo.isAlive = false;
+            env.EVENT_CONTROLLERS.delete(controllerInfo);
           });
         },
         cancel() {
           // Clean up when the stream is cancelled
-          env.EVENT_CONTROLLERS.delete(controller);
+          const controllerInfo = Array.from(env.EVENT_CONTROLLERS)
+            .find(info => info.controller === controller);
+          if (controllerInfo) {
+            controllerInfo.isAlive = false;
+            env.EVENT_CONTROLLERS.delete(controllerInfo);
+          }
         }
       });
 
@@ -238,9 +266,10 @@ export default {
       });
     }
 
-    // API endpoints
+    // Handle API endpoints
     if (path.startsWith('/api/interceptors')) {
       try {
+        // Get all interceptors
         if (request.method === 'GET' && path === '/api/interceptors') {
           // If global access is enabled, return all interceptors without auth
           if (GLOBAL_ACCESS === 1) {
@@ -291,6 +320,7 @@ export default {
           }));
         }
 
+        // Create new interceptor
         if (request.method === 'POST' && path === '/api/interceptors') {
           // If global access is enabled, allow creation without auth
           if (GLOBAL_ACCESS === 1) {
@@ -369,6 +399,7 @@ export default {
           }));
         }
 
+        // Delete interceptor
         if (request.method === 'DELETE' && path.startsWith('/api/interceptors/')) {
           // If global access is enabled, allow deletion without auth
           if (GLOBAL_ACCESS === 1) {
@@ -469,18 +500,32 @@ export default {
               })}\n\n`;
               
               const deadControllers = new Set();
-              for (const controller of env.EVENT_CONTROLLERS) {
+              for (const controllerInfo of env.EVENT_CONTROLLERS) {
                 try {
-                  controller.enqueue(encoder.encode(message));
+                  if (!controllerInfo.isAlive) {
+                    deadControllers.add(controllerInfo);
+                    continue;
+                  }
+
+                  // Check if controller is too old (more than 5 minutes without activity)
+                  if (Date.now() - controllerInfo.lastActivity > 300000) {
+                    controllerInfo.isAlive = false;
+                    deadControllers.add(controllerInfo);
+                    continue;
+                  }
+
+                  controllerInfo.controller.enqueue(encoder.encode(message));
+                  controllerInfo.lastActivity = Date.now();
                 } catch (error) {
                   console.error('Error sending SSE message:', error);
-                  deadControllers.add(controller);
+                  controllerInfo.isAlive = false;
+                  deadControllers.add(controllerInfo);
                 }
               }
               
               // Clean up dead controllers
-              for (const controller of deadControllers) {
-                env.EVENT_CONTROLLERS.delete(controller);
+              for (const controllerInfo of deadControllers) {
+                env.EVENT_CONTROLLERS.delete(controllerInfo);
               }
             }
 
