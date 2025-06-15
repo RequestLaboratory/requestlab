@@ -46,6 +46,71 @@ function generateUniqueCode() {
   return Math.random().toString(36).substring(2, 8);
 }
 
+// Session verification functions
+async function getSession(sessionId) {
+  const response = await fetch(`${SUPABASE_URL}/rest/v1/sessions?id=eq.${sessionId}`, {
+    headers: {
+      'apikey': SUPABASE_ANON_KEY,
+      'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+      'Content-Type': 'application/json'
+    }
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to get session: ${response.statusText} - ${errorText}`);
+  }
+
+  const sessions = await response.json();
+  return sessions[0];
+}
+
+async function deleteSession(sessionId) {
+  const response = await fetch(`${SUPABASE_URL}/rest/v1/sessions?id=eq.${sessionId}`, {
+    method: 'DELETE',
+    headers: {
+      'apikey': SUPABASE_ANON_KEY,
+      'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+      'Content-Type': 'application/json'
+    }
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to delete session: ${response.statusText} - ${errorText}`);
+  }
+
+  return response.json();
+}
+
+async function verifySession(sessionId) {
+  try {
+    const session = await getSession(sessionId);
+    if (!session) {
+      return { authenticated: false };
+    }
+
+    // Check if session is expired
+    if (new Date(session.expires_at) < new Date()) {
+      await deleteSession(sessionId);
+      return { authenticated: false };
+    }
+
+    return {
+      authenticated: true,
+      user: {
+        id: session.user_id,
+        email: session.email,
+        name: session.name,
+        picture: session.picture
+      }
+    };
+  } catch (error) {
+    console.error('Session verification error:', error);
+    return { authenticated: false };
+  }
+}
+
 // Database helper
 async function dbQuery(query, params = []) {
   const response = await fetch(`${SUPABASE_URL}/rest/v1/interceptors`, {
@@ -200,6 +265,14 @@ export default {
         env.EVENT_CONTROLLERS = new Set();
       }
 
+      // Clean up any dead controllers before adding new ones
+      const now = Date.now();
+      for (const controllerInfo of env.EVENT_CONTROLLERS) {
+        if (!controllerInfo.isAlive || now - controllerInfo.lastActivity > 60000) { // 1 minute timeout
+          env.EVENT_CONTROLLERS.delete(controllerInfo);
+        }
+      }
+
       const encoder = new TextEncoder();
       const stream = new ReadableStream({
         start(controller) {
@@ -211,7 +284,8 @@ export default {
           const controllerInfo = {
             controller,
             lastActivity: Date.now(),
-            isAlive: true
+            isAlive: true,
+            id: crypto.randomUUID() // Add unique ID for better tracking
           };
           env.EVENT_CONTROLLERS.add(controllerInfo);
           
@@ -219,6 +293,14 @@ export default {
           const heartbeatInterval = setInterval(() => {
             try {
               if (!controllerInfo.isAlive) {
+                clearInterval(heartbeatInterval);
+                env.EVENT_CONTROLLERS.delete(controllerInfo);
+                return;
+              }
+
+              // Check if controller is too old (more than 1 minute without activity)
+              if (Date.now() - controllerInfo.lastActivity > 60000) {
+                controllerInfo.isAlive = false;
                 clearInterval(heartbeatInterval);
                 env.EVENT_CONTROLLERS.delete(controllerInfo);
                 return;
@@ -232,7 +314,7 @@ export default {
               controllerInfo.isAlive = false;
               env.EVENT_CONTROLLERS.delete(controllerInfo);
             }
-          }, 30000); // Send heartbeat every 30 seconds
+          }, 15000); // Send heartbeat every 15 seconds
           
           // Clean up on connection close
           request.signal.addEventListener('abort', () => {
@@ -290,22 +372,11 @@ export default {
           const sessionId = authHeader.replace('Bearer ', '');
           console.log('Session ID:', sessionId);
           
-          // Verify session and get user ID
-          console.log('Verifying session with auth worker...');
-          const sessionResponse = await fetch('https://googleauth.yadev64.workers.dev/auth/session', {
-            headers: {
-              Authorization: `Bearer ${sessionId}`,
-            },
-          });
+          // Verify session directly
+          console.log('Verifying session...');
+          const sessionData = await verifySession(sessionId);
+          console.log('Session verification result:', sessionData);
           
-          console.log('Session response status:', sessionResponse.status);
-          if (!sessionResponse.ok) {
-            console.log('Session response not OK:', await sessionResponse.text());
-            return addCorsHeaders(new Response('Unauthorized', { status: 401 }));
-          }
-          
-          const sessionData = await sessionResponse.json();
-          console.log('Session data:', sessionData);
           if (!sessionData.authenticated) {
             console.log('Session not authenticated');
             return addCorsHeaders(new Response('Unauthorized', { status: 401 }));
@@ -357,18 +428,8 @@ export default {
           }
           const sessionId = authHeader.replace('Bearer ', '');
           
-          // Verify session and get user ID
-          const sessionResponse = await fetch('https://googleauth.yadev64.workers.dev/auth/session', {
-            headers: {
-              Authorization: `Bearer ${sessionId}`,
-            },
-          });
-          
-          if (!sessionResponse.ok) {
-            return addCorsHeaders(new Response('Unauthorized', { status: 401 }));
-          }
-          
-          const sessionData = await sessionResponse.json();
+          // Verify session directly
+          const sessionData = await verifySession(sessionId);
           if (!sessionData.authenticated) {
             return addCorsHeaders(new Response('Unauthorized', { status: 401 }));
           }
@@ -416,18 +477,8 @@ export default {
           }
           const sessionId = authHeader.replace('Bearer ', '');
           
-          // Verify session and get user ID
-          const sessionResponse = await fetch('https://googleauth.yadev64.workers.dev/auth/session', {
-            headers: {
-              Authorization: `Bearer ${sessionId}`,
-            },
-          });
-          
-          if (!sessionResponse.ok) {
-            return addCorsHeaders(new Response('Unauthorized', { status: 401 }));
-          }
-          
-          const sessionData = await sessionResponse.json();
+          // Verify session directly
+          const sessionData = await verifySession(sessionId);
           if (!sessionData.authenticated) {
             return addCorsHeaders(new Response('Unauthorized', { status: 401 }));
           }
@@ -499,26 +550,20 @@ export default {
                 data: log
               })}\n\n`;
               
+              const now = Date.now();
               const deadControllers = new Set();
+              
               for (const controllerInfo of env.EVENT_CONTROLLERS) {
                 try {
-                  if (!controllerInfo.isAlive) {
-                    deadControllers.add(controllerInfo);
-                    continue;
-                  }
-
-                  // Check if controller is too old (more than 5 minutes without activity)
-                  if (Date.now() - controllerInfo.lastActivity > 300000) {
-                    controllerInfo.isAlive = false;
+                  if (!controllerInfo.isAlive || now - controllerInfo.lastActivity > 60000) {
                     deadControllers.add(controllerInfo);
                     continue;
                   }
 
                   controllerInfo.controller.enqueue(encoder.encode(message));
-                  controllerInfo.lastActivity = Date.now();
+                  controllerInfo.lastActivity = now;
                 } catch (error) {
                   console.error('Error sending SSE message:', error);
-                  controllerInfo.isAlive = false;
                   deadControllers.add(controllerInfo);
                 }
               }
