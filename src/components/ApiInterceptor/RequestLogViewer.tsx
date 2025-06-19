@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { format } from 'date-fns';
 import { Switch } from '@headlessui/react';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface ApiLog {
   id: string;
@@ -41,6 +42,7 @@ interface Props {
 }
 
 export default function RequestLogViewer({ interceptorId, onSelectLog, selectedLogId, searchQuery }: Props) {
+  const { noLoginRequired } = useAuth();
   const [logs, setLogs] = useState<Log[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -78,7 +80,22 @@ export default function RequestLogViewer({ interceptorId, onSelectLog, selectedL
   // Function to fetch logs via API
   const fetchLogs = async () => {
     try {
-      const response = await fetch(`https://interceptorworker.yadev64.workers.dev/api/interceptors/${interceptorId}/logs?limit=100&offset=0`);
+      const sessionId = localStorage.getItem('sessionId');
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+
+      // Add authorization header based on auth mode
+      if (noLoginRequired) {
+        headers['Authorization'] = 'Bearer no-login';
+      } else if (sessionId) {
+        headers['Authorization'] = `Bearer ${sessionId}`;
+      }
+
+      const response = await fetch(`https://interceptorworker.yadev64.workers.dev/api/interceptors/${interceptorId}/logs?limit=100&offset=0`, {
+        headers
+      });
+      
       if (!response.ok) {
         throw new Error(`Failed to fetch logs: ${response.statusText}`);
       }
