@@ -45,9 +45,35 @@ export default function RequestLogViewer({ interceptorId, onSelectLog, selectedL
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
+  const [workerMode, setWorkerMode] = useState<'api' | 'sse' | null>(null);
   const [useSSE, setUseSSE] = useState(true);
   const eventSourceRef = useRef<EventSource | null>(null);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Check worker mode on component mount
+  useEffect(() => {
+    const checkWorkerMode = async () => {
+      try {
+        const response = await fetch('https://interceptorworker.yadev64.workers.dev/status');
+        if (response.ok) {
+          const status = await response.json();
+          setWorkerMode(status.mode);
+          setUseSSE(status.mode === 'sse');
+        } else {
+          // Default to SSE if status check fails
+          setWorkerMode('sse');
+          setUseSSE(true);
+        }
+      } catch (error) {
+        console.error('Failed to check worker mode:', error);
+        // Default to SSE if status check fails
+        setWorkerMode('sse');
+        setUseSSE(true);
+      }
+    };
+
+    checkWorkerMode();
+  }, []);
 
   // Function to fetch logs via API
   const fetchLogs = async () => {
@@ -88,7 +114,7 @@ export default function RequestLogViewer({ interceptorId, onSelectLog, selectedL
 
   // Setup polling for API mode
   useEffect(() => {
-    if (!useSSE) {
+    if (workerMode === 'api' || (!useSSE && workerMode === 'sse')) {
       // Initial fetch
       fetchLogs();
       
@@ -101,11 +127,11 @@ export default function RequestLogViewer({ interceptorId, onSelectLog, selectedL
         }
       };
     }
-  }, [useSSE, interceptorId]);
+  }, [useSSE, interceptorId, workerMode]);
 
   // SSE connection setup
   useEffect(() => {
-    if (!useSSE) return;
+    if (workerMode !== 'sse' || !useSSE) return;
 
     let retryCount = 0;
     const maxRetries = 3;
@@ -235,7 +261,7 @@ export default function RequestLogViewer({ interceptorId, onSelectLog, selectedL
         eventSourceRef.current.close();
       }
     };
-  }, [interceptorId, useSSE]);
+  }, [interceptorId, useSSE, workerMode]);
 
   const filteredLogs = logs.filter(log => {
     if (!searchQuery) return true;
@@ -269,32 +295,39 @@ export default function RequestLogViewer({ interceptorId, onSelectLog, selectedL
       <div className="flex-shrink-0 p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
         <div className="flex items-center space-x-2">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Request Logs</h2>
-          {useSSE && (
+          {workerMode === 'sse' && useSSE && (
             <span className={`inline-flex items-center px-2 py-1 text-xs font-medium rounded ${
               isConnected ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400' : 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
             }`}>
               {isConnected ? 'Connected' : 'Disconnected'}
             </span>
           )}
+          {workerMode === 'api' && (
+            <span className="inline-flex items-center px-2 py-1 text-xs font-medium rounded bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400">
+              API Mode
+            </span>
+          )}
         </div>
         <div className="flex items-center space-x-4">
-          <div className="flex items-center space-x-2">
-            <span className="text-sm text-gray-500 dark:text-gray-400">API Mode</span>
-            <Switch
-              checked={!useSSE}
-              onChange={() => setUseSSE(!useSSE)}
-              className={`${
-                !useSSE ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'
-              } relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2`}
-            >
-              <span
+          {workerMode === 'sse' && (
+            <div className="flex items-center space-x-2">
+              <span className="text-sm text-gray-500 dark:text-gray-400">API Mode</span>
+              <Switch
+                checked={!useSSE}
+                onChange={() => setUseSSE(!useSSE)}
                 className={`${
-                  !useSSE ? 'translate-x-6' : 'translate-x-1'
-                } inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
-              />
-            </Switch>
-            <span className="text-sm text-gray-500 dark:text-gray-400">SSE Mode</span>
-          </div>
+                  !useSSE ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'
+                } relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2`}
+              >
+                <span
+                  className={`${
+                    !useSSE ? 'translate-x-6' : 'translate-x-1'
+                  } inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
+                />
+              </Switch>
+              <span className="text-sm text-gray-500 dark:text-gray-400">SSE Mode</span>
+            </div>
+          )}
           <div className="text-sm text-gray-500 dark:text-gray-400">
             {filteredLogs.length} {filteredLogs.length === 1 ? 'request' : 'requests'}
           </div>
