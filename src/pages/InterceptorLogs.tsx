@@ -30,7 +30,7 @@ interface Log {
   };
 }
 
-const API_BASE_URL = 'https://4cf0c1b60103.ngrok-free.app';
+const API_BASE_URL = 'https://d395aa9c1ebc.ngrok-free.app';
 
 export default function InterceptorLogs() {
   const { id } = useParams<{ id: string }>();
