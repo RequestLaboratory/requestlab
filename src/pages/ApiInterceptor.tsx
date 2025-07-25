@@ -12,7 +12,7 @@ interface Interceptor {
   is_active: boolean;
 }
 
-const API_BASE_URL = 'https://d395aa9c1ebc.ngrok-free.app';
+const API_BASE_URL = 'https://interceptorserver.onrender.com';
 
 export default function ApiInterceptor() {
   const navigate = useNavigate();

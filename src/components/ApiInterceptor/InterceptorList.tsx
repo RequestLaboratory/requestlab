@@ -15,7 +15,7 @@ interface Props {
   onCreateInterceptor: () => void;
 }
 
-const API_BASE_URL = 'https://d395aa9c1ebc.ngrok-free.app';
+const API_BASE_URL = 'https://interceptorserver.onrender.com';
 
 export default function InterceptorList({ onSelectInterceptor, onCreateInterceptor }: Props) {
   const { user, noLoginRequired } = useAuth();
