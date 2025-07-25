@@ -36,6 +36,7 @@ export default function ApiInterceptor() {
       headers['Authorization'] = `Bearer ${sessionId}`;
     }
 
+    headers['ngrok-skip-browser-warning'] = 'true';
     const response = await fetch(`${API_BASE_URL}/api/interceptors`, {
       method: 'POST',
       headers,

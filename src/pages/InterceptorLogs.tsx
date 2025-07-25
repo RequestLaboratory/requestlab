@@ -103,6 +103,8 @@ export default function InterceptorLogs() {
         headers['Authorization'] = `Bearer ${sessionId}`;
       }
 
+      headers['ngrok-skip-browser-warning'] = 'true';
+
       const response = await fetch(`${API_BASE_URL}/api/interceptors`, {
         headers,
       });

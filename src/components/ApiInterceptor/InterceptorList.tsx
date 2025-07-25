@@ -15,7 +15,7 @@ interface Props {
   onCreateInterceptor: () => void;
 }
 
-const API_BASE_URL = 'https://interceptorworker.yadev64.workers.dev';
+const API_BASE_URL = 'https://4cf0c1b60103.ngrok-free.app';
 
 export default function InterceptorList({ onSelectInterceptor, onCreateInterceptor }: Props) {
   const { user, noLoginRequired } = useAuth();
@@ -49,6 +49,8 @@ export default function InterceptorList({ onSelectInterceptor, onCreateIntercept
       } else {
         headers['Authorization'] = `Bearer ${sessionId}`;
       }
+
+      headers['ngrok-skip-browser-warning'] = 'true';
 
       const response = await fetch(`${API_BASE_URL}/api/interceptors`, {
         headers,
