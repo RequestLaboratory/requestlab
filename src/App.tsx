@@ -26,6 +26,8 @@ import HomePage from './components/homePage';
 import { WelcomePopupProvider } from './contexts/WelcomePopupContext';
 import FloatingButton from './components/FloatingButton';
 import Head from './components/Head';
+import Documentation from './components/Documentation';
+import DocumentationPage from './pages/Documentation';
 
 const leftExample = JSON.stringify({
   name: "Ford Mustang GT",
@@ -401,6 +403,7 @@ function AppContent() {
 
   const showCollections = location.pathname === '/api-testing';
   const isHomePage = location.pathname === '/';
+  const isDocumentationPage = location.pathname === '/documentation';
   const showDesktopPrompt = isMobile && !isHomePage;
 
   // Update to use Google Form URL
@@ -416,7 +419,7 @@ function AppContent() {
       />
       
       {/* Left Sidebar - Only show when not on home page */}
-      {!isHomePage && (
+      {!isHomePage && !isDocumentationPage && (
         <div className="w-64 border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex flex-col">
           <div className="flex flex-col h-full px-0 py-4">
             <div className="flex items-center mb-8 px-2">
@@ -543,6 +546,8 @@ function AppContent() {
                   </span>
                 </div>
               </button>
+
+              <Documentation />
             </nav>
 
             {/* Login Button and Dark Mode Toggle at bottom */}
@@ -669,6 +674,7 @@ function AppContent() {
           <Route path="/api-interceptor" element={<ApiInterceptor />} />
           <Route path="/interceptors/:id/logs" element={<InterceptorLogs />} />
           <Route path="/sql-compare" element={<SQLCompare />} />
+          <Route path="/documentation" element={<DocumentationPage />} />
         </Routes>
       </div>
 

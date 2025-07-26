@@ -58,8 +58,6 @@ export default function Features() {
       ],
       capabilities: [
         'Save test collections',
-        'Environment variables',
-        'Test data management',
         'Continuous testing'
       ],
       color: 'from-red-500 to-pink-500',
