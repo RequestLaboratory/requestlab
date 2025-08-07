@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import httpProxy from 'http-proxy';
+import crypto from 'crypto';
 
 dotenv.config();
 
@@ -16,6 +17,27 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Create proxy server
 const proxy = httpProxy.createProxyServer();
+
+// Helper function to sanitize headers
+function sanitizeHeaders(headers) {
+  const sensitiveHeaders = ['authorization', 'cookie', 'x-api-key', 'x-auth-token', 'cf-connecting-ip'];
+  const sanitized = {};
+  for (const [key, value] of Object.entries(headers)) {
+    if (!sensitiveHeaders.includes(key.toLowerCase())) {
+      sanitized[key] = value;
+    }
+  }
+  return sanitized;
+}
+
+// Helper function to store log
+async function storeLog(log) {
+  try {
+    await supabase.from('logs').insert(log);
+  } catch (error) {
+    console.error('Failed to store log:', error);
+  }
+}
 
 // CORS Configuration
 const corsOptions = {
@@ -156,6 +178,60 @@ app.use(async (req, res, next) => {
     delete forwardHeaders['x-forwarded-proto'];
     delete forwardHeaders['x-forwarded-host'];
     
+    // Capture request details for logging
+    const startTime = Date.now();
+    const requestBody = req.body ? JSON.stringify(req.body) : '';
+    const requestHeaders = JSON.stringify(sanitizeHeaders(req.headers));
+    
+    // Capture response body
+    let responseBody = '';
+    let responseHeaders = '';
+    let responseStatus = 0;
+    
+    // Override res.write and res.end to capture response
+    const originalWrite = res.write;
+    const originalEnd = res.end;
+    
+    res.write = function(chunk, ...args) {
+      if (chunk) {
+        responseBody += chunk.toString();
+      }
+      return originalWrite.apply(res, [chunk, ...args]);
+    };
+    
+    res.end = function(chunk, ...args) {
+      if (chunk) {
+        responseBody += chunk.toString();
+      }
+      
+      // Calculate duration
+      const duration = Date.now() - startTime;
+      responseStatus = res.statusCode;
+      responseHeaders = JSON.stringify(sanitizeHeaders(res.getHeaders()));
+      
+      // Store log
+      const log = {
+        id: crypto.randomUUID(),
+        interceptor_id: interceptor.id,
+        original_url: targetUrl,
+        proxy_url: req.originalUrl,
+        method: req.method,
+        headers: requestHeaders,
+        body: requestBody,
+        response_status: responseStatus,
+        response_headers: responseHeaders,
+        response_body: responseBody,
+        timestamp: new Date().toISOString(),
+        duration: duration
+      };
+      
+      storeLog(log).then(() => {
+        console.log(`Log stored for ${req.method} ${req.path} (${responseStatus})`);
+      });
+      
+      return originalEnd.apply(res, [chunk, ...args]);
+    };
+    
     // Proxy the request
     proxy.web(req, res, {
       target: interceptor.base_url,
@@ -182,4 +258,5 @@ app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log('CORS enabled for localhost origins');
   console.log('Proxy functionality enabled');
+  console.log('Logging functionality enabled');
 });
