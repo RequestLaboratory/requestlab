@@ -1,6 +1,6 @@
 // API Configuration
-export const API_BASE_URL = 'http://localhost:3005';
-// export const API_BASE_URL = 'https://interceptorworker.yadev64.workers.dev';
+// export const API_BASE_URL = 'http://localhost:3004';
+export const API_BASE_URL = 'https://interceptorserver.onrender.com';
 
 // Environment-specific configurations
 export const CONFIG = {
