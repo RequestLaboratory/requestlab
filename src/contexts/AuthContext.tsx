@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import axios from 'axios';
 
 interface User {
   id: string;
@@ -22,7 +23,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isCheckingSession, setIsCheckingSession] = useState(false);
-  const [noLoginRequired, setNoLoginRequired] = useState(false); // Default to true for development
+  const [noLoginRequired, setNoLoginRequired] = useState(true); // Default to true for development
 
   useEffect(() => {
     let mounted = true;
@@ -106,14 +107,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       console.log('Making session check request to worker...');
-      const response = await fetch('https://googleauth.yadev64.workers.dev/auth/session', {
+      const response = await axios.get('https://googleauth.yadev64.workers.dev/auth/session', {
         headers: {
           Authorization: `Bearer ${sessionId}`,
         },
       });
 
       console.log('Session check response status:', response.status);
-      const data = await response.json();
+      const data = response.data;
       console.log('Session check response data:', data);
       
       if (data.authenticated === false) {
@@ -144,7 +145,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const sessionId = localStorage.getItem('sessionId');
     if (sessionId) {
       try {
-        await fetch('https://googleauth.yadev64.workers.dev/auth/logout', {
+        await axios.get('https://googleauth.yadev64.workers.dev/auth/logout', {
           headers: {
             Authorization: `Bearer ${sessionId}`,
           },

@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeftIcon, ClipboardIcon, CheckIcon, XMarkIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
+import apiClient from '../utils/apiClient';
 import RequestLogViewer from '../components/ApiInterceptor/RequestLogViewer';
 import LogDetails from '../components/ApiInterceptor/LogDetails';
 import { useAuth } from '../contexts/AuthContext';
+import { API_BASE_URL, API_ENDPOINTS } from '../config';
 
 interface Interceptor {
   id: string;
@@ -30,7 +32,7 @@ interface Log {
   };
 }
 
-const API_BASE_URL = 'https://interceptorserver.onrender.com';
+
 
 export default function InterceptorLogs() {
   const { id } = useParams<{ id: string }>();
@@ -88,30 +90,9 @@ export default function InterceptorLogs() {
   const fetchInterceptor = async () => {
     try {
       setIsLoading(true);
-      const sessionId = localStorage.getItem('sessionId');
-      if (!sessionId && !noLoginRequired) {
-        throw new Error('No session ID found');
-      }
-
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-      };
-
-      if (noLoginRequired) {
-        headers['Authorization'] = 'Bearer no-login';
-      } else {
-        headers['Authorization'] = `Bearer ${sessionId}`;
-      }
-
-      headers['ngrok-skip-browser-warning'] = 'true';
-
-      const response = await fetch(`${API_BASE_URL}/api/interceptors`, {
-        headers,
-      });
-      if (!response.ok) {
-        throw new Error('Failed to fetch interceptors');
-      }
-      const interceptors = await response.json();
+      const response = await apiClient.get(API_ENDPOINTS.INTERCEPTORS);
+      
+      const interceptors = response.data;
       const found = interceptors.find((i: Interceptor) => i.id === id);
       if (found) {
         setInterceptor(found);

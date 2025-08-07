@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import apiClient from '../utils/apiClient';
 import InterceptorList from '../components/ApiInterceptor/InterceptorList';
 import InterceptorModal from '../components/ApiInterceptor/InterceptorModal';
 import { useAuth } from '../contexts/AuthContext';
+import { API_ENDPOINTS } from '../config';
 
 interface Interceptor {
   id: string;
@@ -12,43 +14,22 @@ interface Interceptor {
   is_active: boolean;
 }
 
-const API_BASE_URL = 'https://interceptorserver.onrender.com';
-
 export default function ApiInterceptor() {
   const navigate = useNavigate();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingInterceptor, setEditingInterceptor] = useState<Interceptor | undefined>();
   const { user, noLoginRequired } = useAuth();
 
-  const handleCreateInterceptor = async (data: Omit<Interceptor, 'id' | 'created_at'>) => {
-    const sessionId = localStorage.getItem('sessionId');
-    if (!sessionId && !noLoginRequired) {
-      throw new Error('No session ID found');
-    }
-
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
+  const handleCreateInterceptor = async (data: { name: string; baseUrl: string; isActive: boolean }) => {
+    // Transform the data to match the API format
+    const apiData = {
+      name: data.name,
+      base_url: data.baseUrl,
+      is_active: data.isActive,
     };
-
-    if (noLoginRequired) {
-      headers['Authorization'] = 'Bearer no-login';
-    } else {
-      headers['Authorization'] = `Bearer ${sessionId}`;
-    }
-
-    headers['ngrok-skip-browser-warning'] = 'true';
-    const response = await fetch(`${API_BASE_URL}/api/interceptors`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(data),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Failed to create interceptor: ${errorText}`);
-    }
-
-    const newInterceptor = await response.json();
+    
+    const response = await apiClient.post(API_ENDPOINTS.INTERCEPTORS, apiData);
+    const newInterceptor = response.data;
     navigate(`/interceptors/${newInterceptor.id}/logs`);
   };
 
@@ -80,22 +61,24 @@ export default function ApiInterceptor() {
               setEditingInterceptor(undefined);
               setIsModalOpen(true);
             }}
-            onEditInterceptor={(interceptor) => {
-              setEditingInterceptor(interceptor);
-              setIsModalOpen(true);
-            }}
           />
         </div>
       </div>
 
       <InterceptorModal
-        interceptor={editingInterceptor}
+        interceptor={editingInterceptor ? {
+          id: editingInterceptor.id,
+          name: editingInterceptor.name,
+          baseUrl: editingInterceptor.base_url,
+          createdAt: editingInterceptor.created_at,
+          isActive: editingInterceptor.is_active,
+        } : undefined}
         isOpen={isModalOpen}
         onClose={() => {
           setIsModalOpen(false);
           setEditingInterceptor(undefined);
         }}
-        onSave={editingInterceptor ? handleCreateInterceptor : handleCreateInterceptor}
+        onSave={handleCreateInterceptor}
       />
     </div>
   );
