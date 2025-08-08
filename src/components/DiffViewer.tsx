@@ -169,7 +169,7 @@ const DiffViewer: React.FC<DiffViewerProps> = ({ diff, error, leftJson, rightJso
           </div>
         </div>
       </div>
-      <div className="mt-10 h-[calc(100%-2.5rem)]">
+      <div className="mt-16 pt-10 h-full">
         <SyntaxHighlighter
           language="json"
           style={vs2015}
