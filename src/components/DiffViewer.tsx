@@ -260,13 +260,31 @@ const DiffViewer: React.FC<DiffViewerProps> = ({ diff, error, leftJson, rightJso
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="flex-1 min-h-0 overflow-y-auto p-4">
+            <div className="flex-1 min-h-0 overflow-y-auto p-4 pb-16">
               <div className="grid grid-cols-2 gap-4 h-full">
                 <div className="h-full">
                   {renderPanel(leftJson, true, leftLines)}
                 </div>
                 <div className="h-full">
                   {renderPanel(rightJson, false, rightLines)}
+                </div>
+              </div>
+            </div>
+            
+            {/* Color Coding Legend - Sticky to Modal */}
+            <div className="absolute bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
+              <div className="flex items-center justify-center space-x-6 text-sm text-gray-600 dark:text-gray-400 py-3">
+                <div className="flex items-center">
+                  <div className="w-3 h-3 rounded-sm bg-red-500/10 mr-2"></div>
+                  <span>Fields missing in right JSON</span>
+                </div>
+                <div className="flex items-center">
+                  <div className="w-3 h-3 rounded-sm bg-green-500/10 mr-2"></div>
+                  <span>New fields in right JSON</span>
+                </div>
+                <div className="flex items-center">
+                  <div className="w-3 h-3 rounded-sm bg-gray-500/10 mr-2"></div>
+                  <span>Different values</span>
                 </div>
               </div>
             </div>
