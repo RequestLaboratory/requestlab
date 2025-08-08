@@ -569,7 +569,7 @@ function AppContent() {
 
       {/* Main Content */}
       <div 
-        className={`flex-1 relative ${isHomePage ? 'overflow-y-auto' : 'overflow-hidden'} scrollbar-hide`}
+        className={`flex-1 relative ${isHomePage ? 'overflow-y-auto' : 'overflow-y-auto'} scrollbar-hide`}
         style={{
           scrollbarWidth: 'none',
           msOverflowStyle: 'none',
