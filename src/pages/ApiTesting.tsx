@@ -256,6 +256,11 @@ const ApiTesting: React.FC = () => {
     const savedVisibility = sessionStorage.getItem('apiTestingResponseVisible');
     return savedVisibility ? JSON.parse(savedVisibility) : true;
   });
+  const [responsePanelHeight, setResponsePanelHeight] = useState(() => {
+    const savedHeight = sessionStorage.getItem('apiTestingResponsePanelHeight');
+    return savedHeight ? parseInt(savedHeight) : 400;
+  });
+  const [isResizing, setIsResizing] = useState(false);
   const [copied, setCopied] = useState(false);
   const [copyMessage, setCopyMessage] = useState<string | null>(null);
   const [isResponseExpanded, setIsResponseExpanded] = useState(false);
@@ -318,6 +323,10 @@ const ApiTesting: React.FC = () => {
   useEffect(() => {
     sessionStorage.setItem('apiTestingResponseVisible', JSON.stringify(isResponsePanelVisible));
   }, [isResponsePanelVisible]);
+
+  useEffect(() => {
+    sessionStorage.setItem('apiTestingResponsePanelHeight', responsePanelHeight.toString());
+  }, [responsePanelHeight]);
 
   // Update ref when shouldStopLoadTest changes
   useEffect(() => {
@@ -1224,122 +1233,61 @@ const ApiTesting: React.FC = () => {
   };
 
   const handleImportCurl = () => {
-    if (curlInput) {
-      try {
-        // Clean up the cURL command
-        const cleanCurl = curlInput.trim()
-          .replace(/\\\n/g, ' ') // Replace line continuations with spaces
-          .replace(/\s+/g, ' '); // Replace multiple spaces with single space
-
-        // Check if it's a form-data request
-        const hasFormData = cleanCurl.includes('--form') || cleanCurl.includes('-F');
-        if (hasFormData) {
-          // Extract form data
-          const formDataMatches = cleanCurl.matchAll(/(?:--form|-F)\s+['"]([^'"]+)['"]/g);
-          const formData: { key: string; value: string; type: 'text' | 'file'; src?: string }[] = [];
-          
-          for (const match of formDataMatches) {
-            const formItem = match[1];
-            const [key, value] = formItem.split('=');
-            
-            if (value.startsWith('@')) {
-              // It's a file input
-              formData.push({
-                key: key,
-                value: value.substring(1), // Remove the @ symbol
-                type: 'file',
-                src: value.substring(1)
-              });
-            } else {
-              // It's a text input
-              formData.push({
-                key: key,
-                value: value.replace(/^["']|["']$/g, ''), // Remove surrounding quotes
-                type: 'text'
-              });
-            }
-          }
-
-          // Extract URL and method
-          const urlMatch = cleanCurl.match(/(?:curl\s+)(?:--location\s+)?(?:--request\s+[A-Z]+\s+)?(['"]?)(https?:\/\/[^'"]+)\1/);
-          const methodMatch = cleanCurl.match(/(?:--request|-X)\s+['"]?([A-Z]+)['"]?/);
-          
-          // Extract headers
-          const headerMatches = cleanCurl.matchAll(/(?:--header|-H)\s+['"]([^'"]+)['"]/g);
-          const headers: Record<string, string> = {};
-          for (const match of headerMatches) {
-            const header = match[1];
-            const [key, value] = header.split(':').map(s => s.trim());
-            if (key && value) {
-              headers[key] = value;
-            }
-          }
-
-          setRequestDetails(prev => ({
-            ...prev,
-            method: methodMatch ? methodMatch[1] : 'POST',
-            url: urlMatch ? urlMatch[2] : '',
-            headers,
-            enabledHeaders: syncEnabledHeaders(headers),
-            formData,
-            body: ''
-          }));
-
-          setBodyType('form-data');
-          setIsImportCurlOpen(false);
-          setCurlInput('');
-          return;
-        }
-
-        // Handle regular cURL command (non-form-data)
-        const parsedCurl = parseCurlCommand(cleanCurl);
-
-        // Format JSON body if Content-Type is application/json
-        let formattedBody = parsedCurl.body;
-        const contentTypeHeader = Object.entries(parsedCurl.headers).find(([key]) =>
-          key.toLowerCase() === 'content-type'
-        );
-        if (
-          contentTypeHeader &&
-          contentTypeHeader[1].toLowerCase().includes('application/json') &&
-          parsedCurl.body
-        ) {
-          try {
-            formattedBody = JSON.stringify(JSON.parse(parsedCurl.body), null, 2);
-          } catch (e) {
-            // If not valid JSON, leave as is
-          }
-        }
-
-        setRequestDetails(prev => {
-          const newHeaders = parsedCurl.headers || {};
-          return {
-            ...prev,
-            method: parsedCurl.method || 'GET',
-            url: parsedCurl.url || '',
-            headers: newHeaders,
-            enabledHeaders: syncEnabledHeaders(newHeaders),
-            body: formattedBody || '',
-            queryParams: parsedCurl.queryParams || {}
-          };
-        });
-
-        // Set body type if present
-        if (parsedCurl.body) {
-          setBodyType('raw');
-          if (contentTypeHeader) {
-            setContentType(contentTypeHeader[1]);
-          }
-        }
-
-        setIsImportCurlOpen(false);
-        setCurlInput('');
-      } catch (err) {
-        alert('Invalid cURL command. Please check the format and try again.');
-        console.error('Failed to parse cURL command:', err);
-      }
+    if (!curlInput.trim()) return;
+    try {
+      const parsed = parseCurlCommand(curlInput);
+      setRequestDetails(prev => ({
+        ...prev,
+        method: parsed.method,
+        url: parsed.url,
+        headers: parsed.headers,
+        body: parsed.body || '',
+        queryParams: parsed.queryParams || {}
+      }));
+      setIsImportCurlOpen(false);
+      setCurlInput('');
+    } catch (error) {
+      alert('Invalid cURL command');
     }
   };
+
+  // Resize handlers for response panel
+  const handleResizeStart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizing(true);
+  };
+
+  const handleResizeMove = (e: MouseEvent) => {
+    if (!isResizing) return;
+    
+    const newHeight = window.innerHeight - e.clientY;
+    const minHeight = 200;
+    const maxHeight = window.innerHeight * 0.8;
+    
+    if (newHeight >= minHeight && newHeight <= maxHeight) {
+      setResponsePanelHeight(newHeight);
+    }
+  };
+
+  const handleResizeEnd = () => {
+    setIsResizing(false);
+  };
+
+  useEffect(() => {
+    if (isResizing) {
+      document.addEventListener('mousemove', handleResizeMove);
+      document.addEventListener('mouseup', handleResizeEnd);
+      document.body.style.cursor = 'row-resize';
+      document.body.style.userSelect = 'none';
+      
+      return () => {
+        document.removeEventListener('mousemove', handleResizeMove);
+        document.removeEventListener('mouseup', handleResizeEnd);
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+      };
+    }
+  }, [isResizing]);
 
   // Auto-select the first API in the first collection on first load if none selected
   useEffect(() => {
@@ -1430,7 +1378,7 @@ const ApiTesting: React.FC = () => {
   return (
     <ThemeProvider theme={muiTheme}>
       <div className="h-screen flex bg-white dark:bg-gray-900">
-        <div className="flex-1 min-w-0 flex flex-col">
+        <div className={`flex-1 min-w-0 flex flex-col transition-all duration-300`} style={{ marginBottom: response && isResponsePanelVisible ? responsePanelHeight : 0 }}>
           {/* Existing ApiTesting main content starts here */}
       {/* Top Bar */}
       <div className="flex items-center gap-2 p-4 border-b border-gray-200 dark:border-gray-700">
@@ -1554,70 +1502,6 @@ const ApiTesting: React.FC = () => {
       </div>
 
       {/* Main Content */}
-          <div className="flex-1 flex flex-col">
-        {/* Main Request Area */}
-            <div className="flex-1 flex flex-col">
-          {/* Tabs */}
-          <div className="border-b border-gray-200 dark:border-gray-700">
-            <nav className="flex space-x-8 px-4">
-              <button
-                onClick={() => isValidTab('headers') && setActiveTab('headers')}
-                    className={`py-2 px-1 border-b-2 font-medium text-sm ${activeTab === 'headers'
-                    ? 'border-orange-500 text-orange-600 dark:text-orange-400'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400'
-                }`}
-              >
-                Headers
-              </button>
-              <button
-                onClick={() => isValidTab('body') && setActiveTab('body')}
-                    className={`py-2 px-1 border-b-2 font-medium text-sm ${activeTab === 'body'
-                    ? 'border-orange-500 text-orange-600 dark:text-orange-400'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400'
-                }`}
-              >
-                Body
-              </button>
-              <button
-                onClick={() => isValidTab('params') && setActiveTab('params')}
-                    className={`py-2 px-1 border-b-2 font-medium text-sm ${activeTab === 'params'
-                    ? 'border-orange-500 text-orange-600 dark:text-orange-400'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400'
-                }`}
-              >
-                Params
-              </button>
-              <button
-                onClick={() => isValidTab('pre-request') && setActiveTab('pre-request')}
-                    className={`py-2 px-1 border-b-2 font-medium text-sm ${activeTab === 'pre-request'
-                    ? 'border-orange-500 text-orange-600 dark:text-orange-400'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400'
-                }`}
-              >
-                Pre-request Script
-              </button>
-              <button
-                onClick={() => isValidTab('tests') && setActiveTab('tests')}
-                    className={`py-2 px-1 border-b-2 font-medium text-sm ${activeTab === 'tests'
-                    ? 'border-orange-500 text-orange-600 dark:text-orange-400'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400'
-                }`}
-              >
-                Tests
-              </button>
-                  <button
-                    onClick={() => isValidTab('load-test') && setActiveTab('load-test')}
-                    className={`py-2 px-1 border-b-2 font-medium text-sm ${activeTab === 'load-test'
-                      ? 'border-orange-500 text-orange-600 dark:text-orange-400'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400'
-                      }`}
-                  >
-                    Load Test
-              </button>
-            </nav>
-          </div>
-
-          {/* Tab Content */}
           <div className="flex-1 py-4 pl-4 overflow-hidden">
             {activeTab === 'params' && (
                   <div className="space-y-4 h-[calc(100vh-30rem)] overflow-y-auto">
@@ -1949,19 +1833,29 @@ const ApiTesting: React.FC = () => {
           </div>
         </div>
 
-            {/* Response Panel - Only show when not in load test tab */}
-            {response && activeTab !== 'load-test' && (
-              <div className={`border-t border-gray-200 dark:border-gray-700 flex flex-col transition-all duration-300 ease-in-out transform ${isResponsePanelVisible ? 'h-[400px] opacity-100' : 'h-0 opacity-0'}`}>
+        {/* Resizable Response Panel */}
+        {response && isResponsePanelVisible && (
+          <div 
+            className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 shadow-lg flex flex-col z-40"
+            style={{ height: responsePanelHeight }}
+          >
+            {/* Resize Handle */}
+            <div
+              className="absolute top-0 left-0 right-0 h-1 bg-gray-300 dark:bg-gray-600 hover:bg-orange-500 dark:hover:bg-orange-400 cursor-row-resize transition-colors duration-200"
+              onMouseDown={handleResizeStart}
+            />
+            
+            {/* Panel Header */}
             <div className="flex justify-between items-center p-4 border-b border-gray-200 dark:border-gray-700">
               <div className="flex items-center gap-4">
                 <div className="flex items-center gap-2">
-                      <span className={`px-2 py-1 rounded text-sm font-medium ${response.status >= 200 && response.status < 300
-                      ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
-                      : response.status >= 300 && response.status < 400
-                      ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400'
-                      : response.status >= 400 && response.status < 500
-                      ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
-                      : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
+                  <span className={`px-2 py-1 rounded text-sm font-medium ${response.status >= 200 && response.status < 300
+                    ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+                    : response.status >= 300 && response.status < 400
+                    ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400'
+                    : response.status >= 400 && response.status < 500
+                    ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
+                    : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
                   }`}>
                     {response.status} {response.statusText}
                   </span>
@@ -1988,36 +1882,46 @@ const ApiTesting: React.FC = () => {
                 >
                   {copied ? <Check className="w-5 h-5" /> : <Copy className="w-5 h-5" />}
                 </button>
+                <button
+                  onClick={() => setIsResponsePanelVisible(false)}
+                  className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 transition-colors duration-200"
+                  title="Close"
+                >
+                  <X className="w-5 h-5" />
+                </button>
               </div>
             </div>
-                <div className="flex-1 min-h-0 overflow-auto">
-                  <div className="flex border-b border-gray-200 dark:border-gray-700">
-                    <button
-                      onClick={() => setResponseTab('response')}
-                      className={`px-4 py-2 text-sm font-medium ${responseTab === 'response'
-                        ? 'text-orange-600 border-b-2 border-orange-500'
-                        : 'text-gray-500 hover:text-gray-700'
-                        }`}
-                    >
-                      Response
-                    </button>
-                    <button
-                      onClick={() => setResponseTab('network')}
-                      className={`px-4 py-2 text-sm font-medium ${responseTab === 'network'
-                        ? 'text-orange-600 border-b-2 border-orange-500'
-                        : 'text-gray-500 hover:text-gray-700'
-                        }`}
-                    >
-                      Network
-                    </button>
-                  </div>
-                  {responseTab === 'response' ? (
+
+            {/* Panel Tabs */}
+            <div className="flex border-b border-gray-200 dark:border-gray-700">
+              <button
+                onClick={() => setResponseTab('response')}
+                className={`px-4 py-2 text-sm font-medium ${responseTab === 'response'
+                  ? 'text-orange-600 border-b-2 border-orange-500'
+                  : 'text-gray-500 hover:text-gray-700'
+                  }`}
+              >
+                Response
+              </button>
+              <button
+                onClick={() => setResponseTab('network')}
+                className={`px-4 py-2 text-sm font-medium ${responseTab === 'network'
+                  ? 'text-orange-600 border-b-2 border-orange-500'
+                  : 'text-gray-500 hover:text-gray-700'
+                  }`}
+              >
+                Network
+              </button>
+            </div>
+
+            {/* Panel Content */}
+            <div className="flex-1 overflow-auto">
+              {responseTab === 'response' ? (
                 <SyntaxHighlighter
                   language="json"
                   style={vs2015}
                   customStyle={{
                     margin: 0,
-                        height: '26vh',
                     fontSize: '0.875rem',
                     lineHeight: '1.5rem',
                   }}
@@ -2027,49 +1931,31 @@ const ApiTesting: React.FC = () => {
                   {typeof response.data === 'string'
                     ? response.data
                     : JSON.stringify(response.data, null, 2)}
-                    </SyntaxHighlighter>
-                  ) : (
-                    <div className="p-4 h-[24vh] overflow-y-auto">
-                      <div className="mb-4">
-                        <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Request</h3>
-                        <SyntaxHighlighter
-                          language="bash"
-                          style={vs2015}
-                          customStyle={{
-                            margin: 0,
-                            fontSize: '0.875rem',
-                            lineHeight: '1.5rem',
-                            borderRadius: '0.375rem',
-                          }}
-                          showLineNumbers
-                          wrapLines={true}
-                        >
-                          {response.curlCommand || ''}
                 </SyntaxHighlighter>
-              </div>
-                      <div>
-                        <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Response Headers</h3>
-                        <SyntaxHighlighter
-                          language="json"
-                          style={vs2015}
-                          customStyle={{
-                            margin: 0,
-                            fontSize: '0.875rem',
-                            lineHeight: '1.5rem',
-                            borderRadius: '0.375rem',
-                          }}
-                          showLineNumbers
-                          wrapLines={false}
-                        >
-                          {JSON.stringify(response.headers, null, 2)}
-                        </SyntaxHighlighter>
+              ) : (
+                <div className="p-4 overflow-y-auto">
+                  <div className="mb-4">
+                    <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Request</h3>
+                    <SyntaxHighlighter
+                      language="bash"
+                      style={vs2015}
+                      customStyle={{
+                        margin: 0,
+                        fontSize: '0.875rem',
+                        lineHeight: '1.5rem',
+                        borderRadius: '0.375rem',
+                      }}
+                      showLineNumbers
+                      wrapLines={true}
+                    >
+                      {response.curlCommand || ''}
+                    </SyntaxHighlighter>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
-                </div>
-              </div>
-            )}
-          </div>
 
         {/* Full Screen Response Modal */}
         {isResponseExpanded && response && (
@@ -2078,13 +1964,13 @@ const ApiTesting: React.FC = () => {
               <div className="flex justify-between items-center p-4 border-b border-gray-200 dark:border-gray-700">
                 <div className="flex items-center gap-4">
                   <div className="flex items-center gap-2">
-                      <span className={`px-2 py-1 rounded text-sm font-medium ${response.status >= 200 && response.status < 300
-                        ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
-                        : response.status >= 300 && response.status < 400
-                        ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400'
-                        : response.status >= 400 && response.status < 500
-                        ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
-                        : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
+                    <span className={`px-2 py-1 rounded text-sm font-medium ${response.status >= 200 && response.status < 300
+                      ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+                      : response.status >= 300 && response.status < 400
+                      ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400'
+                      : response.status >= 400 && response.status < 500
+                      ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
+                      : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
                     }`}>
                       {response.status} {response.statusText}
                     </span>
@@ -2137,175 +2023,174 @@ const ApiTesting: React.FC = () => {
           </div>
         )}
 
-          {/* Full Screen Chart Modal */}
-          {isChartExpanded && (
-            <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center">
-              <div className="w-[90vw] h-[90vh] bg-gray-800 rounded-lg shadow-xl flex flex-col">
-                <div className="flex justify-between items-center p-4 border-b border-gray-700">
-                  <h3 className="text-xl font-medium text-white">
-                    {expandedChartType === 'line' ? 'Response Time Trend' : 'Request Distribution'}
-                  </h3>
-                  <button
-                    onClick={() => {
-                      setIsChartExpanded(false);
-                      setExpandedChartType(null);
-                    }}
-                    className="p-2 text-gray-400 hover:text-white transition-colors duration-200"
-                  >
-                    <X className="w-6 h-6" />
-                  </button>
-                </div>
-                <div className="flex-1 p-4">
-                  <div className="h-full w-full">
-                    <ChartErrorBoundary>
-                      {expandedChartType === 'line' && trendData && (
-                        <Line
-                          data={trendData}
-                          options={{
-                            ...lineChartOptions,
-                            maintainAspectRatio: false,
-                            responsive: true
-                          }}
-                        />
-                      )}
-                      {expandedChartType === 'bar' && (
-                        <Bar
-                          data={prepareDistributionData()!}
-                          options={{
-                            ...barChartOptions,
-                            maintainAspectRatio: false,
-                            responsive: true
-                          }}
-                        />
-                      )}
-                    </ChartErrorBoundary>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* cURL Drawer */}
-          <Drawer
-            anchor="right"
-            open={isCurlDrawerOpen}
-            onClose={() => setIsCurlDrawerOpen(false)}
-            PaperProps={{
-              sx: {
-                width: { xs: '100vw', sm: 480 },
-                backgroundColor: isDarkMode ? '#18181b' : '#fff',
-                color: isDarkMode ? '#fff' : '#18181b',
-                p: 0,
-              },
-            }}
-          >
-            <div className="flex flex-col h-full">
-              <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700">
-                <span className="text-lg font-semibold">cURL Command</span>
-                <IconButton onClick={() => setIsCurlDrawerOpen(false)}>
-                  <X className="w-6 h-6" />
-                </IconButton>
-              </div>
-              <div className="flex-1 overflow-auto p-4">
-                <SyntaxHighlighter
-                  language="bash"
-                  style={vs2015}
-                  customStyle={{
-                    background: 'none',
-                    fontSize: '0.95rem',
-                    borderRadius: 8,
-                    padding: 0,
-                    margin: 0,
-                    wordBreak: 'break-all',
-                  }}
-                  wrapLines={true}
-                >
-                  {buildCurlCommand()}
-                </SyntaxHighlighter>
-              </div>
-              <div className="flex items-center justify-end gap-2 px-4 py-3 border-t border-gray-200 dark:border-gray-700">
+        {/* Full Screen Chart Modal */}
+        {isChartExpanded && (
+          <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center">
+            <div className="w-[90vw] h-[90vh] bg-gray-800 rounded-lg shadow-xl flex flex-col">
+              <div className="flex justify-between items-center p-4 border-b border-gray-700">
+                <h3 className="text-xl font-medium text-white">
+                  {expandedChartType === 'line' ? 'Response Time Trend' : 'Request Distribution'}
+                </h3>
                 <button
-                  onClick={handleCopyCurlInDrawer}
-                  className="flex items-center gap-1 px-4 py-2 bg-orange-500 text-white rounded hover:bg-orange-600 transition-colors duration-200"
+                  onClick={() => {
+                    setIsChartExpanded(false);
+                    setExpandedChartType(null);
+                  }}
+                  className="p-2 text-gray-400 hover:text-white transition-colors duration-200"
                 >
-                  {curlCopied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                  <span className="ml-1">Copy</span>
+                  <X className="w-6 h-6" />
                 </button>
               </div>
+              <div className="flex-1 p-4">
+                <div className="h-full w-full">
+                  <ChartErrorBoundary>
+                    {expandedChartType === 'line' && trendData && (
+                      <Line
+                        data={trendData}
+                        options={{
+                          ...lineChartOptions,
+                          maintainAspectRatio: false,
+                          responsive: true
+                        }}
+                      />
+                    )}
+                    {expandedChartType === 'bar' && (
+                      <Bar
+                        data={prepareDistributionData()!}
+                        options={{
+                          ...barChartOptions,
+                          maintainAspectRatio: false,
+                          responsive: true
+                        }}
+                      />
+                    )}
+                  </ChartErrorBoundary>
+                </div>
+              </div>
             </div>
-          </Drawer>
+          </div>
+        )}
 
-          {/* Import cURL Dialog */}
-          <Dialog
-            open={isImportCurlOpen}
-            onClose={() => {
-              setIsImportCurlOpen(false);
-              setCurlInput('');
-            }}
-            maxWidth="md"
-            fullWidth
-          >
-            <DialogTitle>Import cURL Command</DialogTitle>
-            <DialogContent>
-              <TextField
-                autoFocus
-                margin="dense"
-                label="Paste your cURL command here"
-                type="text"
-                fullWidth
-                multiline
-                rows={6}
-                value={curlInput}
-                onChange={(e) => setCurlInput(e.target.value)}
-                variant="outlined"
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    fontFamily: 'monospace',
-                    fontSize: '0.875rem',
-                  }
+        {/* cURL Drawer */}
+        <Drawer
+          anchor="right"
+          open={isCurlDrawerOpen}
+          onClose={() => setIsCurlDrawerOpen(false)}
+          PaperProps={{
+            sx: {
+              width: { xs: '100vw', sm: 480 },
+              backgroundColor: isDarkMode ? '#18181b' : '#fff',
+              color: isDarkMode ? '#fff' : '#18181b',
+              p: 0,
+            },
+          }}
+        >
+          <div className="flex flex-col h-full">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+              <span className="text-lg font-semibold">cURL Command</span>
+              <IconButton onClick={() => setIsCurlDrawerOpen(false)}>
+                <X className="w-6 h-6" />
+              </IconButton>
+            </div>
+            <div className="flex-1 overflow-auto p-4">
+              <SyntaxHighlighter
+                language="bash"
+                style={vs2015}
+                customStyle={{
+                  background: 'none',
+                  fontSize: '0.95rem',
+                  borderRadius: 8,
+                  padding: 0,
+                  margin: 0,
+                  wordBreak: 'break-all',
                 }}
-              />
-            </DialogContent>
-            <DialogActions>
-              <Button
-                onClick={() => {
-                  setIsImportCurlOpen(false);
-                  setCurlInput('');
-                }}
+                wrapLines={true}
               >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleImportCurl}
-                variant="contained"
-                color="primary"
+                {buildCurlCommand()}
+              </SyntaxHighlighter>
+            </div>
+            <div className="flex items-center justify-end gap-2 px-4 py-3 border-t border-gray-200 dark:border-gray-700">
+              <button
+                onClick={handleCopyCurlInDrawer}
+                className="flex items-center gap-1 px-4 py-2 bg-orange-500 text-white rounded hover:bg-orange-600 transition-colors duration-200"
               >
-                Import
-              </Button>
-            </DialogActions>
-          </Dialog>
+                {curlCopied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                <span className="ml-1">Copy</span>
+              </button>
+            </div>
+          </div>
+        </Drawer>
+
+        {/* Import cURL Dialog */}
+        <Dialog
+          open={isImportCurlOpen}
+          onClose={() => {
+            setIsImportCurlOpen(false);
+            setCurlInput('');
+          }}
+          maxWidth="md"
+          fullWidth
+        >
+          <DialogTitle>Import cURL Command</DialogTitle>
+          <DialogContent>
+            <TextField
+              autoFocus
+              margin="dense"
+              label="Paste your cURL command here"
+              type="text"
+              fullWidth
+              multiline
+              rows={6}
+              value={curlInput}
+              onChange={(e) => setCurlInput(e.target.value)}
+              variant="outlined"
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  fontFamily: 'monospace',
+                  fontSize: '0.875rem',
+                }
+              }}
+            />
+          </DialogContent>
+          <DialogActions>
+            <Button
+              onClick={() => {
+                setIsImportCurlOpen(false);
+                setCurlInput('');
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleImportCurl}
+              variant="contained"
+              color="primary"
+            >
+              Import
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {error && (
+          <div className="fixed bottom-4 right-4 p-4 bg-red-50 dark:bg-red-900/30 rounded-md shadow-lg">
+            <p className="text-red-600 dark:text-red-400">{error}</p>
+          </div>
+        )}
+        {copyMessage && (
+          <div className="fixed bottom-4 right-4 p-4 bg-green-50 dark:bg-green-900/30 rounded-md shadow-lg">
+            <p className="text-green-600 dark:text-green-400">{copyMessage}</p>
+          </div>
+        )}
       </div>
-
-      {error && (
-        <div className="fixed bottom-4 right-4 p-4 bg-red-50 dark:bg-red-900/30 rounded-md shadow-lg">
-          <p className="text-red-600 dark:text-red-400">{error}</p>
-        </div>
-      )}
-      {copyMessage && (
-        <div className="fixed bottom-4 right-4 p-4 bg-green-50 dark:bg-green-900/30 rounded-md shadow-lg">
-          <p className="text-green-600 dark:text-green-400">{copyMessage}</p>
-        </div>
-      )}
-    </div>
     </ThemeProvider>
   );
 };
 
 const styles = `
 @keyframes gradient {
-          0 % { background- position: 0% 50%; }
-        50% {background - position: 100% 50%; }
-        100% {background - position: 0% 50%; }
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
 }
 `;
 
