@@ -1,0 +1,26 @@
+{
+  "name": "interceptor-proxy-server",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Robust proxy server with logging for API interceptors",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "cors": "^2.8.5",
+    "@supabase/supabase-js": "^2.44.4",
+    "dotenv": "^16.4.5",
+    "http-proxy-middleware": "^3.0.0",
+    "body-parser": "^1.20.2",
+    "helmet": "^7.1.0",
+    "morgan": "^1.10.0",
+    "compression": "^1.7.4",
+    "axios": "^1.7.2"
+  },
+  "keywords": ["proxy", "interceptor", "logging", "api"],
+  "author": "",
+  "license": "MIT"
+} 
