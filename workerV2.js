@@ -1,28 +1,71 @@
-// Supabase configuration for database access
-const SUPABASE_URL = 'masked';
-const SUPABASE_ANON_KEY = 'masked';
-const DB_CONNECTION_STRING = 'masked';
+// Configuration - Environment-based with fallbacks
+const SUPABASE_URL = env?.SUPABASE_URL || 'https://opgwkalkqxudvkqxvfsc.supabase.co';
+const SUPABASE_ANON_KEY = env?.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9wZ3drYWxrcXh1ZHZrcXh2ZnNjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk1ODI3MjYsImV4cCI6MjA2NTE1ODcyNn0.JQEhK0Iub0e9ZAhO6H0BgzQXWa4S4MUml0fXkwyYN3E';
+
+// Constants for limits and validation
+const MAX_REQUEST_SIZE = 10 * 1024 * 1024; // 10MB
+const MAX_RESPONSE_SIZE = 50 * 1024 * 1024; // 50MB
+const RATE_LIMIT_REQUESTS = 100; // requests per minute
+const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute in milliseconds
+
+// Allowed content types for logging
+const LOGGABLE_CONTENT_TYPES = [
+  'application/json',
+  'application/xml',
+  'text/',
+  'application/x-www-form-urlencoded'
+];
+
+// Sensitive headers that should not be logged
+const SENSITIVE_HEADERS = [
+  'authorization',
+  'cookie',
+  'x-api-key',
+  'x-auth-token',
+  'cf-connecting-ip'
+];
+
+// Allowed headers for forwarding
+const ALLOWED_FORWARD_HEADERS = [
+  'content-type',
+  'authorization',
+  'user-agent',
+  'accept',
+  'accept-language',
+  'cache-control',
+  'x-requested-with',
+  'x-api-key',
+  'x-auth-token'
+];
 
 // Debug flag for global access (1 = bypass auth, 0 = require auth)
-const GLOBAL_ACCESS = 1;
+const GLOBAL_ACCESS = env?.GLOBAL_ACCESS || 0;
+
+// Mode flag for SSE vs API (1 = API mode, 0 = SSE mode)
+const isAPI = env?.API_MODE || 1;
 
 // CORS headers
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization, apikey, Upgrade, Connection',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization, apikey, Upgrade, Connection, X-Requested-With, Accept, Accept-Language, Cache-Control, X-API-Key, X-Auth-Token, X-CSRF-Token, X-Forwarded-For, X-Forwarded-Proto, X-Real-IP, User-Agent, Origin, Referer',
   'Access-Control-Max-Age': '86400',
   'Access-Control-Allow-Credentials': 'true',
+  'X-Content-Type-Options': 'nosniff',
+  'X-Frame-Options': 'DENY',
+  'X-XSS-Protection': '1; mode=block',
+  'Referrer-Policy': 'strict-origin-when-cross-origin'
 };
 
 // Helper to handle CORS preflight
 function handleCors(request) {
   if (request.method === 'OPTIONS') {
     return new Response(null, {
+      status: 200,
       headers: {
         ...corsHeaders,
-        'Access-Control-Allow-Headers': 'Content-Type, Authorization, apikey, Upgrade, Connection',
-        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS, CONNECT',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization, apikey, Upgrade, Connection, X-Requested-With, Accept, Accept-Language, Cache-Control, X-API-Key, X-Auth-Token, X-CSRF-Token, X-Forwarded-For, X-Forwarded-Proto, X-Real-IP, User-Agent, Origin, Referer',
+        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS, CONNECT',
       },
     });
   }
@@ -39,6 +82,25 @@ function addCorsHeaders(response) {
     statusText: response.statusText,
     headers: newHeaders,
   });
+}
+
+// Helper to create structured error responses
+function createErrorResponse(message, status = 500, error = null) {
+  const errorData = {
+    error: status >= 500 ? 'Internal Server Error' : 'Client Error',
+    message: message,
+    timestamp: new Date().toISOString(),
+    requestId: crypto.randomUUID()
+  };
+  
+  if (error && status >= 500) {
+    errorData.details = error.message;
+  }
+  
+  return addCorsHeaders(new Response(JSON.stringify(errorData), {
+    status: status,
+    headers: { 'Content-Type': 'application/json' }
+  }));
 }
 
 // Generate a short unique code
@@ -141,6 +203,7 @@ async function dbQuery(query, params = []) {
 
 // Database helper for SELECT queries
 async function dbSelect(query, params = []) {
+  try {
   const response = await fetch(`${SUPABASE_URL}/rest/v1/interceptors?${query}`, {
     headers: {
       'apikey': SUPABASE_ANON_KEY,
@@ -155,6 +218,10 @@ async function dbSelect(query, params = []) {
   }
 
   return response.json();
+  } catch (error) {
+    console.error('Database select error:', error);
+    throw error;
+  }
 }
 
 // Database helper for DELETE queries
@@ -290,18 +357,167 @@ export class WebSocketManager {
   }
 }
 
+// Utility functions for validation and security
+function isValidUrl(urlString) {
+  try {
+    const url = new URL(urlString);
+    return url.protocol === 'http:' || url.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
+function isValidIP(ip) {
+  const ipv4Regex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+  const ipv6Regex = /^(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$/;
+  return ipv4Regex.test(ip) || ipv6Regex.test(ip);
+}
+
+function isAllowedContentType(contentType) {
+  if (!contentType) return true; // Allow requests without content-type
+  return LOGGABLE_CONTENT_TYPES.some(type => contentType.includes(type)) ||
+         contentType.includes('multipart/form-data') ||
+         contentType.includes('application/octet-stream');
+}
+
+function shouldLogBody(contentType) {
+  if (!contentType) return false;
+  return LOGGABLE_CONTENT_TYPES.some(type => contentType.includes(type));
+}
+
+function shouldLogResponse(contentType) {
+  if (!contentType) return false;
+  return LOGGABLE_CONTENT_TYPES.some(type => contentType.includes(type)) ||
+         contentType.includes('application/javascript');
+}
+
+function sanitizeHeaders(headers) {
+  const sanitized = {};
+  for (const [key, value] of headers) {
+    if (!SENSITIVE_HEADERS.includes(key.toLowerCase())) {
+      sanitized[key] = value;
+    }
+  }
+  return sanitized;
+}
+
+function createForwardHeaders(requestHeaders) {
+  const forwardHeaders = new Headers();
+  for (const [key, value] of requestHeaders) {
+    if (ALLOWED_FORWARD_HEADERS.includes(key.toLowerCase())) {
+      forwardHeaders.set(key, value);
+    }
+  }
+  return forwardHeaders;
+}
+
+function createStructuredLog(data) {
+  return {
+    timestamp: new Date().toISOString(),
+    requestId: crypto.randomUUID(),
+    ...data
+  };
+}
+
+// Rate limiting implementation
+async function checkRateLimit(env, key) {
+  const now = Date.now();
+  const windowStart = now - RATE_LIMIT_WINDOW;
+  
+  // Initialize rate limit storage if not exists
+  if (!env.RATE_LIMITS) {
+    env.RATE_LIMITS = new Map();
+  }
+  
+  // Clean up old entries
+  for (const [k, v] of env.RATE_LIMITS) {
+    if (v.timestamp < windowStart) {
+      env.RATE_LIMITS.delete(k);
+    }
+  }
+  
+  const current = env.RATE_LIMITS.get(key);
+  if (!current) {
+    env.RATE_LIMITS.set(key, { count: 1, timestamp: now });
+    return true;
+  }
+  
+  if (current.timestamp < windowStart) {
+    env.RATE_LIMITS.set(key, { count: 1, timestamp: now });
+    return true;
+  }
+  
+  if (current.count >= RATE_LIMIT_REQUESTS) {
+    return false;
+  }
+  
+  current.count++;
+  return true;
+}
+
 // Main worker handler
 export default {
   async fetch(request, env, ctx) {
+    // Move config here:
+    const SUPABASE_URL = env && env.SUPABASE_URL ? env.SUPABASE_URL : 'https://opgwkalkqxudvkqxvfsc.supabase.co';
+    const SUPABASE_ANON_KEY = env && env.SUPABASE_ANON_KEY ? env.SUPABASE_ANON_KEY : 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9wZ3drYWxrcXh1ZHZrcXh2ZnNjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk1ODI3MjYsImV4cCI6MjA2NTE1ODcyNn0.JQEhK0Iub0e9ZAhO6H0BgzQXWa4S4MUml0fXkwyYN3E';
+    const GLOBAL_ACCESS = env && env.GLOBAL_ACCESS ? env.GLOBAL_ACCESS : 0;
+    const isAPI = env && env.API_MODE ? env.API_MODE : 1;
+
+    // Initialize metrics if not exists
+    env.METRICS = env.METRICS || {
+      requestCount: 0,
+      totalDuration: 0,
+      errorCount: 0
+    };
+    
+    const startTime = Date.now();
+    
+    try {
     // Handle CORS preflight requests
     const corsResponse = handleCors(request);
     if (corsResponse) return corsResponse;
 
     const url = new URL(request.url);
     const path = url.pathname;
+      
+      // Validate request size
+      const contentLength = parseInt(request.headers.get('content-length') || '0');
+      if (contentLength > MAX_REQUEST_SIZE) {
+        return createErrorResponse('Request too large', 413);
+      }
+      
+      // Validate content type
+      const contentType = request.headers.get('content-type');
+      if (contentType && !isAllowedContentType(contentType)) {
+        return createErrorResponse('Unsupported content type', 415);
+      }
+      
+      // Rate limiting
+      const clientIP = request.headers.get('cf-connecting-ip') || 'unknown';
+      const rateLimitKey = `global:${clientIP}`;
+      if (!(await checkRateLimit(env, rateLimitKey))) {
+        return createErrorResponse('Rate limit exceeded', 429);
+      }
+
+    // Handle status endpoint
+    if (path === '/status') {
+      return addCorsHeaders(new Response(JSON.stringify({
+        mode: isAPI === 1 ? 'api' : 'sse',
+        globalAccess: GLOBAL_ACCESS === 1,
+        timestamp: new Date().toISOString()
+      }), {
+        headers: { 'Content-Type': 'application/json' },
+      }));
+    }
 
     // Handle Server-Sent Events (SSE) connections
     if (path === '/events') {
+      // Only allow SSE connections when not in API mode
+      if (isAPI === 1) {
+        return addCorsHeaders(new Response('SSE not available in API mode', { status: 400 }));
+      }
+
       // Initialize controllers set if it doesn't exist
       if (!env.EVENT_CONTROLLERS) {
         env.EVENT_CONTROLLERS = new Set();
@@ -579,7 +795,7 @@ export default {
           }));
         }
       } catch (error) {
-        return addCorsHeaders(new Response('Error: ' + error.message, { status: 500 }));
+        return createErrorResponse('Database error', 500, error);
       }
     }
 
@@ -593,87 +809,184 @@ export default {
 
         if (interceptor) {
           try {
+            console.log(`Processing ${request.method} request to ${interceptor.base_url}`);
+            
             // Reconstruct the path without the unique code
             const targetPath = '/' + pathParts.slice(1).join('/') + url.search;
             const originalUrl = new URL(targetPath, interceptor.base_url);
             
+            console.log(`Target URL: ${originalUrl.toString()}`);
+            console.log(`Content-Type: ${request.headers.get('content-type')}`);
+            console.log(`Has body: ${request.body ? 'yes' : 'no'}`);
+            
+            // Validate interceptor configuration
+            if (!isValidUrl(interceptor.base_url)) {
+              return createErrorResponse('Invalid interceptor configuration', 400);
+            }
+            
+            // Handle request body properly - only log if content type is loggable
+            let requestBodyText = null;
+            
+            if (request.body && shouldLogBody(request.headers.get('content-type'))) {
+              const contentType = request.headers.get('content-type') || '';
+              
+              if (contentType.includes('multipart/form-data')) {
+                requestBodyText = '[Multipart form data]';
+              } else {
+                // Clone the body for logging
+                const bodyClone = request.body.clone();
+                requestBodyText = await bodyClone.text();
+                console.log(`Request body: ${requestBodyText.substring(0, 100)}...`);
+              }
+            }
+            
+            // Prepare headers for forwarding using optimized function
+            const forwardHeaders = createForwardHeaders(request.headers);
+            
+            // Set proper host header for target
+            forwardHeaders.set('host', new URL(interceptor.base_url).host);
+            
+            // Add secure proxy identification headers
+            const clientIP = request.headers.get('cf-connecting-ip');
+            if (clientIP && isValidIP(clientIP)) {
+              forwardHeaders.set('x-forwarded-for', clientIP);
+            }
+            forwardHeaders.set('x-forwarded-proto', 'https');
+            forwardHeaders.set('x-forwarded-host', request.headers.get('host') || 'unknown');
+            
             const startTime = Date.now();
-            const response = await fetch(originalUrl.toString(), {
+            console.log(`Making fetch request to: ${originalUrl.toString()}`);
+            console.log(`Method: ${request.method}`);
+            console.log(`Headers:`, Object.fromEntries(forwardHeaders));
+            console.log(`Body available: ${request.body ? 'yes' : 'no'}`);
+            
+            let response;
+            try {
+              response = await fetch(originalUrl.toString(), {
               method: request.method,
-              headers: request.headers,
+                headers: forwardHeaders,
               body: request.body,
             });
+            } catch (fetchError) {
+              console.error('Fetch error:', fetchError);
+              return createErrorResponse('Error forwarding request', 500, fetchError);
+            }
+            
+            console.log(`Response status: ${response.status}`);
+            console.log(`Response headers:`, Object.fromEntries(response.headers));
             const duration = Date.now() - startTime;
 
-            // Clone the response for logging
+            // Handle response logging - only clone if content type is loggable
+            let responseBody = null;
+            const responseContentType = response.headers.get('content-type') || '';
+            
+            if (shouldLogResponse(responseContentType)) {
             const responseClone = response.clone();
-            const responseBody = await responseClone.text();
+              responseBody = await responseClone.text();
+            } else {
+              responseBody = '[Binary or non-loggable content]';
+            }
 
-            // Create log object
+            // Create log object with sanitized headers
             const log = {
               id: crypto.randomUUID(),
               interceptor_id: interceptor.id,
               original_url: originalUrl.toString(),
               proxy_url: url.toString(),
               method: request.method,
-              headers: JSON.stringify(Object.fromEntries(request.headers)),
-              body: request.body ? await request.text() : null,
+              headers: JSON.stringify(sanitizeHeaders(request.headers)),
+              body: requestBodyText,
               response_status: response.status,
-              response_headers: JSON.stringify(Object.fromEntries(response.headers)),
+              response_headers: JSON.stringify(sanitizeHeaders(response.headers)),
               response_body: responseBody,
               timestamp: new Date().toISOString(),
               duration: duration
             };
 
-            // Store log in Supabase
+            // Store log in Supabase (always store regardless of mode)
             await storeLog(log);
 
-            // Broadcast log to all connected clients using SSE
-            if (env.EVENT_CONTROLLERS && env.EVENT_CONTROLLERS.size > 0) {
-              const encoder = new TextEncoder();
-              const message = `data: ${JSON.stringify({
-                type: 'log',
-                data: log
-              })}\n\n`;
-              
-              const now = Date.now();
-              const deadControllers = new Set();
-              
-              for (const controllerInfo of env.EVENT_CONTROLLERS) {
-                try {
-                  if (!controllerInfo.isAlive || now - controllerInfo.lastActivity > 60000) {
-                    deadControllers.add(controllerInfo);
-                    continue;
-                  }
+            // Handle real-time updates based on mode
+            if (isAPI === 0) {
+              // SSE Mode: Broadcast log to all connected clients using SSE
+              if (env.EVENT_CONTROLLERS && env.EVENT_CONTROLLERS.size > 0) {
+                const encoder = new TextEncoder();
+                const message = `data: ${JSON.stringify({
+                  type: 'log',
+                  data: log
+                })}\n\n`;
+                
+                const now = Date.now();
+                const deadControllers = new Set();
+                
+                for (const controllerInfo of env.EVENT_CONTROLLERS) {
+                  try {
+                    if (!controllerInfo.isAlive || now - controllerInfo.lastActivity > 60000) {
+                      deadControllers.add(controllerInfo);
+                      continue;
+                    }
 
-                  controllerInfo.controller.enqueue(encoder.encode(message));
-                  controllerInfo.lastActivity = now;
-                } catch (error) {
-                  console.error('Error sending SSE message:', error);
-                  deadControllers.add(controllerInfo);
+                    controllerInfo.controller.enqueue(encoder.encode(message));
+                    controllerInfo.lastActivity = now;
+                  } catch (error) {
+                    console.error('Error sending SSE message:', error);
+                    deadControllers.add(controllerInfo);
+                  }
+                }
+                
+                // Clean up dead controllers
+                for (const controllerInfo of deadControllers) {
+                  env.EVENT_CONTROLLERS.delete(controllerInfo);
                 }
               }
-              
-              // Clean up dead controllers
-              for (const controllerInfo of deadControllers) {
-                env.EVENT_CONTROLLERS.delete(controllerInfo);
-              }
             }
+            // API Mode: No real-time broadcasting, logs are fetched via API polling
 
             // Return the original response
-            return addCorsHeaders(new Response(responseBody, {
+            return addCorsHeaders(new Response(response.body, {
               status: response.status,
               headers: response.headers,
             }));
           } catch (error) {
-            return addCorsHeaders(new Response('Error forwarding request: ' + error.message, { status: 500 }));
+            return createErrorResponse('Error forwarding request', 500, error);
           }
         }
       } catch (error) {
-        return addCorsHeaders(new Response('Error: ' + error.message, { status: 500 }));
+        return createErrorResponse('Database error', 500, error);
       }
     }
 
     return addCorsHeaders(new Response('Not found', { status: 404 }));
+    
+    } catch (error) {
+      // Update error metrics
+      env.METRICS.errorCount++;
+      
+      // Log structured error
+      const errorLog = createStructuredLog({
+        error: true,
+        message: error.message,
+        stack: error.stack,
+        method: request.method,
+        url: request.url
+      });
+      console.error(JSON.stringify(errorLog));
+      
+      return createErrorResponse('Internal server error', 500, error);
+    } finally {
+      // Update metrics
+      const duration = Date.now() - startTime;
+      env.METRICS.requestCount++;
+      env.METRICS.totalDuration += duration;
+      
+      // Log request metrics
+      const metricsLog = createStructuredLog({
+        method: request.method,
+        url: request.url,
+        duration: duration,
+        status: 'completed'
+      });
+      console.log(JSON.stringify(metricsLog));
+    }
   },
 }; 

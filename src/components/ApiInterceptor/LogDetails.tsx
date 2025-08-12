@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { format } from 'date-fns';
 import { ClipboardIcon, CheckIcon } from '@heroicons/react/24/outline';
+import SyntaxHighlighter from 'react-syntax-highlighter';
+import { vs2015 } from 'react-syntax-highlighter/dist/esm/styles/hljs';
 
 interface LogDetailsProps {
   log: {
@@ -38,6 +40,28 @@ export default function LogDetails({ log }: LogDetailsProps) {
 
   const requestHeaders = log.headers || {};
   const responseHeaders = log.response.headers || {};
+
+  // Helper function to safely format JSON
+  const formatResponseBody = (body: string) => {
+    try {
+      // Try to parse as JSON and format it
+      const parsed = JSON.parse(body);
+      return JSON.stringify(parsed, null, 2);
+    } catch (error) {
+      // If it's not valid JSON, return as is
+      return body;
+    }
+  };
+
+  // Helper function to detect if content is JSON
+  const isJsonContent = (body: string) => {
+    try {
+      JSON.parse(body);
+      return true;
+    } catch (error) {
+      return false;
+    }
+  };
 
   const copyCurlCommand = () => {
     const curlCommand = `curl -X ${log.method} '${log.originalUrl}' \\
@@ -178,9 +202,20 @@ ${Object.entries(requestHeaders)
                 <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
                   <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Request Body</h3>
                   <div className="bg-gray-50 dark:bg-gray-700 rounded p-2">
-                    <pre className="text-sm text-gray-900 dark:text-white whitespace-pre-wrap break-all">
-                      {log.body}
-                    </pre>
+                    <SyntaxHighlighter 
+                      language={isJsonContent(log.body) ? "json" : "text"} 
+                      style={vs2015}
+                      customStyle={{
+                        margin: 0,
+                        fontSize: '0.875rem',
+                        lineHeight: '1.5rem',
+                        borderRadius: '0.375rem',
+                      }}
+                      showLineNumbers
+                      wrapLines={true}
+                    >
+                      {isJsonContent(log.body) ? formatResponseBody(log.body) : log.body}
+                    </SyntaxHighlighter>
                   </div>
                 </div>
               )}
@@ -228,9 +263,20 @@ ${Object.entries(requestHeaders)
                     </button>
                   </div>
                   <div className="bg-gray-50 dark:bg-gray-700 rounded p-2">
-                    <pre className="text-sm text-gray-900 dark:text-white whitespace-pre-wrap break-all">
-                      {log.response.body}
-                    </pre>
+                    <SyntaxHighlighter 
+                      language={isJsonContent(log.response.body) ? "json" : "text"} 
+                      style={vs2015}
+                      customStyle={{
+                        margin: 0,
+                        fontSize: '0.875rem',
+                        lineHeight: '1.5rem',
+                        borderRadius: '0.375rem',
+                      }}
+                      showLineNumbers
+                      wrapLines={true}
+                    >
+                      {isJsonContent(log.response.body) ? formatResponseBody(log.response.body) : log.response.body}
+                    </SyntaxHighlighter>
                   </div>
                 </div>
               )}

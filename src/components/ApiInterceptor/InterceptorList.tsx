@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { PlusIcon, TrashIcon, ArrowTopRightOnSquareIcon, ClipboardIcon, CheckIcon } from '@heroicons/react/24/outline';
+import apiClient from '../../utils/apiClient';
 import { useAuth } from '../../contexts/AuthContext';
+import { API_BASE_URL, API_ENDPOINTS } from '../../config';
 
 interface Interceptor {
   id: string;
@@ -15,7 +17,7 @@ interface Props {
   onCreateInterceptor: () => void;
 }
 
-const API_BASE_URL = 'https://interceptorserver.onrender.com';
+
 
 export default function InterceptorList({ onSelectInterceptor, onCreateInterceptor }: Props) {
   const { user, noLoginRequired } = useAuth();
@@ -35,33 +37,8 @@ export default function InterceptorList({ onSelectInterceptor, onCreateIntercept
   const fetchInterceptors = async () => {
     try {
       setLoading(true);
-      const sessionId = localStorage.getItem('sessionId');
-      if (!sessionId && !noLoginRequired) {
-        throw new Error('No session ID found');
-      }
-
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-      };
-
-      if (noLoginRequired) {
-        headers['Authorization'] = 'Bearer no-login';
-      } else {
-        headers['Authorization'] = `Bearer ${sessionId}`;
-      }
-
-      headers['ngrok-skip-browser-warning'] = 'true';
-
-      const response = await fetch(`${API_BASE_URL}/api/interceptors`, {
-        headers,
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch interceptors');
-      }
-
-      const data = await response.json();
-      setInterceptors(data);
+      const response = await apiClient.get(API_ENDPOINTS.INTERCEPTORS);
+      setInterceptors(response.data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch interceptors');
     } finally {
@@ -73,30 +50,7 @@ export default function InterceptorList({ onSelectInterceptor, onCreateIntercept
     if (!confirm('Are you sure you want to delete this interceptor?')) return;
     
     try {
-      const sessionId = localStorage.getItem('sessionId');
-      if (!sessionId && !noLoginRequired) {
-        throw new Error('No session ID found');
-      }
-
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-      };
-
-      if (noLoginRequired) {
-        headers['Authorization'] = 'Bearer no-login';
-      } else {
-        headers['Authorization'] = `Bearer ${sessionId}`;
-      }
-
-      const response = await fetch(`${API_BASE_URL}/api/interceptors/${id}`, {
-        method: 'DELETE',
-        headers,
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to delete interceptor');
-      }
-
+      await apiClient.delete(`${API_ENDPOINTS.INTERCEPTORS}/${id}`);
       setInterceptors(interceptors.filter(i => i.id !== id));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete interceptor');

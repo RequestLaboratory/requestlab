@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { format } from 'date-fns';
 import { Switch } from '@headlessui/react';
+import apiClient from '../../utils/apiClient';
 import { useAuth } from '../../contexts/AuthContext';
+import { API_BASE_URL, API_ENDPOINTS } from '../../config';
 
 interface ApiLog {
   id: string;
@@ -56,16 +58,10 @@ export default function RequestLogViewer({ interceptorId, onSelectLog, selectedL
   useEffect(() => {
     const checkWorkerMode = async () => {
       try {
-        const response = await fetch('https://interceptorworker.yadev64.workers.dev/status');
-        if (response.ok) {
-          const status = await response.json();
-          setWorkerMode(status.mode);
-          setUseSSE(status.mode === 'sse');
-        } else {
-          // Default to SSE if status check fails
-          setWorkerMode('sse');
-          setUseSSE(true);
-        }
+        const response = await apiClient.get(API_ENDPOINTS.STATUS);
+        const status = response.data;
+        setWorkerMode(status.mode);
+        setUseSSE(status.mode === 'sse');
       } catch (error) {
         console.error('Failed to check worker mode:', error);
         // Default to SSE if status check fails
@@ -80,26 +76,9 @@ export default function RequestLogViewer({ interceptorId, onSelectLog, selectedL
   // Function to fetch logs via API
   const fetchLogs = async () => {
     try {
-      const sessionId = localStorage.getItem('sessionId');
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-      };
-
-      // Add authorization header based on auth mode
-      if (noLoginRequired) {
-        headers['Authorization'] = 'Bearer no-login';
-      } else if (sessionId) {
-        headers['Authorization'] = `Bearer ${sessionId}`;
-      }
-
-      const response = await fetch(`https://interceptorworker.yadev64.workers.dev/api/interceptors/${interceptorId}/logs?limit=100&offset=0`, {
-        headers
-      });
+      const response = await apiClient.get(`${API_ENDPOINTS.LOGS(interceptorId)}?limit=100&offset=0`);
       
-      if (!response.ok) {
-        throw new Error(`Failed to fetch logs: ${response.statusText}`);
-      }
-      const data = await response.json();
+      const data = response.data;
       
       // Transform the logs to match our interface
       const transformedLogs = data.map((log: ApiLog) => ({
@@ -170,7 +149,7 @@ export default function RequestLogViewer({ interceptorId, onSelectLog, selectedL
       }
 
       // Connect to SSE
-      const eventSource = new EventSource('https://interceptorworker.yadev64.workers.dev/events', {
+      const eventSource = new EventSource(`${API_BASE_URL}${API_ENDPOINTS.EVENTS}`, {
         withCredentials: false
       });
       eventSourceRef.current = eventSource;
