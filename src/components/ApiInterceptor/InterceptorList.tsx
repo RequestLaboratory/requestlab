@@ -179,7 +179,9 @@ export default function InterceptorList({ onSelectInterceptor, onCreateIntercept
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        onSelectInterceptor(interceptor);
+                        // Open interceptor logs in a new tab
+                        const url = `/interceptors/${interceptor.id}/logs`;
+                        window.open(url, '_blank');
                       }}
                       className="inline-flex items-center p-1.5 text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 rounded-md"
                       title="View Logs"

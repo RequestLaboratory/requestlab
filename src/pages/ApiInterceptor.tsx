@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import apiClient from '../utils/apiClient';
 import InterceptorList from '../components/ApiInterceptor/InterceptorList';
@@ -16,12 +16,27 @@ interface Interceptor {
 
 export default function ApiInterceptor() {
   const navigate = useNavigate();
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isInterceptorModalOpen, setIsInterceptorModalOpen] = useState(false);
   const [editingInterceptor, setEditingInterceptor] = useState<Interceptor | undefined>();
+  const [interceptors, setInterceptors] = useState<Interceptor[]>([]);
   const { user, noLoginRequired } = useAuth();
 
+  useEffect(() => {
+    if (user || noLoginRequired) {
+      fetchInterceptors();
+    }
+  }, [user, noLoginRequired]);
+
+  const fetchInterceptors = async () => {
+    try {
+      const response = await apiClient.get(API_ENDPOINTS.INTERCEPTORS);
+      setInterceptors(response.data);
+    } catch (error) {
+      console.error('Failed to fetch interceptors:', error);
+    }
+  };
+
   const handleCreateInterceptor = async (data: { name: string; baseUrl: string; isActive: boolean }) => {
-    // Transform the data to match the API format
     const apiData = {
       name: data.name,
       base_url: data.baseUrl,
@@ -30,11 +45,16 @@ export default function ApiInterceptor() {
     
     const response = await apiClient.post(API_ENDPOINTS.INTERCEPTORS, apiData);
     const newInterceptor = response.data;
-    navigate(`/interceptors/${newInterceptor.id}/logs`);
+    await fetchInterceptors(); // Refresh the list
+    // Open new interceptor logs in a new tab
+    const url = `/interceptors/${newInterceptor.id}/logs`;
+    window.open(url, '_blank');
   };
 
   const handleSelectInterceptor = (interceptor: Interceptor) => {
-    navigate(`/interceptors/${interceptor.id}/logs`);
+    // Open interceptor logs in a new tab
+    const url = `/interceptors/${interceptor.id}/logs`;
+    window.open(url, '_blank');
   };
 
   if (!user && !noLoginRequired) {
@@ -59,12 +79,13 @@ export default function ApiInterceptor() {
             onSelectInterceptor={handleSelectInterceptor}
             onCreateInterceptor={() => {
               setEditingInterceptor(undefined);
-              setIsModalOpen(true);
+              setIsInterceptorModalOpen(true);
             }}
           />
         </div>
       </div>
 
+      {/* Modals */}
       <InterceptorModal
         interceptor={editingInterceptor ? {
           id: editingInterceptor.id,
@@ -73,13 +94,13 @@ export default function ApiInterceptor() {
           createdAt: editingInterceptor.created_at,
           isActive: editingInterceptor.is_active,
         } : undefined}
-        isOpen={isModalOpen}
+        isOpen={isInterceptorModalOpen}
         onClose={() => {
-          setIsModalOpen(false);
+          setIsInterceptorModalOpen(false);
           setEditingInterceptor(undefined);
         }}
         onSave={handleCreateInterceptor}
       />
     </div>
   );
-} 
+}

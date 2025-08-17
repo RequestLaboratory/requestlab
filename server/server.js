@@ -34,7 +34,10 @@ function sanitizeHeaders(headers) {
 // Helper function to store log
 async function storeLog(log) {
   try {
-    await supabase.from('logs').insert(log);
+    const result = await supabase.from('logs').insert(log);
+    if (result.error) {
+      console.error('Supabase insert error:', result.error);
+    }
   } catch (error) {
     console.error('Failed to store log:', error);
   }
@@ -230,19 +233,13 @@ app.get('/api/interceptors/:id/logs', async (req, res) => {
   }
 });
 
-// Dynamic proxy middleware - handle all other requests
-app.use(async (req, res, next) => {
-  // Extract interceptor ID from path
-  const pathParts = req.path.split('/').filter(Boolean);
-  if (pathParts.length === 0) {
-    return res.status(404).json({ error: 'Not found' });
-  }
-  
-  const interceptorId = pathParts[0];
-  console.log(`Proxy request: ${req.method} ${req.path} -> interceptor: ${interceptorId}`);
+// Main proxy handler for interceptor requests
+app.use('/:interceptorId/*', async (req, res, next) => {
+  const interceptorId = req.params.interceptorId;
+  console.log(`Interceptor request: ${req.method} ${req.originalUrl} for interceptor: ${interceptorId}`);
   
   try {
-    // Get interceptor from database
+    // Get interceptor details from database
     const { data: interceptor, error } = await supabase
       .from('interceptors')
       .select('*')
@@ -255,8 +252,84 @@ app.use(async (req, res, next) => {
       return res.status(404).json({ error: 'Interceptor not found' });
     }
     
-    // Build target path
-    const targetPath = req.path.replace(`/${interceptorId}`, '') || '/';
+    // Build target path correctly - use the wildcard param which contains the rest of the path
+    const targetPath = '/' + (req.params[0] || '');
+    
+    // Check if this is a mock API request (contains /mock or /mocks in the path)
+    if (targetPath.includes('/mock')) {
+      console.log(`🎭 Mock API request detected: ${req.method} ${targetPath}`);
+      
+      // Generate hardcoded mock response
+      const mockResponse = {
+        message: "This is a mock response",
+        method: req.method,
+        path: targetPath,
+        originalUrl: req.originalUrl,
+        interceptorId: interceptorId,
+        timestamp: new Date().toISOString(),
+        mockId: Math.floor(Math.random() * 1000),
+        data: {
+          id: Math.floor(Math.random() * 1000),
+          name: "Mock Data",
+          description: `Mock response for ${req.method} ${targetPath}`,
+          status: "success",
+          items: [
+            { id: 1, name: "Mock Item 1", value: "Sample Value 1" },
+            { id: 2, name: "Mock Item 2", value: "Sample Value 2" },
+            { id: 3, name: "Mock Item 3", value: "Sample Value 3" }
+          ]
+        },
+        metadata: {
+          isMock: true,
+          generatedAt: new Date().toISOString(),
+          requestMethod: req.method,
+          requestPath: targetPath,
+          interceptorName: interceptor.name,
+          baseUrl: interceptor.base_url
+        }
+      };
+      
+      // Log the mock API call (optional - for tracking)
+      const startTime = Date.now();
+      const duration = Date.now() - startTime;
+      const requestHeaders = JSON.stringify(sanitizeHeaders(req.headers));
+      const requestBody = await captureRequestBody(req);
+      
+      const log = {
+        id: crypto.randomUUID(),
+        interceptor_id: interceptor.id,
+        original_url: interceptor.base_url.replace(/\/$/, '') + targetPath.replace('/mock', ''),
+        proxy_url: req.originalUrl,
+        method: req.method,
+        headers: requestHeaders,
+        body: requestBody,
+        response_status: 200,
+        response_headers: JSON.stringify({ 
+          'Content-Type': 'application/json', 
+          'X-Mock-Response': 'true',
+          'X-Mock-Timestamp': new Date().toISOString()
+        }),
+        response_body: JSON.stringify(mockResponse),
+        timestamp: new Date().toISOString(),
+        duration: duration
+      };
+      
+      await storeLog(log);
+      console.log(`🎭 Mock API log stored for ${req.method} ${req.path} (200 - Mock Response)`);
+      
+      // Return mock response with proper headers
+      res.set({
+        'Content-Type': 'application/json',
+        'X-Mock-Response': 'true',
+        'X-Mock-Timestamp': new Date().toISOString(),
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+      });
+      
+      return res.status(200).json(mockResponse);
+    }
+    
     const targetUrl = interceptor.base_url.replace(/\/$/, '') + targetPath;
     console.log(`Proxying to: ${targetUrl}`);
     
@@ -288,63 +361,50 @@ app.use(async (req, res, next) => {
         
         // Log proxy request
         console.log(`Proxying ${req.method} to ${targetUrl}`);
-      },
-      onProxyRes: async (proxyRes, req, res) => {
-        // Capture response details
-        const duration = Date.now() - startTime;
-        const responseStatus = proxyRes.statusCode;
-        const responseHeaders = JSON.stringify(sanitizeHeaders(proxyRes.headers));
-        
-        // Capture response body
-        const responseBody = await captureResponseBody(res);
-        
-        // Store log
-        const log = {
-          id: crypto.randomUUID(),
-          interceptor_id: interceptor.id,
-          original_url: targetUrl,
-          proxy_url: req.originalUrl,
-          method: req.method,
-          headers: requestHeaders,
-          body: requestBody,
-          response_status: responseStatus,
-          response_headers: responseHeaders,
-          response_body: responseBody,
-          timestamp: new Date().toISOString(),
-          duration: duration
-        };
-        
-        await storeLog(log);
-        console.log(`Log stored for ${req.method} ${req.path} (${responseStatus})`);
-      },
-      onError: async (err, req, res) => {
-        console.error('Proxy error:', err);
-        
-        // Log the error
-        const duration = Date.now() - startTime;
-        const log = {
-          id: crypto.randomUUID(),
-          interceptor_id: interceptor.id,
-          original_url: targetUrl,
-          proxy_url: req.originalUrl,
-          method: req.method,
-          headers: requestHeaders,
-          body: requestBody,
-          response_status: 500,
-          response_headers: '{}',
-          response_body: JSON.stringify({ error: 'Proxy error', message: err.message }),
-          timestamp: new Date().toISOString(),
-          duration: duration
-        };
-        
-        await storeLog(log);
-        console.log(`Log stored for ${req.method} ${req.path} (500 - Proxy Error)`);
-        
-        if (!res.headersSent) {
-          res.status(500).json({ error: 'Proxy error', message: err.message });
-        }
       }
     });
+    
+    // Handle the response manually by overriding res.end
+    const originalEnd = res.end;
+    let responseBody = '';
+    let responseStatus = 200;
+    let responseHeaders = {};
+    
+    res.end = function(chunk, ...args) {
+      responseStatus = res.statusCode || 200;
+      responseHeaders = res.getHeaders ? res.getHeaders() : {};
+      
+      if (chunk) {
+        responseBody = chunk.toString();
+      }
+      
+      // Log after response
+      const duration = Date.now() - startTime;
+      const log = {
+        id: crypto.randomUUID(),
+        interceptor_id: interceptor.id,
+        original_url: targetUrl,
+        proxy_url: req.originalUrl,
+        method: req.method,
+        headers: requestHeaders,
+        body: requestBody,
+        response_status: responseStatus,
+        response_headers: JSON.stringify(sanitizeHeaders(responseHeaders)),
+        response_body: responseBody,
+        timestamp: new Date().toISOString(),
+        duration: duration
+      };
+      
+      // Store log asynchronously
+      storeLog(log).then(() => {
+        console.log(`Log stored for ${req.method} ${req.path} (${responseStatus})`);
+      }).catch(err => {
+        console.error(`Failed to store log:`, err);
+      });
+      
+      // Call original end
+      return originalEnd.apply(res, [chunk, ...args]);
+    };
     
     // Apply the proxy middleware
     proxyMiddleware(req, res, next);
@@ -373,10 +433,12 @@ app.listen(PORT, () => {
   console.log(`🚀 Interceptor Proxy Server running on port ${PORT}`);
   console.log(`📡 CORS enabled for localhost origins`);
   console.log(`🔄 Proxy functionality enabled`);
+  console.log(`🎭 Mock API support enabled (URLs with /mock)`);
   console.log(`📝 Logging functionality enabled`);
   console.log(`🔒 Security middleware enabled`);
   console.log(`⚡ Compression enabled`);
   console.log(`📊 Request logging enabled`);
   console.log(`🌐 Health check: http://localhost:${PORT}/health`);
   console.log(`📈 Status: http://localhost:${PORT}/status`);
+  console.log(`🎯 Mock API example: http://localhost:${PORT}/your-interceptor-id/api/mock`);
 }); 

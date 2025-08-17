@@ -28,6 +28,7 @@ import FloatingButton from './components/FloatingButton';
 import Head from './components/Head';
 import Documentation from './components/Documentation';
 import DocumentationPage from './pages/Documentation';
+import { mockApiInterceptor } from './utils/mockApiInterceptor';
 
 const leftExample = JSON.stringify({
   name: "Ford Mustang GT",
@@ -318,6 +319,10 @@ function AppContent() {
         setCurlRightInput(data.rightCurl);
       }
     }
+
+    // Enable client-side mock API interceptor
+    mockApiInterceptor.initialize();
+    console.log('🎭 Mock APIs are now handled client-side');
   }, []);
 
   // Update activePage based on current route, but only if there's no session in URL
@@ -404,6 +409,7 @@ function AppContent() {
   const showCollections = location.pathname === '/api-testing';
   const isHomePage = location.pathname === '/';
   const isDocumentationPage = location.pathname === '/documentation';
+  const isInterceptorLogsPage = location.pathname.match(/^\/interceptors\/[^\/]+\/logs$/);
   const showDesktopPrompt = isMobile && !isHomePage;
 
   // Update to use Google Form URL
@@ -418,8 +424,8 @@ function AppContent() {
         onClose={handleWelcomePopupClose} 
       />
       
-      {/* Left Sidebar - Only show when not on home page */}
-      {!isHomePage && !isDocumentationPage && (
+      {/* Left Sidebar - Only show when not on home page, documentation page, or interceptor logs page */}
+      {!isHomePage && !isDocumentationPage && !isInterceptorLogsPage && (
         <div className="w-64 border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex flex-col">
           <div className="flex flex-col h-full px-0 py-4">
             <div className="flex items-center mb-8 px-2">

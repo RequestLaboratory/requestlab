@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { format } from 'date-fns';
+import moment from 'moment';
 import { ClipboardIcon, CheckIcon } from '@heroicons/react/24/outline';
 import SyntaxHighlighter from 'react-syntax-highlighter';
 import { vs2015 } from 'react-syntax-highlighter/dist/esm/styles/hljs';
@@ -133,7 +134,7 @@ ${Object.entries(requestHeaders)
                   <div>
                     <span className="text-gray-500 dark:text-gray-400">Time:</span>
                     <span className="ml-2 font-medium text-gray-900 dark:text-white">
-                      {format(new Date(log.timestamp), 'MMM d, yyyy HH:mm:ss')}
+                      {moment(log.timestamp).format('DD-MM-YYYY HH:mm:ss')}
                     </span>
                   </div>
                 </div>

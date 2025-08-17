@@ -1,72 +1,75 @@
-interface ParsedCurl {
+export interface ParsedCurl {
   method: string;
   url: string;
   headers: Record<string, string>;
-  body: string;
-  queryParams: Record<string, string>;
+  body?: string;
 }
 
-export function parseCurlCommand(curlCommand: string): ParsedCurl {
-  const result: ParsedCurl = {
-    method: 'GET',
-    url: '',
-    headers: {},
-    body: '',
-    queryParams: {}
-  };
-
-  // Clean up the command
-  const cleanCommand = curlCommand
-    .replace(/\\\n/g, ' ') // Replace line continuations with spaces
-    .replace(/\s+/g, ' ') // Replace multiple spaces with single space
-    .trim();
-
-  // Extract URL
-  const urlMatch = cleanCommand.match(/(?:curl\s+)(?:--location\s+)?(?:--request\s+[A-Z]+\s+)?(['"]?)(https?:\/\/[^'"]+)\1/);
-  if (urlMatch) {
-    result.url = urlMatch[2];
-  }
+export function parseCurl(curlCommand: string): ParsedCurl {
+  // Remove leading/trailing whitespace and normalize
+  const normalized = curlCommand.trim().replace(/\\\s*\n\s*/g, ' ');
+  
+  // Default values
+  let method = 'GET';
+  let url = '';
+  const headers: Record<string, string> = {};
+  let body: string | undefined;
 
   // Extract method
-  const methodMatch = cleanCommand.match(/(?:--request|-X)\s+['"]?([A-Z]+)['"]?/);
+  const methodMatch = normalized.match(/-X\s+([A-Z]+)/i);
   if (methodMatch) {
-    result.method = methodMatch[1];
+    method = methodMatch[1].toUpperCase();
+  }
+
+  // Extract URL - find the first URL after curl
+  const urlMatch = normalized.match(/curl\s+(?:-[^\s]+\s+)*['"]?([^'"\s]+)['"]?/);
+  if (urlMatch) {
+    url = urlMatch[1];
   }
 
   // Extract headers
-  const headerMatches = cleanCommand.matchAll(/(?:--header|-H)\s+['"]([^'"]+)['"]/g);
+  const headerMatches = normalized.matchAll(/-H\s+['"]([^'"]+)['"]/g);
   for (const match of headerMatches) {
-    const [, header] = match;
-    const [key, value] = header.split(':').map(s => s.trim());
-    if (key && value) {
-      result.headers[key] = value;
+    const headerLine = match[1];
+    const colonIndex = headerLine.indexOf(':');
+    if (colonIndex > 0) {
+      const key = headerLine.substring(0, colonIndex).trim();
+      const value = headerLine.substring(colonIndex + 1).trim();
+      headers[key] = value;
     }
   }
 
-  // Extract body (support --data, --data-raw, --data-binary, -d) with multiline and complex JSON support
-  const dataFlagRegex = /(?:--data(?:-raw)?|--data-binary|-d)\s+(['"])([\s\S]*?)\1/g;
-  let dataMatch;
-  let body = '';
-  while ((dataMatch = dataFlagRegex.exec(cleanCommand)) !== null) {
-    // Concatenate all data flags (in case of multiple)
-    body += (body ? '\n' : '') + dataMatch[2];
-  }
-  if (body) {
-    result.body = body;
-    if (!methodMatch) {
-      result.method = 'POST';
-    }
+  // Extract body data
+  const bodyMatch = normalized.match(/-d\s+['"]([^'"]*)['"]/s) || 
+                   normalized.match(/--data\s+['"]([^'"]*)['"]/s) ||
+                   normalized.match(/--data-raw\s+['"]([^'"]*)['"]/s);
+  if (bodyMatch) {
+    body = bodyMatch[1];
   }
 
-  // Extract query parameters from URL
-  try {
-    const url = new URL(result.url);
-    url.searchParams.forEach((value, key) => {
-      result.queryParams[key] = value;
-    });
-  } catch (e) {
-    console.error('Failed to parse URL:', e);
-  }
+  return {
+    method,
+    url,
+    headers,
+    body
+  };
+}
 
-  return result;
+// Export with old name for compatibility
+export const parseCurlCommand = parseCurl;
+
+export function generateCurlFromComponents(method: string, url: string, headers: Record<string, string>, body?: string): string {
+  let curl = `curl -X ${method} '${url}'`;
+  
+  // Add headers
+  Object.entries(headers).forEach(([key, value]) => {
+    curl += ` \\\n  -H '${key}: ${value}'`;
+  });
+  
+  // Add body if present
+  if (body && ['POST', 'PUT', 'PATCH'].includes(method.toUpperCase())) {
+    curl += ` \\\n  -d '${body}'`;
+  }
+  
+  return curl;
 } 

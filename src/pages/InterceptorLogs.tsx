@@ -4,8 +4,11 @@ import { ArrowLeftIcon, ClipboardIcon, CheckIcon, XMarkIcon, MagnifyingGlassIcon
 import apiClient from '../utils/apiClient';
 import RequestLogViewer from '../components/ApiInterceptor/RequestLogViewer';
 import LogDetails from '../components/ApiInterceptor/LogDetails';
+import MockApiList from '../components/ApiInterceptor/MockApiList';
+import MockApiModal from '../components/ApiInterceptor/MockApiModal';
 import { useAuth } from '../contexts/AuthContext';
 import { API_BASE_URL, API_ENDPOINTS } from '../config';
+import { MockApi } from '../utils/mockApiStorage';
 
 interface Interceptor {
   id: string;
@@ -32,21 +35,26 @@ interface Log {
   };
 }
 
-
+type TabType = 'logs' | 'mock-apis';
 
 export default function InterceptorLogs() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [interceptor, setInterceptor] = useState<Interceptor | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
+  const [activeTab, setActiveTab] = useState<TabType>('logs');
   const [selectedLog, setSelectedLog] = useState<Log | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const { user, noLoginRequired } = useAuth();
-  const [drawerWidth, setDrawerWidth] = useState(896); // 4xl = 896px
+  const [copied, setCopied] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [drawerWidth, setDrawerWidth] = useState(500);
   const [isResizing, setIsResizing] = useState(false);
+  const [isMockApiModalOpen, setIsMockApiModalOpen] = useState(false);
+  const [editingMockApi, setEditingMockApi] = useState<MockApi | undefined>();
+  const [logForMocking, setLogForMocking] = useState<Log | undefined>();
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
   const drawerRef = useRef<HTMLDivElement>(null);
+  const { user, noLoginRequired } = useAuth();
 
   const handleMouseDown = (e: React.MouseEvent) => {
     setIsResizing(true);
@@ -111,6 +119,31 @@ export default function InterceptorLogs() {
     navigator.clipboard.writeText(proxyUrl);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleCreateMockApi = () => {
+    setEditingMockApi(undefined);
+    setLogForMocking(undefined);
+    setIsMockApiModalOpen(true);
+  };
+
+  const handleCreateMockFromLog = (log: Log) => {
+    setEditingMockApi(undefined);
+    setLogForMocking(log);
+    setIsMockApiModalOpen(true);
+  };
+
+  const handleEditMockApi = (mockApi: MockApi) => {
+    setEditingMockApi(mockApi);
+    setLogForMocking(undefined);
+    setIsMockApiModalOpen(true);
+  };
+
+  const handleMockApiSave = () => {
+    setRefreshTrigger(prev => prev + 1);
+    setIsMockApiModalOpen(false);
+    setEditingMockApi(undefined);
+    setLogForMocking(undefined);
   };
 
   if (!user && !noLoginRequired) {
@@ -194,31 +227,72 @@ export default function InterceptorLogs() {
             </div>
           </div>
 
-          {/* Search Bar */}
-          <div className="mb-4">
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
-              </div>
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search requests..."
-                className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md leading-5 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-              />
+          {/* Tabs */}
+          <div className="mb-6">
+            <div className="border-b border-gray-200 dark:border-gray-700">
+              <nav className="flex -mb-px">
+                <button
+                  onClick={() => setActiveTab('logs')}
+                  className={`py-4 px-6 text-sm font-medium border-b-2 ${
+                    activeTab === 'logs'
+                      ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
+                  }`}
+                >
+                  Request Logs
+                </button>
+                <button
+                  onClick={() => setActiveTab('mock-apis')}
+                  className={`py-4 px-6 text-sm font-medium border-b-2 ${
+                    activeTab === 'mock-apis'
+                      ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
+                  }`}
+                >
+                  Mock APIs
+                </button>
+              </nav>
             </div>
           </div>
 
-          {/* Request Logs */}
-          <div className="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
-            <RequestLogViewer
+          {activeTab === 'logs' ? (
+            <>
+              {/* Search Bar */}
+              <div className="mb-4">
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
+                  </div>
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search requests..."
+                    className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md leading-5 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  />
+                </div>
+              </div>
+
+              {/* Request Logs */}
+              <div className="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
+                <RequestLogViewer
+                  interceptorId={interceptor.id}
+                  onSelectLog={setSelectedLog}
+                  selectedLogId={selectedLog?.id}
+                  searchQuery={searchQuery}
+                  onCreateMock={handleCreateMockFromLog}
+                />
+              </div>
+            </>
+          ) : (
+            <MockApiList
               interceptorId={interceptor.id}
-              onSelectLog={setSelectedLog}
-              selectedLogId={selectedLog?.id}
-              searchQuery={searchQuery}
+              interceptor={interceptor}
+              onCreateMockApi={handleCreateMockApi}
+              onEditMockApi={handleEditMockApi}
+              refreshTrigger={refreshTrigger}
             />
-          </div>
+          )}
 
           {/* Log Details Drawer */}
           {selectedLog && (
@@ -256,6 +330,23 @@ export default function InterceptorLogs() {
           )}
         </div>
       </div>
+
+      {/* Mock API Modal */}
+      {isMockApiModalOpen && (
+        <MockApiModal
+          mockApi={editingMockApi}
+          interceptorId={interceptor!.id}
+          interceptor={interceptor!}
+          isOpen={isMockApiModalOpen}
+          onClose={() => {
+            setIsMockApiModalOpen(false);
+            setEditingMockApi(undefined);
+            setLogForMocking(undefined);
+          }}
+          onSave={handleMockApiSave}
+          logForMocking={logForMocking}
+        />
+      )}
     </div>
   );
 } 

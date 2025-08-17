@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { format } from 'date-fns';
+import moment from 'moment';
 import { Switch } from '@headlessui/react';
+import { BeakerIcon } from '@heroicons/react/24/outline';
 import apiClient from '../../utils/apiClient';
 import { useAuth } from '../../contexts/AuthContext';
 import { API_BASE_URL, API_ENDPOINTS } from '../../config';
@@ -41,9 +43,10 @@ interface Props {
   onSelectLog: (log: Log) => void;
   selectedLogId?: string;
   searchQuery: string;
+  onCreateMock?: (log: Log) => void;
 }
 
-export default function RequestLogViewer({ interceptorId, onSelectLog, selectedLogId, searchQuery }: Props) {
+export default function RequestLogViewer({ interceptorId, onSelectLog, selectedLogId, searchQuery, onCreateMock }: Props) {
   const { noLoginRequired } = useAuth();
   const [logs, setLogs] = useState<Log[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -270,6 +273,8 @@ export default function RequestLogViewer({ interceptorId, onSelectLog, selectedL
     );
   });
 
+  const mockedRequestsCount = filteredLogs.filter(log => log.proxyUrl.includes('/mock')).length;
+
   if (isLoading) {
     return (
       <div className="p-4 flex items-center justify-center">
@@ -326,6 +331,11 @@ export default function RequestLogViewer({ interceptorId, onSelectLog, selectedL
           )}
           <div className="text-sm text-gray-500 dark:text-gray-400">
             {filteredLogs.length} {filteredLogs.length === 1 ? 'request' : 'requests'}
+            {mockedRequestsCount > 0 && (
+              <span className="ml-2 px-2 py-1 text-xs font-medium rounded bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-400">
+                {mockedRequestsCount} mocked
+              </span>
+            )}
           </div>
         </div>
       </div>
@@ -337,45 +347,84 @@ export default function RequestLogViewer({ interceptorId, onSelectLog, selectedL
           </div>
         ) : (
           <div className="divide-y divide-gray-200 dark:divide-gray-700">
-            {filteredLogs.map((log) => (
-              <button
-                key={log.id}
-                onClick={() => onSelectLog(log)}
-                className={`w-full p-4 text-left hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors ${
-                  selectedLogId === log.id ? 'bg-blue-50 dark:bg-blue-900/20' : ''
-                }`}
-              >
-                <div className="flex items-center justify-between mb-1">
-                  <div className="flex items-center space-x-2">
-                    <span className={`px-2 py-1 text-xs font-medium rounded ${
-                      log.method === 'GET' ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400' :
-                      log.method === 'POST' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400' :
-                      log.method === 'PUT' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400' :
-                      log.method === 'DELETE' ? 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400' :
-                      'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400'
-                    }`}>
-                      {log.method}
-                    </span>
-                    <span className={`px-2 py-1 text-xs font-medium rounded ${
-                      log.response.status >= 200 && log.response.status < 300 ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400' :
-                      log.response.status >= 400 ? 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400' :
-                      'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400'
-                    }`}>
-                      {log.response.status}
-                    </span>
-                    <span className="text-xs text-gray-500 dark:text-gray-400">
-                      {log.duration}ms
-                    </span>
+            {filteredLogs.map((log) => {
+              // Check if this is a mocked request
+              const isMockedRequest = log.proxyUrl.includes('/mock');
+              
+              return (
+                <div
+                  key={log.id}
+                  className={`p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer ${
+                    selectedLogId === log.id ? 'bg-blue-50 dark:bg-blue-900/20' : ''
+                  } ${isMockedRequest ? 'border-l-4 border-purple-500 bg-purple-50/50 dark:bg-purple-900/10' : ''}`}
+                  onClick={() => onSelectLog(log)}
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center space-x-2">
+                      {isMockedRequest && (
+                        <span className="px-2 py-1 text-xs font-medium rounded bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-400 border border-purple-200 dark:border-purple-700">
+                          MOCK
+                        </span>
+                      )}
+                      <span className={`px-2 py-1 text-xs font-medium rounded ${
+                        log.method === 'GET' ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400' :
+                        log.method === 'POST' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400' :
+                        log.method === 'PUT' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400' :
+                        log.method === 'DELETE' ? 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400' :
+                        'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400'
+                      }`}>
+                        {log.method}
+                      </span>
+                      <span className={`px-2 py-1 text-xs font-medium rounded ${
+                        log.response.status >= 200 && log.response.status < 300 ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400' :
+                        log.response.status >= 400 ? 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400' :
+                        'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400'
+                      }`}>
+                        {log.response.status}
+                      </span>
+                      <span className="text-xs text-gray-500 dark:text-gray-400">
+                        {log.duration}ms
+                      </span>
+                      {isMockedRequest && (
+                        <span className="text-xs text-purple-600 dark:text-purple-400 font-medium">
+                          • Mocked Response
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <span className="text-xs text-gray-500 dark:text-gray-400">
+                        {moment(log.timestamp).format('DD-MM-YYYY HH:mm:ss')}
+                      </span>
+                      {onCreateMock && !isMockedRequest && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onCreateMock(log);
+                          }}
+                          className="inline-flex items-center p-1.5 text-xs text-purple-600 hover:text-purple-800 dark:text-purple-400 dark:hover:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-900/20 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 rounded-md transition-colors"
+                          title="Create Mock API"
+                        >
+                          <BeakerIcon className="h-4 w-4" />
+                          <span className="ml-1 font-medium">Mock</span>
+                        </button>
+                      )}
+                    </div>
                   </div>
-                  <span className="text-xs text-gray-500 dark:text-gray-400">
-                    {format(new Date(log.timestamp), 'HH:mm:ss')}
-                  </span>
+                  <div className={`text-sm truncate ${
+                    isMockedRequest 
+                      ? 'text-purple-900 dark:text-purple-100 font-medium' 
+                      : 'text-gray-900 dark:text-white'
+                  }`}>
+                    {log.originalUrl}
+                    {isMockedRequest && (
+                      <span className="ml-2 text-xs text-purple-600 dark:text-purple-400">
+                        (Mock: {log.proxyUrl})
+                      </span>
+                    )}
+                  </div>
                 </div>
-                <div className="text-sm text-gray-900 dark:text-white truncate">
-                  {log.originalUrl}
-                </div>
-              </button>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
