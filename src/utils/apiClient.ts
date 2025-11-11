@@ -18,12 +18,10 @@ apiClient.interceptors.request.use(
     // Add ngrok-skip-browser-warning header to bypass ngrok browser warning
     config.headers['ngrok-skip-browser-warning'] = 'true';
     
-    // For local server with global access, no authentication is needed
-    // But we can still add session if available for future use
+    // Always send session if available (backend now requires authentication)
     const sessionId = localStorage.getItem('sessionId');
-    const noLoginRequired = localStorage.getItem('noLoginRequired') === 'true';
     
-    if (!noLoginRequired && sessionId) {
+    if (sessionId) {
       config.headers['Authorization'] = `Bearer ${sessionId}`;
     }
     
@@ -44,7 +42,17 @@ apiClient.interceptors.response.use(
     if (error.response?.status === 401) {
       // Unauthorized - clear session and redirect to login
       localStorage.removeItem('sessionId');
+      const errorMessage = error.response?.data?.message || 'Session expired. Please log in again.';
+      // Show error message before redirect
+      alert(errorMessage);
       window.location.href = '/';
+    }
+    
+    // Handle 404 errors with better messages
+    if (error.response?.status === 404) {
+      const errorMessage = error.response?.data?.message || error.response?.data?.error || 'Resource not found';
+      // Enhance error object with user-friendly message
+      error.userMessage = errorMessage;
     }
     
     // Log CORS errors specifically

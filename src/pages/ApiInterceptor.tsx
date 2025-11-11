@@ -21,16 +21,26 @@ export default function ApiInterceptor() {
   const { user, noLoginRequired } = useAuth();
 
   const handleCreateInterceptor = async (data: { name: string; baseUrl: string; isActive: boolean }) => {
-    // Transform the data to match the API format
-    const apiData = {
-      name: data.name,
-      base_url: data.baseUrl,
-      is_active: data.isActive,
-    };
-    
-    const response = await apiClient.post(API_ENDPOINTS.INTERCEPTORS, apiData);
-    const newInterceptor = response.data;
-    navigate(`/interceptors/${newInterceptor.id}/logs`);
+    try {
+      // Transform the data to match the API format
+      const apiData = {
+        name: data.name,
+        base_url: data.baseUrl,
+        is_active: data.isActive,
+      };
+      
+      const response = await apiClient.post(API_ENDPOINTS.INTERCEPTORS, apiData);
+      const newInterceptor = response.data;
+      navigate(`/interceptors/${newInterceptor.id}/logs`);
+    } catch (err: any) {
+      if (err.response?.status === 401) {
+        alert('Authentication required. Please log in to create interceptors.');
+      } else {
+        const errorMessage = err.response?.data?.message || err.message || 'Failed to create interceptor';
+        alert(errorMessage);
+      }
+      throw err; // Re-throw to let modal handle it
+    }
   };
 
   const handleSelectInterceptor = (interceptor: Interceptor) => {

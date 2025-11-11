@@ -90,6 +90,7 @@ export default function InterceptorLogs() {
   const fetchInterceptor = async () => {
     try {
       setIsLoading(true);
+      setError(null);
       const response = await apiClient.get(API_ENDPOINTS.INTERCEPTORS);
       
       const interceptors = response.data;
@@ -97,10 +98,16 @@ export default function InterceptorLogs() {
       if (found) {
         setInterceptor(found);
       } else {
-        setError('Interceptor not found');
+        setError('Interceptor not found or you do not have permission to view it.');
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch interceptor');
+    } catch (err: any) {
+      if (err.response?.status === 401) {
+        setError('Authentication required. Please log in to view interceptor logs.');
+      } else if (err.response?.status === 404) {
+        setError(err.userMessage || 'Interceptor not found or you do not have permission to view it.');
+      } else {
+        setError(err.response?.data?.message || err.message || 'Failed to fetch interceptor');
+      }
     } finally {
       setIsLoading(false);
     }

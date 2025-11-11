@@ -37,10 +37,17 @@ export default function InterceptorList({ onSelectInterceptor, onCreateIntercept
   const fetchInterceptors = async () => {
     try {
       setLoading(true);
+      setError(null);
       const response = await apiClient.get(API_ENDPOINTS.INTERCEPTORS);
       setInterceptors(response.data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch interceptors');
+    } catch (err: any) {
+      if (err.response?.status === 401) {
+        setError('Authentication required. Please log in to view interceptors.');
+      } else if (err.response?.status === 404) {
+        setError(err.userMessage || 'Interceptors not found.');
+      } else {
+        setError(err.response?.data?.message || err.message || 'Failed to fetch interceptors');
+      }
     } finally {
       setLoading(false);
     }
@@ -52,8 +59,15 @@ export default function InterceptorList({ onSelectInterceptor, onCreateIntercept
     try {
       await apiClient.delete(`${API_ENDPOINTS.INTERCEPTORS}/${id}`);
       setInterceptors(interceptors.filter(i => i.id !== id));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete interceptor');
+      setError(null);
+    } catch (err: any) {
+      if (err.response?.status === 401) {
+        setError('Authentication required. Please log in to delete interceptors.');
+      } else if (err.response?.status === 404) {
+        setError(err.userMessage || 'Interceptor not found or you do not have permission to delete it.');
+      } else {
+        setError(err.response?.data?.message || err.message || 'Failed to delete interceptor');
+      }
     }
   };
 

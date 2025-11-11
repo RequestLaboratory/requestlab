@@ -101,9 +101,15 @@ export default function RequestLogViewer({ interceptorId, onSelectLog, selectedL
       setLogs(transformedLogs);
       setIsLoading(false);
       setError(null);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error fetching logs:', err);
-      setError('Failed to fetch logs');
+      if (err.response?.status === 401) {
+        setError('Authentication required. Please log in to view logs.');
+      } else if (err.response?.status === 404) {
+        setError(err.userMessage || 'Interceptor not found or you do not have permission to view its logs.');
+      } else {
+        setError(err.response?.data?.message || 'Failed to fetch logs');
+      }
       setIsLoading(false);
     }
   };
