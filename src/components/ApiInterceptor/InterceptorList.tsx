@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { PlusIcon, TrashIcon, ArrowTopRightOnSquareIcon, ClipboardIcon, CheckIcon } from '@heroicons/react/24/outline';
 import apiClient from '../../utils/apiClient';
 import { useAuth } from '../../contexts/AuthContext';
@@ -15,12 +15,15 @@ interface Interceptor {
 interface Props {
   onSelectInterceptor: (interceptor: Interceptor) => void;
   onCreateInterceptor: () => void;
+  onInterceptorCountChange?: (count: number) => void;
 }
 
 
 
-export default function InterceptorList({ onSelectInterceptor, onCreateInterceptor }: Props) {
-  const { user, noLoginRequired } = useAuth();
+const MAX_INTERCEPTORS_PER_USER = 3;
+
+export default function InterceptorList({ onSelectInterceptor, onCreateInterceptor, onInterceptorCountChange }: Props) {
+  const { user, noLoginRequired, login } = useAuth();
   const [interceptors, setInterceptors] = useState<Interceptor[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -40,6 +43,10 @@ export default function InterceptorList({ onSelectInterceptor, onCreateIntercept
       setError(null);
       const response = await apiClient.get(API_ENDPOINTS.INTERCEPTORS);
       setInterceptors(response.data);
+      // Notify parent component of interceptor count
+      if (onInterceptorCountChange) {
+        onInterceptorCountChange(response.data.length);
+      }
     } catch (err: any) {
       if (err.response?.status === 401) {
         setError('Authentication required. Please log in to view interceptors.');
@@ -58,7 +65,12 @@ export default function InterceptorList({ onSelectInterceptor, onCreateIntercept
     
     try {
       await apiClient.delete(`${API_ENDPOINTS.INTERCEPTORS}/${id}`);
-      setInterceptors(interceptors.filter(i => i.id !== id));
+      const updatedInterceptors = interceptors.filter(i => i.id !== id);
+      setInterceptors(updatedInterceptors);
+      // Notify parent component of updated interceptor count
+      if (onInterceptorCountChange) {
+        onInterceptorCountChange(updatedInterceptors.length);
+      }
       setError(null);
     } catch (err: any) {
       if (err.response?.status === 401) {
@@ -80,12 +92,49 @@ export default function InterceptorList({ onSelectInterceptor, onCreateIntercept
 
   if (!user && !noLoginRequired) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-        <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-          <div className="px-4 py-6 sm:px-0">
-            <div className="p-4 text-center text-gray-500 dark:text-gray-400">
-              Please log in to use the API interceptor.
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+        <div className="max-w-md w-full mx-auto px-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-8 text-center">
+            <div className="mb-6">
+              <svg
+                className="mx-auto h-16 w-16 text-gray-400 dark:text-gray-500"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                />
+              </svg>
             </div>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+              Login Required
+            </h2>
+            <p className="text-gray-600 dark:text-gray-400 mb-6">
+              Please log in to use the API interceptor. Create and manage interceptors to monitor your API requests.
+            </p>
+            <button
+              onClick={login}
+              className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200"
+            >
+              <svg
+                className="mr-2 h-5 w-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"
+                />
+              </svg>
+              Log In
+            </button>
           </div>
         </div>
       </div>
@@ -114,15 +163,28 @@ export default function InterceptorList({ onSelectInterceptor, onCreateIntercept
     );
   }
 
+  const canCreateInterceptor = interceptors.length < MAX_INTERCEPTORS_PER_USER;
+
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
-        <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
-          API Interceptors
-        </h1>
+        <div>
+          <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
+            API Interceptors
+          </h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+            Max {MAX_INTERCEPTORS_PER_USER} interceptors per user ({interceptors.length}/{MAX_INTERCEPTORS_PER_USER})
+          </p>
+        </div>
         <button
           onClick={onCreateInterceptor}
-          className="inline-flex items-center px-3 py-1.5 text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          disabled={!canCreateInterceptor}
+          className={`inline-flex items-center px-3 py-1.5 text-sm font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${
+            canCreateInterceptor
+              ? 'text-white bg-blue-600 hover:bg-blue-700'
+              : 'text-gray-400 bg-gray-300 dark:bg-gray-700 cursor-not-allowed'
+          }`}
+          title={!canCreateInterceptor ? `Maximum ${MAX_INTERCEPTORS_PER_USER} interceptors reached` : 'Create new interceptor'}
         >
           <PlusIcon className="h-4 w-4 mr-1.5" />
           New Interceptor
