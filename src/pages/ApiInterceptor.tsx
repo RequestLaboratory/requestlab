@@ -21,7 +21,7 @@ export default function ApiInterceptor() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingInterceptor, setEditingInterceptor] = useState<Interceptor | undefined>();
   const [interceptorCount, setInterceptorCount] = useState(0);
-  const { user, noLoginRequired, login } = useAuth();
+  const { user, login } = useAuth();
 
   const handleCreateInterceptor = async (data: { name: string; baseUrl: string; isActive: boolean }) => {
     try {
@@ -59,7 +59,10 @@ export default function ApiInterceptor() {
     navigate(`/interceptors/${interceptor.id}/logs`);
   };
 
-  if (!user && !noLoginRequired) {
+  // Check if user is actually logged in (has a session)
+  // Since backend requires authentication, show login prompt if no session
+  const hasSession = localStorage.getItem('sessionId');
+  if (!user && !hasSession) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
         <div className="max-w-md w-full mx-auto px-4">
@@ -87,7 +90,7 @@ export default function ApiInterceptor() {
             </p>
             <button
               onClick={login}
-              className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200"
+              className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-orange-500 hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-400 transition-colors duration-200"
             >
               <svg
                 className="mr-2 h-5 w-5"

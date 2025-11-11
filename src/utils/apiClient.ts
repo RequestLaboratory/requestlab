@@ -40,12 +40,21 @@ apiClient.interceptors.response.use(
   (error) => {
     // Handle common error cases
     if (error.response?.status === 401) {
-      // Unauthorized - clear session and redirect to login
+      // Unauthorized - clear session
       localStorage.removeItem('sessionId');
-      const errorMessage = error.response?.data?.message || 'Session expired. Please log in again.';
-      // Show error message before redirect
-      alert(errorMessage);
-      window.location.href = '/';
+      
+      // Only show alert and redirect if we're not already on a page that handles login
+      // Check if we're on interceptor pages - they handle login state themselves
+      const currentPath = window.location.pathname;
+      const isInterceptorPage = currentPath.includes('/api-interceptor') || currentPath.includes('/interceptors/');
+      
+      if (!isInterceptorPage) {
+        // Only show alert and redirect for non-interceptor pages
+        const errorMessage = error.response?.data?.message || 'Session expired. Please log in again.';
+        alert(errorMessage);
+        window.location.href = '/';
+      }
+      // For interceptor pages, let the component handle the 401 error display
     }
     
     // Handle 404 errors with better messages

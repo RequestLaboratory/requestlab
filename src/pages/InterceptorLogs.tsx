@@ -43,7 +43,7 @@ export default function InterceptorLogs() {
   const [copied, setCopied] = useState(false);
   const [selectedLog, setSelectedLog] = useState<Log | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const { user, noLoginRequired, login } = useAuth();
+  const { user, login } = useAuth();
   const [drawerWidth, setDrawerWidth] = useState(896); // 4xl = 896px
   const [isResizing, setIsResizing] = useState(false);
   const drawerRef = useRef<HTMLDivElement>(null);
@@ -79,13 +79,15 @@ export default function InterceptorLogs() {
   }, [isResizing]);
 
   useEffect(() => {
-    if (user || noLoginRequired) {
+    // Check if user is logged in (has a session)
+    const hasSession = localStorage.getItem('sessionId');
+    if (user || hasSession) {
       fetchInterceptor();
     } else {
-      setError('Please log in to view interceptor logs');
+      setError(null); // Clear error, login prompt will show
       setIsLoading(false);
     }
-  }, [id, user, noLoginRequired]);
+  }, [id, user]);
 
   const fetchInterceptor = async () => {
     try {
@@ -120,7 +122,10 @@ export default function InterceptorLogs() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  if (!user && !noLoginRequired) {
+  // Check if user is actually logged in (has a session)
+  // Since backend requires authentication, show login prompt if no session
+  const hasSession = localStorage.getItem('sessionId');
+  if (!user && !hasSession) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
         <div className="max-w-md w-full mx-auto px-4">

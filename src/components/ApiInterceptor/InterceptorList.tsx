@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { PlusIcon, TrashIcon, ArrowTopRightOnSquareIcon, ClipboardIcon, CheckIcon } from '@heroicons/react/24/outline';
 import apiClient from '../../utils/apiClient';
 import { useAuth } from '../../contexts/AuthContext';
@@ -23,21 +23,21 @@ interface Props {
 const MAX_INTERCEPTORS_PER_USER = 3;
 
 export default function InterceptorList({ onSelectInterceptor, onCreateInterceptor, onInterceptorCountChange }: Props) {
-  const { user, noLoginRequired, login } = useAuth();
+  const { user, login } = useAuth();
   const [interceptors, setInterceptors] = useState<Interceptor[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (user || noLoginRequired) {
-      fetchInterceptors();
-    } else {
+  const fetchInterceptors = useCallback(async () => {
+    // Don't fetch if user is not logged in (no session)
+    const hasSession = localStorage.getItem('sessionId');
+    if (!user && !hasSession) {
+      setError(null);
       setLoading(false);
+      return;
     }
-  }, [user, noLoginRequired]);
 
-  const fetchInterceptors = async () => {
     try {
       setLoading(true);
       setError(null);
@@ -47,18 +47,35 @@ export default function InterceptorList({ onSelectInterceptor, onCreateIntercept
       if (onInterceptorCountChange) {
         onInterceptorCountChange(response.data.length);
       }
-    } catch (err: any) {
-      if (err.response?.status === 401) {
+    } catch (err: unknown) {
+      const error = err as { response?: { status?: number; data?: { message?: string } }; userMessage?: string; message?: string };
+      // Don't set error for 401 if user is not logged in - let the login prompt handle it
+      const hasSession = localStorage.getItem('sessionId');
+      if (error.response?.status === 401 && (!user && !hasSession)) {
+        setError(null);
+      } else if (error.response?.status === 401) {
         setError('Authentication required. Please log in to view interceptors.');
-      } else if (err.response?.status === 404) {
-        setError(err.userMessage || 'Interceptors not found.');
+      } else if (error.response?.status === 404) {
+        setError(error.userMessage || 'Interceptors not found.');
       } else {
-        setError(err.response?.data?.message || err.message || 'Failed to fetch interceptors');
+        setError(error.response?.data?.message || error.message || 'Failed to fetch interceptors');
       }
     } finally {
       setLoading(false);
     }
-  };
+  }, [onInterceptorCountChange, user]);
+
+  useEffect(() => {
+    // Only fetch if user is logged in (has a session)
+    const sessionId = localStorage.getItem('sessionId');
+    if (user || sessionId) {
+      fetchInterceptors();
+    } else {
+      // Clear any previous errors and stop loading when user is not logged in
+      setError(null);
+      setLoading(false);
+    }
+  }, [user, fetchInterceptors]);
 
   const deleteInterceptor = async (id: string) => {
     if (!confirm('Are you sure you want to delete this interceptor?')) return;
@@ -72,13 +89,14 @@ export default function InterceptorList({ onSelectInterceptor, onCreateIntercept
         onInterceptorCountChange(updatedInterceptors.length);
       }
       setError(null);
-    } catch (err: any) {
-      if (err.response?.status === 401) {
+    } catch (err: unknown) {
+      const error = err as { response?: { status?: number; data?: { message?: string } }; userMessage?: string; message?: string };
+      if (error.response?.status === 401) {
         setError('Authentication required. Please log in to delete interceptors.');
-      } else if (err.response?.status === 404) {
-        setError(err.userMessage || 'Interceptor not found or you do not have permission to delete it.');
+      } else if (error.response?.status === 404) {
+        setError(error.userMessage || 'Interceptor not found or you do not have permission to delete it.');
       } else {
-        setError(err.response?.data?.message || err.message || 'Failed to delete interceptor');
+        setError(error.response?.data?.message || error.message || 'Failed to delete interceptor');
       }
     }
   };
@@ -90,7 +108,11 @@ export default function InterceptorList({ onSelectInterceptor, onCreateIntercept
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  if (!user && !noLoginRequired) {
+  // Always check login status first, before showing errors or loading
+  // Check if user is actually logged in (has a session)
+  // Since backend requires authentication, show login prompt if no session
+  const hasSession = localStorage.getItem('sessionId');
+  if (!user && !hasSession) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
         <div className="max-w-md w-full mx-auto px-4">
@@ -118,7 +140,7 @@ export default function InterceptorList({ onSelectInterceptor, onCreateIntercept
             </p>
             <button
               onClick={login}
-              className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200"
+              className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-orange-500 hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-400 transition-colors duration-200"
             >
               <svg
                 className="mr-2 h-5 w-5"
