@@ -3,7 +3,7 @@ import { executeApiRequest } from '../utils/apiTestingUtils';
 import { parseCurlCommand } from '../utils/curlParser';
 import SyntaxHighlighter from 'react-syntax-highlighter';
 import { vs2015 } from 'react-syntax-highlighter/dist/esm/styles/hljs';
-import { Copy, Check, Expand, X, Terminal, Play, StopCircle, BarChart2 } from 'lucide-react';
+import { Copy, Check, Expand, X, Terminal, Play, StopCircle, BarChart2, Plus } from 'lucide-react';
 import { TextField, Box, Typography, Tabs, Tab, ThemeProvider, createTheme, Drawer, IconButton, Dialog, DialogTitle, DialogContent, DialogActions, Button, Checkbox } from '@mui/material';
 import { Line, Bar } from 'react-chartjs-2';
 import {
@@ -153,6 +153,25 @@ const getInitialTab = (): ApiTestingTab => {
   return isValidTab(savedTab) ? savedTab : 'headers';
 };
 
+// Tab interface for managing multiple API requests
+interface ApiRequestTab {
+  id: string;
+  name: string;
+  requestDetails: RequestDetails & { formData?: { key: string; value: string }[] };
+  response: ApiResponse | null;
+  activeTab: ApiTestingTab;
+  bodyType: 'none' | 'raw' | 'form-data' | 'x-www-form-urlencoded';
+  contentType: string;
+  isLoading: boolean;
+  error: string | null;
+  loadTestConfig: LoadTestConfig;
+  loadTestResults: LoadTestResult[];
+  isLoadTestRunning: boolean;
+  loadTestError: string | null;
+  trendData: TrendData | null;
+  resultTab: number;
+}
+
 const ApiTesting: React.FC = () => {
   const { isDarkMode } = useContext(ThemeContext);
   const {
@@ -203,55 +222,101 @@ const ApiTesting: React.FC = () => {
     },
   });
 
-  const [requestDetails, setRequestDetails] = useState<RequestDetails & { formData?: { key: string; value: string }[] }>(() => {
-    const savedState = sessionStorage.getItem('apiTestingState');
-    if (savedState) {
-      const parsed = JSON.parse(savedState);
-      const headers = parsed.headers || { 'header-1': '' };
-      return {
-        name: parsed.name || '',
-        method: parsed.method || 'GET',
-        url: parsed.url || '',
-        headers,
-        enabledHeaders: syncEnabledHeaders(headers, parsed.enabledHeaders),
-        body: parsed.body || '',
-        queryParams: parsed.queryParams || {},
-        formData: parsed.formData || [{ key: '', value: '' }],
-      };
-    }
-    // Default GitHub API example
-    const headers = {
+  // Helper function to create a new tab
+  const createNewTab = (name?: string, requestDetails?: Partial<RequestDetails>): ApiRequestTab => {
+    const defaultHeaders = {
       'Accept': 'application/vnd.github.v3+json',
       'User-Agent': 'RequestLab'
     };
+    const tabId = `tab-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     return {
-      name: '',
-      method: 'GET',
-      url: 'https://api.github.com/repos/vuejs/vue',
-      headers,
-      enabledHeaders: syncEnabledHeaders(headers),
-      body: '',
-      queryParams: {},
-      formData: [{ key: '', value: '' }],
+      id: tabId,
+      name: name || `New Request ${Date.now()}`,
+      requestDetails: {
+        name: requestDetails?.name || '',
+        method: requestDetails?.method || 'GET',
+        url: requestDetails?.url || 'https://api.github.com/repos/vuejs/vue',
+        headers: requestDetails?.headers || defaultHeaders,
+        enabledHeaders: syncEnabledHeaders(requestDetails?.headers || defaultHeaders),
+        body: requestDetails?.body || '',
+        queryParams: requestDetails?.queryParams || {},
+        formData: requestDetails?.formData || [{ key: '', value: '' }],
+      },
+      response: null,
+      activeTab: 'headers',
+      bodyType: 'raw',
+      contentType: 'application/json',
+      isLoading: false,
+      error: null,
+      loadTestConfig: {
+        numUsers: 10,
+        requestsPerMinute: 60
+      },
+      loadTestResults: [],
+      isLoadTestRunning: false,
+      loadTestError: null,
+      trendData: null,
+      resultTab: 0,
     };
-  });
+  };
 
-  const [response, setResponse] = useState<ApiResponse | null>(() => {
-    const savedResponse = sessionStorage.getItem('apiTestingResponse');
-    return savedResponse ? JSON.parse(savedResponse) : null;
-  });
+  // Initialize tabs from sessionStorage or create default tab
+  const initializeTabs = (): { tabs: ApiRequestTab[]; activeTabId: string } => {
+    const savedTabs = sessionStorage.getItem('apiTestingTabs');
+    const savedActiveTabId = sessionStorage.getItem('apiTestingActiveTabId');
+    
+    if (savedTabs && savedActiveTabId) {
+      try {
+        const parsedTabs = JSON.parse(savedTabs);
+        const activeId = savedActiveTabId;
+        if (parsedTabs.length > 0 && parsedTabs.find((t: ApiRequestTab) => t.id === activeId)) {
+          return { tabs: parsedTabs, activeTabId: activeId };
+        }
+      } catch (e) {
+        console.error('Failed to parse saved tabs:', e);
+      }
+    }
+    
+    // Create default tab
+    const defaultTab = createNewTab('New Request');
+    return { tabs: [defaultTab], activeTabId: defaultTab.id };
+  };
 
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<ApiTestingTab>(() => getInitialTab());
-  const [bodyType, setBodyType] = useState<'none' | 'raw' | 'form-data' | 'x-www-form-urlencoded'>(() => {
-    const savedBodyType = sessionStorage.getItem('apiTestingBodyType');
-    return (savedBodyType as any) || 'raw';
-  });
-  const [contentType, setContentType] = useState(() => {
-    const savedContentType = sessionStorage.getItem('apiTestingContentType');
-    return savedContentType || 'application/json';
-  });
+  const { tabs: initialTabs, activeTabId: initialActiveTabId } = initializeTabs();
+  const [tabs, setTabs] = useState<ApiRequestTab[]>(initialTabs);
+  const [activeTabId, setActiveTabId] = useState<string>(initialActiveTabId);
+
+  // Helper to get active tab
+  const getActiveTab = (): ApiRequestTab | undefined => {
+    return tabs.find(t => t.id === activeTabId);
+  };
+
+  // Helper to update active tab
+  const updateActiveTab = (updater: (tab: ApiRequestTab) => ApiRequestTab) => {
+    setTabs(prevTabs => 
+      prevTabs.map(tab => 
+        tab.id === activeTabId ? updater(tab) : tab
+      )
+    );
+  };
+
+  // Get active tab data (for easier access)
+  const activeTabData = getActiveTab();
+  const requestDetails = activeTabData?.requestDetails || createNewTab().requestDetails;
+  const response = activeTabData?.response || null;
+  const isLoading = activeTabData?.isLoading || false;
+  const error = activeTabData?.error || null;
+  const activeTab = activeTabData?.activeTab || 'headers';
+  const bodyType = activeTabData?.bodyType || 'raw';
+  const contentType = activeTabData?.contentType || 'application/json';
+  const loadTestConfig = activeTabData?.loadTestConfig || { numUsers: 10, requestsPerMinute: 60 };
+  const loadTestResults = activeTabData?.loadTestResults || [];
+  const isLoadTestRunning = activeTabData?.isLoadTestRunning || false;
+  const loadTestError = activeTabData?.loadTestError || null;
+  const trendData = activeTabData?.trendData || null;
+  const resultTab = activeTabData?.resultTab || 0;
+
+  // Shared UI state (not per-tab)
   const [isResponsePanelVisible, setIsResponsePanelVisible] = useState(() => {
     const savedVisibility = sessionStorage.getItem('apiTestingResponseVisible');
     return savedVisibility ? JSON.parse(savedVisibility) : true;
@@ -266,23 +331,11 @@ const ApiTesting: React.FC = () => {
   const [isResponseExpanded, setIsResponseExpanded] = useState(false);
   const [responseTab, setResponseTab] = useState<'response' | 'network'>('response');
 
-  // Load testing states
-  const [loadTestConfig, setLoadTestConfig] = useState<LoadTestConfig>({
-    numUsers: 10,
-    requestsPerMinute: 60
-  });
-  const [loadTestResults, setLoadTestResults] = useState<LoadTestResult[]>([]);
-  const [isLoadTestRunning, setIsLoadTestRunning] = useState(false);
-  const [loadTestError, setLoadTestError] = useState<string | null>(null);
-  const [shouldStopLoadTest, setShouldStopLoadTest] = useState(false);
-
   // Use a ref to store active controllers to avoid dependency issues in useEffect
   const activeRequestsRef = useRef<AbortController[]>([]);
   // Use a ref to track the stop signal for immediate access in async functions
   const stopSignalRef = useRef(false);
-
-  const [trendData, setTrendData] = useState<TrendData | null>(null);
-  const [resultTab, setResultTab] = useState(0);
+  const [shouldStopLoadTest, setShouldStopLoadTest] = useState(false);
 
   // Add chart refs with proper types
   const lineChartRef = useRef<ChartJS<'line', { x: Date; y: number }[]> | null>(null);
@@ -296,29 +349,51 @@ const ApiTesting: React.FC = () => {
 
   const [isImportCurlOpen, setIsImportCurlOpen] = useState(false);
   const [curlInput, setCurlInput] = useState('');
+  const [editingTabId, setEditingTabId] = useState<string | null>(null);
 
-  // Save state to session storage whenever it changes
-  useEffect(() => {
-    sessionStorage.setItem('apiTestingState', JSON.stringify(requestDetails));
-  }, [requestDetails]);
+  // Tab management functions
+  const createTab = () => {
+    const newTab = createNewTab();
+    setTabs(prevTabs => [...prevTabs, newTab]);
+    setActiveTabId(newTab.id);
+  };
 
-  useEffect(() => {
-    if (response) {
-      sessionStorage.setItem('apiTestingResponse', JSON.stringify(response));
-    }
-  }, [response]);
+  const switchTab = (tabId: string) => {
+    setActiveTabId(tabId);
+  };
 
-  useEffect(() => {
-    sessionStorage.setItem('apiTestingActiveTab', activeTab);
-  }, [activeTab]);
+  const closeTab = (tabId: string) => {
+    setTabs(prevTabs => {
+      const filtered = prevTabs.filter(t => t.id !== tabId);
+      if (filtered.length === 0) {
+        // If no tabs left, create a new one
+        const newTab = createNewTab();
+        setActiveTabId(newTab.id);
+        return [newTab];
+      }
+      // If closing active tab, switch to another
+      if (tabId === activeTabId) {
+        const currentIndex = prevTabs.findIndex(t => t.id === tabId);
+        const newActiveIndex = currentIndex > 0 ? currentIndex - 1 : 0;
+        setActiveTabId(filtered[newActiveIndex]?.id || filtered[0].id);
+      }
+      return filtered;
+    });
+  };
 
-  useEffect(() => {
-    sessionStorage.setItem('apiTestingBodyType', bodyType);
-  }, [bodyType]);
+  const updateTabName = (tabId: string, name: string) => {
+    setTabs(prevTabs =>
+      prevTabs.map(tab =>
+        tab.id === tabId ? { ...tab, name } : tab
+      )
+    );
+  };
 
+  // Save tabs to session storage whenever they change
   useEffect(() => {
-    sessionStorage.setItem('apiTestingContentType', contentType);
-  }, [contentType]);
+    sessionStorage.setItem('apiTestingTabs', JSON.stringify(tabs));
+    sessionStorage.setItem('apiTestingActiveTabId', activeTabId);
+  }, [tabs, activeTabId]);
 
   useEffect(() => {
     sessionStorage.setItem('apiTestingResponseVisible', JSON.stringify(isResponsePanelVisible));
@@ -365,12 +440,11 @@ const ApiTesting: React.FC = () => {
     activeRequestsRef.current = [];
 
     // Set running state to false
-    setIsLoadTestRunning(false);
+    updateActiveTab(tab => ({ ...tab, isLoadTestRunning: false }));
   };
 
   const handleSendRequest = async () => {
-    setIsLoading(true);
-    setError(null);
+    updateActiveTab(tab => ({ ...tab, isLoading: true, error: null }));
     try {
       const startTime = Date.now();
       // Filter headers based on enabledHeaders
@@ -456,26 +530,36 @@ const ApiTesting: React.FC = () => {
       const endTime = Date.now();
 
       if (result.error) {
-        setError(result.error);
+        updateActiveTab(tab => ({
+          ...tab,
+          error: result.error || 'Failed to execute request',
+          isLoading: false
+        }));
         return;
       }
       
       const responseData = result.data as { response: unknown; status: number; headers: Record<string, string> };
-      setResponse({
-        status: responseData.status,
-        statusText: '',
-        headers: responseData.headers,
-        data: responseData.response as string | Record<string, unknown>,
-        time: endTime - startTime,
-        size: typeof responseData.response === 'string' 
-          ? responseData.response.length 
-          : JSON.stringify(responseData.response).length,
-        curlCommand: actualCurlCommand
-      });
+      updateActiveTab(tab => ({
+        ...tab,
+        response: {
+          status: responseData.status,
+          statusText: '',
+          headers: responseData.headers,
+          data: responseData.response as string | Record<string, unknown>,
+          time: endTime - startTime,
+          size: typeof responseData.response === 'string' 
+            ? responseData.response.length 
+            : JSON.stringify(responseData.response).length,
+          curlCommand: actualCurlCommand
+        },
+        isLoading: false
+      }));
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to execute request');
-    } finally {
-      setIsLoading(false);
+      updateActiveTab(tab => ({
+        ...tab,
+        error: e instanceof Error ? e.message : 'Failed to execute request',
+        isLoading: false
+      }));
     }
   };
 
@@ -487,38 +571,38 @@ const ApiTesting: React.FC = () => {
       try {
         const parsedCurl = parseCurlCommand(pastedText);
         
-        // Update all fields based on the parsed cURL
-        setRequestDetails(prev => ({
-          ...prev,
-          method: parsedCurl.method || 'GET',
-          url: parsedCurl.url || '',
-          headers: parsedCurl.headers || {},
-          body: parsedCurl.body || '',
-          queryParams: parsedCurl.queryParams || {}
-        }));
-        
         // Convert headers array to the format we use
-        const newHeaders = Object.entries(parsedCurl.headers).map(([key, value]) => ({
+        const newHeaders = Object.entries(parsedCurl.headers || {}).map(([key, value]) => ({
           key,
           value: value as string
         }));
-        setRequestDetails(prev => ({
-          ...prev,
-          headers: newHeaders.reduce((acc, h) => ({ ...acc, [h.key]: h.value }), {})
-        }));
+        const headersObj = newHeaders.reduce((acc, h) => ({ ...acc, [h.key]: h.value }), {});
         
-        // Set body type if present
-        if (parsedCurl.body) {
-          setBodyType('raw');
+        // Update all fields based on the parsed cURL
+        updateActiveTab(tab => {
+          const updatedHeaders = headersObj;
+          const updatedEnabledHeaders = syncEnabledHeaders(updatedHeaders, tab.requestDetails.enabledHeaders);
           
           // Try to detect content type from headers
           const contentTypeHeader = newHeaders.find(h => 
             h.key.toLowerCase() === 'content-type'
           );
-          if (contentTypeHeader) {
-            setContentType(contentTypeHeader.value);
-          }
-        }
+          
+          return {
+            ...tab,
+            requestDetails: {
+              ...tab.requestDetails,
+              method: parsedCurl.method || 'GET',
+              url: parsedCurl.url || '',
+              headers: updatedHeaders,
+              enabledHeaders: updatedEnabledHeaders,
+              body: parsedCurl.body || '',
+              queryParams: parsedCurl.queryParams || {}
+            },
+            bodyType: parsedCurl.body ? 'raw' : tab.bodyType,
+            contentType: contentTypeHeader ? contentTypeHeader.value : tab.contentType
+          };
+        });
         
         // Prevent the default paste behavior
         e.preventDefault();
@@ -530,42 +614,60 @@ const ApiTesting: React.FC = () => {
   };
 
   const handleMethodChange = (method: string) => {
-    setRequestDetails(prev => ({ ...prev, method }));
+    updateActiveTab(tab => ({
+      ...tab,
+      requestDetails: { ...tab.requestDetails, method }
+    }));
   };
 
   const handleUrlChange = (url: string) => {
-    setRequestDetails(prev => ({ ...prev, url }));
+    updateActiveTab(tab => ({
+      ...tab,
+      requestDetails: { ...tab.requestDetails, url }
+    }));
   };
 
   const handleHeaderToggle = (key: string) => {
-    setRequestDetails(prev => ({
-      ...prev,
-      enabledHeaders: {
-        ...prev.enabledHeaders,
-        [key]: !prev.enabledHeaders[key]
+    updateActiveTab(tab => ({
+      ...tab,
+      requestDetails: {
+        ...tab.requestDetails,
+        enabledHeaders: {
+          ...tab.requestDetails.enabledHeaders,
+          [key]: !tab.requestDetails.enabledHeaders[key]
+        }
       }
     }));
   };
 
   const handleHeaderChange = (key: string, value: string) => {
-    setRequestDetails(prev => ({
-      ...prev,
-      headers: { ...prev.headers, [key]: value },
-      enabledHeaders: {
-        ...prev.enabledHeaders,
-        [key]: true
+    updateActiveTab(tab => ({
+      ...tab,
+      requestDetails: {
+        ...tab.requestDetails,
+        headers: { ...tab.requestDetails.headers, [key]: value },
+        enabledHeaders: {
+          ...tab.requestDetails.enabledHeaders,
+          [key]: true
+        }
       }
     }));
   };
 
   const handleBodyChange = (body: string) => {
-    setRequestDetails(prev => ({ ...prev, body }));
+    updateActiveTab(tab => ({
+      ...tab,
+      requestDetails: { ...tab.requestDetails, body }
+    }));
   };
 
   const handleQueryParamChange = (key: string, value: string) => {
-    setRequestDetails(prev => ({
-      ...prev,
-      queryParams: { ...prev.queryParams, [key]: value }
+    updateActiveTab(tab => ({
+      ...tab,
+      requestDetails: {
+        ...tab.requestDetails,
+        queryParams: { ...tab.requestDetails.queryParams, [key]: value }
+      }
     }));
   };
 
@@ -606,7 +708,10 @@ const ApiTesting: React.FC = () => {
   };
 
   const handleLoadTestConfigChange = (field: keyof LoadTestConfig, value: number) => {
-    setLoadTestConfig(prev => ({ ...prev, [field]: value }));
+    updateActiveTab(tab => ({
+      ...tab,
+      loadTestConfig: { ...tab.loadTestConfig, [field]: value }
+    }));
   };
 
   const stopLoadTest = () => {
@@ -622,14 +727,18 @@ const ApiTesting: React.FC = () => {
       barChartRef.current.destroy();
     }
 
-    setTrendData(null);
+    updateActiveTab(tab => ({ ...tab, trendData: null }));
   };
 
   const runLoadTest = async () => {
     // Reset state before starting
-    setIsLoadTestRunning(true);
-    setLoadTestError(null);
-    setLoadTestResults([]);
+    updateActiveTab(tab => ({
+      ...tab,
+      isLoadTestRunning: true,
+      loadTestError: null,
+      loadTestResults: [],
+      trendData: null
+    }));
     setShouldStopLoadTest(false);
     stopSignalRef.current = false;
     activeRequestsRef.current = [];
@@ -805,7 +914,10 @@ const ApiTesting: React.FC = () => {
 
         // Don't add results if test was stopped
         if (!stopSignalRef.current) {
-          setLoadTestResults(prev => [...prev, result]);
+          updateActiveTab(tab => ({
+            ...tab,
+            loadTestResults: [...tab.loadTestResults, result]
+          }));
         }
 
         // Add think time between iterations, but check for stop condition
@@ -850,34 +962,42 @@ const ApiTesting: React.FC = () => {
       await Promise.all(vuPromises);
     } catch (error) {
       console.error('Load test error:', error);
-      setLoadTestError(error instanceof Error ? error.message : 'Failed to run load test');
+      updateActiveTab(tab => ({
+        ...tab,
+        loadTestError: error instanceof Error ? error.message : 'Failed to run load test',
+        isLoadTestRunning: false
+      }));
     } finally {
       // Ensure we reset state properly
-      if (!isLoadTestRunning) {
+      const activeTab = getActiveTab();
+      if (!activeTab?.isLoadTestRunning) {
         // Already stopped by user
         return;
       }
 
-      setIsLoadTestRunning(false);
-      if (stopSignalRef.current) {
-        // Add a message about the test being stopped
-        setLoadTestResults(prev => [
-          ...prev,
-          {
-            id: requestId++,
-            userId: 0,
-            method: requestDetails.method,
-            url: requestDetails.url,
-            startTime: 0,
-            endTime: 0,
-            duration: 0,
-            status: 0,
-            statusText: 'Stopped',
-            responseSize: 0,
-            error: 'Load test stopped by user'
-          }
-        ]);
-      }
+      updateActiveTab(tab => {
+        const updatedTab = { ...tab, isLoadTestRunning: false };
+        if (stopSignalRef.current) {
+          // Add a message about the test being stopped
+          updatedTab.loadTestResults = [
+            ...tab.loadTestResults,
+            {
+              id: requestId++,
+              userId: 0,
+              method: requestDetails.method,
+              url: requestDetails.url,
+              startTime: 0,
+              endTime: 0,
+              duration: 0,
+              status: 0,
+              statusText: 'Stopped',
+              responseSize: 0,
+              error: 'Load test stopped by user'
+            }
+          ];
+        }
+        return updatedTab;
+      });
     }
   };
 
@@ -970,13 +1090,14 @@ const ApiTesting: React.FC = () => {
 
   // Update trend data when results change
   useEffect(() => {
-    if (loadTestResults.length > 0) {
+    const activeTab = getActiveTab();
+    if (activeTab && activeTab.loadTestResults.length > 0) {
       const newTrendData = prepareTrendData();
       if (newTrendData) {
-        setTrendData(newTrendData);
+        updateActiveTab(tab => ({ ...tab, trendData: newTrendData }));
       }
-    } else {
-      setTrendData(null);
+    } else if (activeTab) {
+      updateActiveTab(tab => ({ ...tab, trendData: null }));
     }
   }, [loadTestResults]);
 
@@ -1224,7 +1345,7 @@ const ApiTesting: React.FC = () => {
         barChartRef.current.destroy();
       }
     }
-    setResultTab(newValue);
+    updateActiveTab(tab => ({ ...tab, resultTab: newValue }));
   };
 
   const handleMaximizeChart = (chartType: 'line' | 'bar') => {
@@ -1236,13 +1357,19 @@ const ApiTesting: React.FC = () => {
     if (!curlInput.trim()) return;
     try {
       const parsed = parseCurlCommand(curlInput);
-      setRequestDetails(prev => ({
-        ...prev,
-        method: parsed.method,
-        url: parsed.url,
-        headers: parsed.headers,
-        body: parsed.body || '',
-        queryParams: parsed.queryParams || {}
+      const headersObj = parsed.headers || {};
+      const updatedEnabledHeaders = syncEnabledHeaders(headersObj, getActiveTab()?.requestDetails.enabledHeaders);
+      updateActiveTab(tab => ({
+        ...tab,
+        requestDetails: {
+          ...tab.requestDetails,
+          method: parsed.method || 'GET',
+          url: parsed.url || '',
+          headers: headersObj,
+          enabledHeaders: updatedEnabledHeaders,
+          body: parsed.body || '',
+          queryParams: parsed.queryParams || {}
+        }
       }));
       setIsImportCurlOpen(false);
       setCurlInput('');
@@ -1310,33 +1437,40 @@ const ApiTesting: React.FC = () => {
     if (selectedApiId) {
       const api = apis.find(a => a.id === selectedApiId);
       if (api) {
-        setRequestDetails(prev => ({
-          ...prev,
-          name: api.name || '',
-          method: api.method || 'GET',
-          url: api.url || '',
-          headers: api.headers || {},
-          enabledHeaders: Object.keys(api.headers || {}).reduce((acc, key) => { acc[key] = true; return acc; }, {} as Record<string, boolean>),
-          body: api.body || '',
-          queryParams: api.params || {},
-          formData: api.formData ? api.formData.map(fd => ({ key: fd.key, value: fd.value || '' })) : [{ key: '', value: '' }],
+        updateActiveTab(tab => ({
+          ...tab,
+          requestDetails: {
+            ...tab.requestDetails,
+            name: api.name || '',
+            method: api.method || 'GET',
+            url: api.url || '',
+            headers: api.headers || {},
+            enabledHeaders: Object.keys(api.headers || {}).reduce((acc, key) => { acc[key] = true; return acc; }, {} as Record<string, boolean>),
+            body: api.body || '',
+            queryParams: api.params || {},
+            formData: api.formData ? api.formData.map(fd => ({ key: fd.key, value: fd.value || '' })) : [{ key: '', value: '' }],
+          },
+          bodyType: api.bodyMode === 'formdata' ? 'form-data' : api.bodyMode === 'raw' ? 'raw' : tab.bodyType,
+          response: null,
+          loadTestResults: [],
+          isLoadTestRunning: false,
+          loadTestError: null,
+          trendData: null,
+          resultTab: 0
         }));
-        // Set bodyType based on bodyMode
-        if (api.bodyMode === 'formdata') {
-          setBodyType('form-data');
-        } else if (api.bodyMode === 'raw') {
-          setBodyType('raw');
-        }
+      } else {
+        // Clear response and close response panel when switching APIs
+        updateActiveTab(tab => ({
+          ...tab,
+          response: null,
+          loadTestResults: [],
+          isLoadTestRunning: false,
+          loadTestError: null,
+          trendData: null,
+          resultTab: 0
+        }));
       }
-      // Clear response and close response panel when switching APIs
-      setResponse(null);
       setIsResponsePanelVisible(false);
-      // Clear load test state when switching APIs
-      setLoadTestResults([]);
-      setIsLoadTestRunning(false);
-      setLoadTestError(null);
-      setTrendData(null);
-      setResultTab(0);
       setShouldStopLoadTest(false);
       setTimeout(hideLoader, 400);
     }
@@ -1379,14 +1513,105 @@ const ApiTesting: React.FC = () => {
     <ThemeProvider theme={muiTheme}>
       <div className="h-screen flex bg-white dark:bg-gray-900">
         <div className={`flex-1 min-w-0 flex flex-col transition-all duration-300`} style={{ marginBottom: response && isResponsePanelVisible ? responsePanelHeight : 0 }}>
-          {/* Existing ApiTesting main content starts here */}
-      {/* Top Bar */}
+          {/* Tab Bar */}
+          <div className="flex items-center gap-1 px-2 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 overflow-x-auto">
+            {tabs.map((tab) => (
+              <div
+                key={tab.id}
+                className={`group flex items-center gap-2 px-3 py-2 border-b-2 transition-colors duration-200 ${
+                  tab.id === activeTabId
+                    ? 'border-orange-500 bg-white dark:bg-gray-900 text-orange-600 dark:text-orange-400'
+                    : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700'
+                }`}
+              >
+                <button
+                  onClick={() => {
+                    if (editingTabId !== tab.id) {
+                      switchTab(tab.id);
+                    }
+                  }}
+                  className="flex items-center gap-2 min-w-0 flex-1"
+                >
+                  {editingTabId === tab.id ? (
+                    <input
+                      type="text"
+                      value={tab.name}
+                      onChange={(e) => updateTabName(tab.id, e.target.value)}
+                      onBlur={() => {
+                        if (!tab.name.trim()) {
+                          updateTabName(tab.id, `New Request ${tab.id.slice(-6)}`);
+                        }
+                        setEditingTabId(null);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.currentTarget.blur();
+                        } else if (e.key === 'Escape') {
+                          setEditingTabId(null);
+                        }
+                      }}
+                      autoFocus
+                      className="bg-transparent border border-orange-500 rounded px-1 py-0 text-sm font-medium min-w-[100px] max-w-[200px] outline-none focus:outline-none focus:ring-1 focus:ring-orange-500"
+                      style={{ width: `${Math.max(100, tab.name.length * 8)}px` }}
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  ) : (
+                    <span className="text-sm font-medium min-w-[100px] max-w-[200px] truncate px-1">
+                      {tab.name}
+                    </span>
+                  )}
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setEditingTabId(tab.id);
+                  }}
+                  className={`p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded transition-all duration-200 ${
+                    editingTabId === tab.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                  }`}
+                  title="Edit tab name"
+                >
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                </button>
+                {tabs.length > 1 && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      closeTab(tab.id);
+                    }}
+                    className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded transition-colors duration-200"
+                    title="Close tab"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+            ))}
+            <button
+              onClick={createTab}
+              className="flex items-center justify-center px-3 py-2 text-gray-600 dark:text-gray-400 hover:text-orange-500 dark:hover:text-orange-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors duration-200"
+              title="New tab"
+            >
+              <Plus className="w-4 h-4" />
+            </button>
+          </div>
+          
+          {/* Top Bar */}
       <div className="flex items-center gap-2 p-4 border-b border-gray-200 dark:border-gray-700">
         {selectedApiId && (
           <input
             type="text"
             value={requestDetails.name || ''}
-            onChange={e => setRequestDetails(prev => ({ ...prev, name: e.target.value }))}
+            onChange={e => {
+              const newName = e.target.value;
+              updateActiveTab(tab => ({
+                ...tab,
+                name: newName,
+                requestDetails: { ...tab.requestDetails, name: newName }
+              }));
+            }}
             placeholder="API Name"
             className="px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white font-semibold w-48"
           />
@@ -1501,6 +1726,23 @@ const ApiTesting: React.FC = () => {
         )}
       </div>
 
+      {/* Sub-Tab Navigation */}
+      <div className="flex border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+        {(['params', 'headers', 'body', 'pre-request', 'tests', 'load-test'] as ApiTestingTab[]).map((tab) => (
+          <button
+            key={tab}
+            onClick={() => updateActiveTab(t => ({ ...t, activeTab: tab }))}
+            className={`px-4 py-2 text-sm font-medium transition-colors duration-200 ${
+              activeTab === tab
+                ? 'text-orange-600 dark:text-orange-400 border-b-2 border-orange-500'
+                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+            }`}
+          >
+            {tab === 'pre-request' ? 'Pre-request' : tab === 'load-test' ? 'Load Test' : tab.charAt(0).toUpperCase() + tab.slice(1)}
+          </button>
+        ))}
+      </div>
+
       {/* Main Content */}
           <div className="flex-1 py-4 pl-4 overflow-hidden">
             {activeTab === 'params' && (
@@ -1583,10 +1825,13 @@ const ApiTesting: React.FC = () => {
                                 delete newEnabledHeaders[key];
                             newHeaders[newKey] = value;
                                 newEnabledHeaders[newKey] = true;
-                            setRequestDetails(prev => ({
-                              ...prev,
-                                  headers: newHeaders,
-                                  enabledHeaders: newEnabledHeaders
+                            updateActiveTab(tab => ({
+                              ...tab,
+                              requestDetails: {
+                                ...tab.requestDetails,
+                                headers: newHeaders,
+                                enabledHeaders: newEnabledHeaders
+                              }
                             }));
                           }}
                               className="col-span-3 p-2 border rounded dark:bg-gray-800 dark:border-gray-700 dark:text-white truncate"
@@ -1611,10 +1856,13 @@ const ApiTesting: React.FC = () => {
                                   const newEnabledHeaders = { ...requestDetails.enabledHeaders };
                               delete newHeaders[key];
                                   delete newEnabledHeaders[key];
-                              setRequestDetails(prev => ({
-                                ...prev,
-                                    headers: newHeaders,
-                                    enabledHeaders: newEnabledHeaders
+                              updateActiveTab(tab => ({
+                                ...tab,
+                                requestDetails: {
+                                  ...tab.requestDetails,
+                                  headers: newHeaders,
+                                  enabledHeaders: newEnabledHeaders
+                                }
                               }));
                             }}
                             className="ml-2 p-2 text-red-500 hover:text-red-600 dark:text-red-400 flex-shrink-0"
@@ -1632,10 +1880,13 @@ const ApiTesting: React.FC = () => {
                   <button
                     onClick={() => {
                       const newKey = `header-${Object.keys(requestDetails.headers).length + 1}`;
-                      setRequestDetails(prev => ({
-                        ...prev,
-                            headers: { ...prev.headers, [newKey]: '' },
-                            enabledHeaders: { ...prev.enabledHeaders, [newKey]: true }
+                      updateActiveTab(tab => ({
+                        ...tab,
+                        requestDetails: {
+                          ...tab.requestDetails,
+                          headers: { ...tab.requestDetails.headers, [newKey]: '' },
+                          enabledHeaders: { ...tab.requestDetails.enabledHeaders, [newKey]: true }
+                        }
                       }));
                     }}
                     className="flex items-center text-orange-500 hover:text-orange-600 dark:text-orange-400"
@@ -1653,7 +1904,7 @@ const ApiTesting: React.FC = () => {
               <div className="space-y-4 h-[calc(100vh-30rem)] overflow-y-auto">
                 <div className="flex space-x-4">
                   <button
-                    onClick={() => setBodyType('raw')}
+                    onClick={() => updateActiveTab(tab => ({ ...tab, bodyType: 'raw' }))}
                     className={`px-3 py-1 text-sm font-medium ${bodyType === 'raw'
                       ? 'text-orange-600 border-b-2 border-orange-500'
                       : 'text-gray-500 hover:text-gray-700'
@@ -1662,7 +1913,7 @@ const ApiTesting: React.FC = () => {
                     raw
                   </button>
                   <button
-                    onClick={() => setBodyType('form-data')}
+                    onClick={() => updateActiveTab(tab => ({ ...tab, bodyType: 'form-data' }))}
                     className={`px-3 py-1 text-sm font-medium ${bodyType === 'form-data'
                       ? 'text-orange-600 border-b-2 border-orange-500'
                       : 'text-gray-500 hover:text-gray-700'
@@ -1671,7 +1922,7 @@ const ApiTesting: React.FC = () => {
                     form-data
                   </button>
                   <button
-                    onClick={() => setBodyType('x-www-form-urlencoded')}
+                    onClick={() => updateActiveTab(tab => ({ ...tab, bodyType: 'x-www-form-urlencoded' }))}
                     className={`px-3 py-1 text-sm font-medium ${bodyType === 'x-www-form-urlencoded'
                       ? 'text-orange-600 border-b-2 border-orange-500'
                       : 'text-gray-500 hover:text-gray-700'
@@ -1685,7 +1936,7 @@ const ApiTesting: React.FC = () => {
                     <div className="flex items-center space-x-2 mb-2">
                       <select
                         value={contentType}
-                        onChange={(e) => setContentType(e.target.value as any)}
+                        onChange={(e) => updateActiveTab(tab => ({ ...tab, contentType: e.target.value }))}
                         className="p-1 border rounded text-sm dark:bg-gray-800 dark:border-gray-700 dark:text-white"
                       >
                         <option>application/json</option>
@@ -1713,7 +1964,10 @@ const ApiTesting: React.FC = () => {
                           onChange={e => {
                             const newFormData = [...(requestDetails.formData || [])];
                             newFormData[idx].key = e.target.value;
-                            setRequestDetails(prev => ({ ...prev, formData: newFormData }));
+                            updateActiveTab(tab => ({
+                              ...tab,
+                              requestDetails: { ...tab.requestDetails, formData: newFormData }
+                            }));
                           }}
                           className="w-1/3 p-2 border rounded dark:bg-gray-800 dark:border-gray-700 dark:text-white"
                           placeholder="Key"
@@ -1727,7 +1981,10 @@ const ApiTesting: React.FC = () => {
                               if (e.target.value === 'file') {
                                 newFormData[idx].value = '';
                               }
-                              setRequestDetails(prev => ({ ...prev, formData: newFormData }));
+                              updateActiveTab(tab => ({
+                              ...tab,
+                              requestDetails: { ...tab.requestDetails, formData: newFormData }
+                            }));
                             }}
                             className="w-24 p-2 border rounded dark:bg-gray-800 dark:border-gray-700 dark:text-white"
                           >
@@ -1744,7 +2001,10 @@ const ApiTesting: React.FC = () => {
                                     const newFormData = [...(requestDetails.formData || [])];
                                     newFormData[idx].value = file.name;
                                     newFormData[idx].src = URL.createObjectURL(file);
-                                    setRequestDetails(prev => ({ ...prev, formData: newFormData }));
+                                    updateActiveTab(tab => ({
+                              ...tab,
+                              requestDetails: { ...tab.requestDetails, formData: newFormData }
+                            }));
                                   }
                                 }}
                                 className="flex-1 p-2 border rounded dark:bg-gray-800 dark:border-gray-700 dark:text-white"
@@ -1757,7 +2017,10 @@ const ApiTesting: React.FC = () => {
                               onChange={e => {
                                 const newFormData = [...(requestDetails.formData || [])];
                                 newFormData[idx].value = e.target.value;
-                                setRequestDetails(prev => ({ ...prev, formData: newFormData }));
+                                updateActiveTab(tab => ({
+                              ...tab,
+                              requestDetails: { ...tab.requestDetails, formData: newFormData }
+                            }));
                               }}
                               className="flex-1 p-2 border rounded dark:bg-gray-800 dark:border-gray-700 dark:text-white"
                               placeholder="Value"
@@ -1769,7 +2032,10 @@ const ApiTesting: React.FC = () => {
                           onClick={() => {
                             const newFormData = [...(requestDetails.formData || [])];
                             newFormData.splice(idx, 1);
-                            setRequestDetails(prev => ({ ...prev, formData: newFormData.length ? newFormData : [{ key: '', value: '', type: 'text' }] }));
+                            updateActiveTab(tab => ({
+                          ...tab,
+                          requestDetails: { ...tab.requestDetails, formData: newFormData.length ? newFormData : [{ key: '', value: '', type: 'text' }] }
+                        }));
                           }}
                           className="px-2 py-1 text-xs text-red-500 hover:text-red-700"
                         >
@@ -1780,7 +2046,10 @@ const ApiTesting: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => {
-                        setRequestDetails(prev => ({ ...prev, formData: [...(prev.formData || []), { key: '', value: '', type: 'text' }] }));
+                        updateActiveTab(tab => ({
+                          ...tab,
+                          requestDetails: { ...tab.requestDetails, formData: [...(tab.requestDetails.formData || []), { key: '', value: '', type: 'text' }] }
+                        }));
                       }}
                       className="px-3 py-1 text-xs text-orange-600 hover:text-orange-800 border border-orange-200 rounded"
                     >

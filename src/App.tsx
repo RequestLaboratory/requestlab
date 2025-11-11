@@ -458,7 +458,7 @@ function AppContent() {
                 </div>
               </button>
 
-              {showCollections && (
+              {/* {showCollections && (
                 <div
                   className="ml-4 mt-1 max-h-[50vh] overflow-y-auto overflow-x-hidden"
                   style={{
@@ -475,7 +475,7 @@ function AppContent() {
                     <CollectionsSidebar />
                   </div>
                 </div>
-              )}
+              )} */}
 
               <button
                 onClick={() => navigate('/json-compare')}

@@ -444,7 +444,7 @@ const CollectionsSidebar: React.FC = () => {
     <>
       <div className="flex flex-col h-full">
         {/* Header Actions */}
-        <div className="w-64 p-3 border-b border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800"
+        {/* <div className="w-64 p-3 border-b border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800"
             style={{
                 marginLeft: '-1.4rem',
                 position: 'fixed',
@@ -478,10 +478,10 @@ const CollectionsSidebar: React.FC = () => {
           {importError && (
             <div className="mt-2 text-xs text-red-500">{importError}</div>
           )}
-        </div>
+        </div> */}
 
         {/* Collections List */}
-        <div className="flex-1 overflow-y-auto"
+        {/* <div className="flex-1 overflow-y-auto"
         style={{
             marginTop: '3rem',
         }}
@@ -632,7 +632,7 @@ const CollectionsSidebar: React.FC = () => {
               })}
             </div>
           )}
-        </div>
+        </div> */}
       </div>
       {/* Render modals at the bottom so they are always present */}
       <NewCollectionModal
