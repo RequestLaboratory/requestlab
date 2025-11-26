@@ -48,7 +48,7 @@ export default function InterceptorList({ onSelectInterceptor, onCreateIntercept
         onInterceptorCountChange(response.data.length);
       }
     } catch (err: unknown) {
-      const error = err as { response?: { status?: number; data?: { message?: string } }; userMessage?: string; message?: string };
+      const error = err as { response?: { status?: number; data?: { message?: string } }; userMessage?: string; message?: string; code?: string };
       // Don't set error for 401 if user is not logged in - let the login prompt handle it
       const hasSession = localStorage.getItem('sessionId');
       if (error.response?.status === 401 && (!user && !hasSession)) {
@@ -58,7 +58,16 @@ export default function InterceptorList({ onSelectInterceptor, onCreateIntercept
       } else if (error.response?.status === 404) {
         setError(error.userMessage || 'Interceptors not found.');
       } else {
-        setError(error.response?.data?.message || error.message || 'Failed to fetch interceptors');
+        // Check for timeout errors
+        const isTimeout = error.code === 'ECONNABORTED' || 
+                         error.code === 'ETIMEDOUT' || 
+                         error.message?.toLowerCase().includes('timeout') ||
+                         error.message?.toLowerCase().includes('network error');
+        if (isTimeout) {
+          setError('TIMEOUT'); // Special marker for timeout errors
+        } else {
+          setError(error.response?.data?.message || error.message || 'Failed to fetch interceptors');
+        }
       }
     } finally {
       setLoading(false);
@@ -172,6 +181,36 @@ export default function InterceptorList({ onSelectInterceptor, onCreateIntercept
   }
 
   if (error) {
+    // Show reload button for timeout errors
+    if (error === 'TIMEOUT') {
+      return (
+        <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+          <div className="text-center">
+            <button
+              onClick={() => fetchInterceptors()}
+              className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-orange-500 hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-400 transition-colors duration-200"
+            >
+              <svg
+                className="mr-2 h-5 w-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                />
+              </svg>
+              Reload Interceptors
+            </button>
+          </div>
+        </div>
+      );
+    }
+    
+    // Show regular error for other errors
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
         <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">

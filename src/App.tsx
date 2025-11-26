@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useContext } from 'react';
-import { BrowserRouter as Router, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useNavigate, useLocation, Link } from 'react-router-dom';
 import { useJsonComparison } from './hooks/useJsonComparison';
 import { useCurlComparison } from './hooks/useCurlComparison';
 import JsonInput from './components/JsonInput';
@@ -320,27 +320,8 @@ function AppContent() {
     }
   }, []);
 
-  // Update activePage based on current route, but only if there's no session in URL
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const sessionId = urlParams.get('session');
-    
-    // Only navigate if there's no session in URL
-    if (!sessionId) {
-      if (location.pathname === '/') {
-        navigate('/');
-      } else if (location.pathname === '/api-testing') {
-        navigate('/api-testing');
-        setShowWelcomePopup(true);
-      } else if (location.pathname === '/json-compare') {
-        navigate('/json-compare');
-      } else if (location.pathname === '/api-interceptor') {
-        navigate('/api-interceptor');
-      } else if (location.pathname === '/sql-compare') {
-        navigate('/sql-compare');
-      }
-    }
-  }, [location.pathname, navigate]);
+  // No need to navigate - React Router handles routing automatically
+  // This useEffect was causing redundant navigations that prevented pages from loading
 
   // Handle welcome popup close
   const handleWelcomePopupClose = () => {
@@ -356,6 +337,9 @@ function AppContent() {
       if (lastShown !== today) {
         setShowWelcomePopup(true);
       }
+    } else {
+      // Close welcome popup when navigating away from api-testing
+      setShowWelcomePopup(false);
     }
   }, [location.pathname]);
 
@@ -434,9 +418,14 @@ function AppContent() {
               </button>
             </div>
 
-            <nav className="flex flex-col space-y-2">
-              <button
-                onClick={() => navigate('/api-testing')}
+            <nav className="flex flex-col space-y-2"
+              style={{
+                height: '70vh',
+                overflow: 'hidden',
+              }}
+            >
+              <Link
+                to="/api-testing"
                 className={`group relative flex items-center rounded-lg p-2.5 ${
                   location.pathname === '/api-testing'
                     ? 'bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400'
@@ -456,9 +445,9 @@ function AppContent() {
                     API Testing
                   </span>
                 </div>
-              </button>
+              </Link>
 
-              {/* {showCollections && (
+              {showCollections && (
                 <div
                   className="ml-4 mt-1 max-h-[50vh] overflow-y-auto overflow-x-hidden"
                   style={{
@@ -475,10 +464,10 @@ function AppContent() {
                     <CollectionsSidebar />
                   </div>
                 </div>
-              )} */}
+              )}
 
-              <button
-                onClick={() => navigate('/json-compare')}
+              <Link
+                to="/json-compare"
                 className={`group relative flex items-center rounded-lg p-2.5 ${
                   location.pathname === '/json-compare'
                     ? 'bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400'
@@ -498,10 +487,10 @@ function AppContent() {
                     cURL / JSON Compare
                   </span>
                 </div>
-              </button>
+              </Link>
 
-              <button
-                onClick={() => navigate('/api-interceptor')}
+              <Link
+                to="/api-interceptor"
                 className={`group relative flex items-center rounded-lg p-2.5 ${
                   location.pathname === '/api-interceptor'
                     ? 'bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400'
@@ -521,10 +510,10 @@ function AppContent() {
                     API Interceptor
                   </span>
                 </div>
-              </button>
+              </Link>
 
-              <button
-                onClick={() => navigate('/sql-compare')}
+              <Link
+                to="/sql-compare"
                 className={`group relative flex items-center rounded-lg p-2.5 ${
                   location.pathname === '/sql-compare'
                     ? 'bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400'
@@ -545,13 +534,19 @@ function AppContent() {
                     MySQL Compare
                   </span>
                 </div>
-              </button>
+              </Link>
 
               <Documentation />
             </nav>
 
             {/* Login Button and Dark Mode Toggle at bottom */}
-            <div className="mt-auto pt-4 border-t border-gray-200 dark:border-gray-700 space-y-2">
+            <div className="mt-auto pt-4 border-t border-gray-200 dark:border-gray-700 space-y-2" 
+            style={{ 
+              position: 'fixed',
+              bottom: 0,
+              width: '16rem', 
+            }}
+            >
               <LoginButton />
               <button
                 onClick={toggleTheme}
@@ -586,10 +581,11 @@ function AppContent() {
           }
         `}</style>
         {isLoading && <Loader />}
-        <Routes>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/api-testing" element={<ApiTesting />} />
-          <Route path="/json-compare" element={
+        <div key={location.pathname}>
+          <Routes>
+            <Route path="/" element={<HomePage />} />
+            <Route path="/api-testing" element={<ApiTesting />} />
+            <Route path="/json-compare" element={
             <div className="h-full overflow-auto">
               <div className="max-w-7xl mx-auto p-6">
                 <div className="mb-8">
@@ -670,12 +666,13 @@ function AppContent() {
                 </div>
               </div>
             </div>
-          } />
-          <Route path="/api-interceptor" element={<ApiInterceptor />} />
-          <Route path="/interceptors/:id/logs" element={<InterceptorLogs />} />
-          <Route path="/sql-compare" element={<SQLCompare />} />
-          <Route path="/documentation" element={<DocumentationPage />} />
-        </Routes>
+            } />
+            <Route path="/api-interceptor" element={<ApiInterceptor />} />
+            <Route path="/interceptors/:id/logs" element={<InterceptorLogs />} />
+            <Route path="/sql-compare" element={<SQLCompare />} />
+            <Route path="/documentation" element={<DocumentationPage />} />
+          </Routes>
+        </div>
       </div>
 
       {/* Add FloatingButton */}

@@ -1,7 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { Plus, Upload, ChevronRight, ArrowDownToLine, Folder, FolderOpen, Globe, Trash2 } from 'lucide-react';
 import { useApiCollections } from '../contexts/ApiCollectionsContext';
-import { useLoader } from '../contexts/LoaderContext';
 
 const methodColors: Record<string, { bg: string; text: string; border: string }> = {
   GET: { bg: 'bg-emerald-50 dark:bg-emerald-900/20', text: 'text-emerald-600 dark:text-emerald-400', border: 'border-emerald-200 dark:border-emerald-700' },
@@ -265,7 +264,7 @@ const CollectionsSidebar: React.FC = () => {
     unsavedApiIds,
     deleteCollection,
   } = useApiCollections();
-  const { showLoader } = useLoader();
+  // Loader removed - no longer needed
 
   const [expanded, setExpanded] = useState<Record<number, boolean>>({});
   const [isNewCollectionOpen, setIsNewCollectionOpen] = useState(false);
@@ -444,7 +443,7 @@ const CollectionsSidebar: React.FC = () => {
     <>
       <div className="flex flex-col h-full">
         {/* Header Actions */}
-        {/* <div className="w-64 p-3 border-b border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800"
+        <div className="w-64 p-3 border-b border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800"
             style={{
                 marginLeft: '-1.4rem',
                 position: 'fixed',
@@ -478,10 +477,10 @@ const CollectionsSidebar: React.FC = () => {
           {importError && (
             <div className="mt-2 text-xs text-red-500">{importError}</div>
           )}
-        </div> */}
+        </div>
 
         {/* Collections List */}
-        {/* <div className="flex-1 overflow-y-auto"
+        <div className="flex-1 overflow-y-auto"
         style={{
             marginTop: '3rem',
         }}
@@ -522,7 +521,6 @@ const CollectionsSidebar: React.FC = () => {
                           : 'hover:bg-gray-100 dark:hover:bg-gray-700/50 text-gray-700 dark:text-gray-300 hover:shadow-sm'
                       }`}
                       onClick={() => {
-                        showLoader();
                         selectCollection(collection.id!);
                         if (!isExpanded) {
                           toggleExpand(collection.id!);
@@ -602,7 +600,6 @@ const CollectionsSidebar: React.FC = () => {
                                 }`}
                                 style={{ animationDelay: `${apiIndex * 50}ms` }}
                                 onClick={() => {
-                                  showLoader();
                                   selectCollection(collection.id!);
                                   selectApi(api.id!);
                                 }}
@@ -615,12 +612,16 @@ const CollectionsSidebar: React.FC = () => {
                                     <Globe className="w-3 h-3 mr-2 text-gray-400 flex-shrink-0 transition-colors duration-200 group-hover:text-gray-500" />
                                     <span className="text-sm font-medium text-gray-900 dark:text-white truncate">
                                       {api.name}
-                                      {unsavedApiIds.has(api.id!) && (
-                                        <span className="ml-2 inline-block w-2.5 h-2.5 rounded-full bg-orange-500 animate-pulse align-middle" style={{ boxShadow: '0 0 2px 0.5px #fb923c' }} title="Unsaved changes" />
-                                      )}
                                     </span>
                                   </div>
                                 </div>
+                                {unsavedApiIds.has(api.id!) && (
+                                  <div
+                                    className="ml-2 w-2.5 h-2.5 rounded-full bg-orange-500 flex-shrink-0"
+                                    style={{ boxShadow: '0 0 2px 0.5px #fb923c' }}
+                                    title="Unsaved changes"
+                                  />
+                                )}
                               </div>
                             );
                           })
@@ -632,7 +633,7 @@ const CollectionsSidebar: React.FC = () => {
               })}
             </div>
           )}
-        </div> */}
+        </div>
       </div>
       {/* Render modals at the bottom so they are always present */}
       <NewCollectionModal

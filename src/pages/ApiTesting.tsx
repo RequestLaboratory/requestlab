@@ -24,7 +24,7 @@ import 'chartjs-adapter-date-fns';
 import { ThemeContext } from '../contexts/ThemeContext';
 import LoadTestTab from '../components/api-testing/LoadTestTab';
 import { useApiCollections } from '../contexts/ApiCollectionsContext';
-import { useLoader } from '../contexts/LoaderContext';
+import { toast } from 'react-toastify';
 
 // Register ChartJS components
 ChartJS.register(
@@ -157,6 +157,7 @@ const getInitialTab = (): ApiTestingTab => {
 interface ApiRequestTab {
   id: string;
   name: string;
+  apiId?: number; // Store the API ID this tab corresponds to
   requestDetails: RequestDetails & { formData?: { key: string; value: string }[] };
   response: ApiResponse | null;
   activeTab: ApiTestingTab;
@@ -175,6 +176,7 @@ interface ApiRequestTab {
 const ApiTesting: React.FC = () => {
   const { isDarkMode } = useContext(ThemeContext);
   const {
+    collections,
     apis,
     selectedApiId,
     addApi,
@@ -184,7 +186,7 @@ const ApiTesting: React.FC = () => {
     markApiUnsaved,
     unmarkApiUnsaved,
   } = useApiCollections();
-  const { showLoader, hideLoader } = useLoader();
+  // Loader removed - no longer needed when switching APIs
 
   // Create MUI theme based on dark/light mode
   const muiTheme = createTheme({
@@ -223,21 +225,26 @@ const ApiTesting: React.FC = () => {
   });
 
   // Helper function to create a new tab
-  const createNewTab = (name?: string, requestDetails?: Partial<RequestDetails>): ApiRequestTab => {
+  const createNewTab = (name?: string, requestDetails?: Partial<RequestDetails>, isFresh: boolean = false): ApiRequestTab => {
     const defaultHeaders = {
       'Accept': 'application/vnd.github.v3+json',
       'User-Agent': 'RequestLab'
     };
     const tabId = `tab-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    
+    // For fresh tabs, use empty URL and minimal defaults
+    const url = isFresh ? '' : (requestDetails?.url || 'https://api.github.com/repos/vuejs/vue');
+    const headers = isFresh ? {} : (requestDetails?.headers || defaultHeaders);
+    
     return {
       id: tabId,
-      name: name || `New Request ${Date.now()}`,
+      name: name || (isFresh ? 'New Request' : `New Request ${Date.now()}`),
       requestDetails: {
         name: requestDetails?.name || '',
         method: requestDetails?.method || 'GET',
-        url: requestDetails?.url || 'https://api.github.com/repos/vuejs/vue',
-        headers: requestDetails?.headers || defaultHeaders,
-        enabledHeaders: syncEnabledHeaders(requestDetails?.headers || defaultHeaders),
+        url: url,
+        headers: headers,
+        enabledHeaders: syncEnabledHeaders(headers),
         body: requestDetails?.body || '',
         queryParams: requestDetails?.queryParams || {},
         formData: requestDetails?.formData || [{ key: '', value: '' }],
@@ -336,6 +343,10 @@ const ApiTesting: React.FC = () => {
   // Use a ref to track the stop signal for immediate access in async functions
   const stopSignalRef = useRef(false);
   const [shouldStopLoadTest, setShouldStopLoadTest] = useState(false);
+  // Use a ref to track the last selectedApiId to prevent duplicate tab creation
+  const lastSelectedApiIdRef = useRef<number | null>(null);
+  // Use a ref to track if we've auto-selected an API on initial load
+  const hasAutoSelectedRef = useRef(false);
 
   // Add chart refs with proper types
   const lineChartRef = useRef<ChartJS<'line', { x: Date; y: number }[]> | null>(null);
@@ -350,10 +361,12 @@ const ApiTesting: React.FC = () => {
   const [isImportCurlOpen, setIsImportCurlOpen] = useState(false);
   const [curlInput, setCurlInput] = useState('');
   const [editingTabId, setEditingTabId] = useState<string | null>(null);
+  const [isAddToCollectionOpen, setIsAddToCollectionOpen] = useState(false);
+  const [selectedCollectionIdForAdd, setSelectedCollectionIdForAdd] = useState<number | ''>('');
 
   // Tab management functions
   const createTab = () => {
-    const newTab = createNewTab();
+    const newTab = createNewTab(undefined, undefined, true); // Create fresh tab without sample URL
     setTabs(prevTabs => [...prevTabs, newTab]);
     setActiveTabId(newTab.id);
   };
@@ -1374,7 +1387,45 @@ const ApiTesting: React.FC = () => {
       setIsImportCurlOpen(false);
       setCurlInput('');
     } catch (error) {
-      alert('Invalid cURL command');
+      toast.error('Invalid cURL command', {
+        position: 'bottom-right',
+        autoClose: 3000,
+      });
+    }
+  };
+
+  const handleAddToCollection = async () => {
+    if (!selectedCollectionIdForAdd || !requestDetails.name) {
+      toast.error('Please select a collection and ensure the API has a name', {
+        position: 'bottom-right',
+        autoClose: 3000,
+      });
+      return;
+    }
+    
+    try {
+      await addApi({
+        collectionId: selectedCollectionIdForAdd,
+        name: requestDetails.name,
+        method: requestDetails.method,
+        url: requestDetails.url,
+        headers: requestDetails.headers,
+        body: requestDetails.body,
+        params: requestDetails.queryParams,
+        formData: requestDetails.formData,
+        bodyMode: bodyType === 'form-data' ? 'formdata' : bodyType === 'raw' ? 'raw' : undefined,
+      });
+      setIsAddToCollectionOpen(false);
+      setSelectedCollectionIdForAdd('');
+      toast.success('API added to collection successfully!', {
+        position: 'bottom-right',
+        autoClose: 3000,
+      });
+    } catch (error) {
+      toast.error('Failed to add API to collection: ' + (error instanceof Error ? error.message : 'Unknown error'), {
+        position: 'bottom-right',
+        autoClose: 3000,
+      });
     }
   };
 
@@ -1416,9 +1467,14 @@ const ApiTesting: React.FC = () => {
     }
   }, [isResizing]);
 
-  // Auto-select the first API in the first collection on first load if none selected
+  // Auto-select the first API in the first collection on first load only (when no tabs exist or only default tab)
   useEffect(() => {
-    if (!selectedApiId && apis.length > 0) {
+    // Only auto-select on initial load when:
+    // 1. No API is selected
+    // 2. APIs exist
+    // 3. We haven't auto-selected before
+    // 4. There's only the default tab (meaning it's initial load)
+    if (!selectedApiId && apis.length > 0 && !hasAutoSelectedRef.current && tabs.length === 1 && tabs[0].name.startsWith('New Request')) {
       // Find the first API in the first collection
       // Sort collections by id to ensure order
       const collections = Array.from(new Set(apis.map(api => api.collectionId))).sort((a, b) => a - b);
@@ -1426,55 +1482,67 @@ const ApiTesting: React.FC = () => {
         const firstCollectionId = collections[0];
         const firstApi = apis.find(api => api.collectionId === firstCollectionId);
         if (firstApi && typeof firstApi.id === 'number') {
+          hasAutoSelectedRef.current = true;
           selectApi(firstApi.id);
         }
       }
     }
-  }, [apis, selectedApiId, selectApi]);
+  }, [apis.length, selectedApiId, tabs.length, selectApi]); // Include necessary dependencies but use ref to prevent re-running
 
-  // When selectedApiId changes, load API details including name
+  // When selectedApiId changes (from sidebar selection), create a new tab with API details
   useEffect(() => {
-    if (selectedApiId) {
+    if (selectedApiId && selectedApiId !== lastSelectedApiIdRef.current) {
+      lastSelectedApiIdRef.current = selectedApiId;
       const api = apis.find(a => a.id === selectedApiId);
       if (api) {
-        updateActiveTab(tab => ({
-          ...tab,
-          requestDetails: {
-            ...tab.requestDetails,
-            name: api.name || '',
-            method: api.method || 'GET',
-            url: api.url || '',
-            headers: api.headers || {},
-            enabledHeaders: Object.keys(api.headers || {}).reduce((acc, key) => { acc[key] = true; return acc; }, {} as Record<string, boolean>),
-            body: api.body || '',
-            queryParams: api.params || {},
-            formData: api.formData ? api.formData.map(fd => ({ key: fd.key, value: fd.value || '' })) : [{ key: '', value: '' }],
-          },
-          bodyType: api.bodyMode === 'formdata' ? 'form-data' : api.bodyMode === 'raw' ? 'raw' : tab.bodyType,
-          response: null,
-          loadTestResults: [],
-          isLoadTestRunning: false,
-          loadTestError: null,
-          trendData: null,
-          resultTab: 0
-        }));
-      } else {
-        // Clear response and close response panel when switching APIs
-        updateActiveTab(tab => ({
-          ...tab,
-          response: null,
-          loadTestResults: [],
-          isLoadTestRunning: false,
-          loadTestError: null,
-          trendData: null,
-          resultTab: 0
-        }));
+        // Check if a tab for this API already exists (by API ID)
+        setTabs(prevTabs => {
+          const existingTab = prevTabs.find(tab => tab.apiId === api.id);
+          
+          if (existingTab) {
+            // Switch to existing tab instead of creating duplicate
+            setActiveTabId(existingTab.id);
+            return prevTabs;
+          }
+          
+          // Create a new tab with API details (only when explicitly selected from sidebar)
+          const newTab = createNewTab(
+            api.name || 'Untitled API',
+            {
+              name: api.name || '',
+              method: api.method || 'GET',
+              url: api.url || '',
+              headers: api.headers || {},
+              body: api.body || '',
+              queryParams: api.params || {},
+              formData: api.formData ? api.formData.map(fd => ({ 
+                key: fd.key, 
+                value: fd.value || '',
+                type: (fd.type === 'file' ? 'file' : 'text') as 'text' | 'file',
+                src: fd.src
+              })) : [{ key: '', value: '' }],
+            },
+            false
+          );
+          
+          // Store the API ID in the tab
+          newTab.apiId = api.id;
+          
+          // Set body type based on API
+          if (api.bodyMode === 'formdata') {
+            newTab.bodyType = 'form-data';
+          } else if (api.bodyMode === 'raw') {
+            newTab.bodyType = 'raw';
+          }
+          
+          setActiveTabId(newTab.id);
+          setIsResponsePanelVisible(false);
+          setShouldStopLoadTest(false);
+          return [...prevTabs, newTab];
+        });
       }
-      setIsResponsePanelVisible(false);
-      setShouldStopLoadTest(false);
-      setTimeout(hideLoader, 400);
     }
-  }, [selectedApiId, apis]);
+  }, [selectedApiId]); // Removed 'apis' from dependencies to prevent re-running when apis array updates
 
   // Auto-manage response panel visibility on tab or response change
   useEffect(() => {
@@ -1489,36 +1557,151 @@ const ApiTesting: React.FC = () => {
     }
   }, [activeTab, response]);
 
-  // Track unsaved changes for the current API
+  // Track unsaved changes and auto-save for the current API
+  const lastSavedRef = useRef<string>('');
+  const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const apisRef = useRef(apis);
+  const tabsRef = useRef(tabs);
+  const lastUnsavedStateRef = useRef<{ apiId: number | null; isUnsaved: boolean }>({ apiId: null, isUnsaved: false });
+  
+  // Keep refs in sync, but don't trigger main useEffect
   useEffect(() => {
-    if (!selectedApiId) return;
-    const api = apis.find(a => a.id === selectedApiId);
-    if (!api) return;
-    // Compare requestDetails with api fields
-    const isUnsaved =
-      api.name !== requestDetails.name ||
-      api.method !== requestDetails.method ||
-      api.url !== requestDetails.url ||
-      JSON.stringify(api.headers) !== JSON.stringify(requestDetails.headers) ||
-      JSON.stringify(api.body) !== JSON.stringify(requestDetails.body) ||
-      JSON.stringify(api.params) !== JSON.stringify(requestDetails.queryParams);
-    if (isUnsaved) {
-      markApiUnsaved(selectedApiId);
-    } else {
-      unmarkApiUnsaved(selectedApiId);
+    apisRef.current = apis;
+  }, [apis]);
+  
+  useEffect(() => {
+    tabsRef.current = tabs;
+  }, [tabs]);
+  
+  useEffect(() => {
+    const activeTabData = tabsRef.current.find(t => t.id === activeTabId);
+    if (!activeTabData || !activeTabData.apiId) {
+      // Clear unsaved state if no active tab
+      if (lastUnsavedStateRef.current.apiId) {
+        unmarkApiUnsaved(lastUnsavedStateRef.current.apiId);
+        lastUnsavedStateRef.current = { apiId: null, isUnsaved: false };
+      }
+      return;
     }
-  }, [requestDetails, apis, selectedApiId, markApiUnsaved, unmarkApiUnsaved]);
+    
+    // Find API by ID stored in tab (not by matching name/url which can change)
+    const matchingApi = apisRef.current.find(a => a.id === activeTabData.apiId);
+    if (!matchingApi || !matchingApi.id) {
+      // Clear unsaved state if no matching API
+      if (lastUnsavedStateRef.current.apiId) {
+        unmarkApiUnsaved(lastUnsavedStateRef.current.apiId);
+        lastUnsavedStateRef.current = { apiId: null, isUnsaved: false };
+      }
+      return;
+    }
+    
+    // Create a stable key for comparison to prevent infinite loops
+    const currentStateKey = JSON.stringify({
+      name: activeTabData.requestDetails.name,
+      method: activeTabData.requestDetails.method,
+      url: activeTabData.requestDetails.url,
+      headers: activeTabData.requestDetails.headers,
+      body: activeTabData.requestDetails.body,
+      params: activeTabData.requestDetails.queryParams,
+    });
+    
+    // Simple comparison - normalize and compare
+    const normalize = (val: any): string => {
+      if (val == null) return '';
+      if (typeof val === 'string') return val.trim();
+      return JSON.stringify(val);
+    };
+    
+    const hasChanges = 
+      normalize(matchingApi.name) !== normalize(activeTabData.requestDetails.name) ||
+      normalize(matchingApi.method || 'GET') !== normalize(activeTabData.requestDetails.method || 'GET') ||
+      normalize(matchingApi.url) !== normalize(activeTabData.requestDetails.url) ||
+      normalize(matchingApi.headers) !== normalize(activeTabData.requestDetails.headers) ||
+      normalize(matchingApi.body) !== normalize(activeTabData.requestDetails.body) ||
+      normalize(matchingApi.params) !== normalize(activeTabData.requestDetails.queryParams);
+    
+    // Only update state if it actually changed (prevents infinite loop)
+    const needsUnsavedUpdate = lastUnsavedStateRef.current.apiId !== matchingApi.id || 
+                                lastUnsavedStateRef.current.isUnsaved !== hasChanges;
+    
+    if (needsUnsavedUpdate) {
+      if (hasChanges) {
+        markApiUnsaved(matchingApi.id);
+        lastUnsavedStateRef.current = { apiId: matchingApi.id, isUnsaved: true };
+      } else {
+        unmarkApiUnsaved(matchingApi.id);
+        lastUnsavedStateRef.current = { apiId: matchingApi.id, isUnsaved: false };
+      }
+    }
+    
+    // Skip auto-save if this is the same state we just saved (prevents infinite loop)
+    if (currentStateKey === lastSavedRef.current && !hasChanges) {
+      return;
+    }
+    
+    // Auto-save with debounce (1 second delay) only if there are changes
+    if (hasChanges) {
+      // Clear any existing timeout
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current);
+      }
+      
+      // Auto-save with debounce (1 second delay)
+      autoSaveTimeoutRef.current = setTimeout(async () => {
+        // Re-fetch current tab data in case it changed
+        const currentTabData = tabsRef.current.find(t => t.id === activeTabId);
+        if (!currentTabData || !currentTabData.requestDetails.name || !matchingApi.id) return;
+        
+        try {
+          const savedApi = {
+            id: matchingApi.id,
+            collectionId: matchingApi.collectionId || 0,
+            name: currentTabData.requestDetails.name.trim(),
+            method: currentTabData.requestDetails.method,
+            url: currentTabData.requestDetails.url.trim(),
+            headers: currentTabData.requestDetails.headers,
+            body: currentTabData.requestDetails.body,
+            params: currentTabData.requestDetails.queryParams,
+            formData: currentTabData.requestDetails.formData,
+            bodyMode: currentTabData.bodyType === 'form-data' ? 'formdata' : currentTabData.bodyType === 'raw' ? 'raw' : undefined,
+          };
+          
+          await updateApi(savedApi);
+          lastSavedRef.current = JSON.stringify({
+            name: currentTabData.requestDetails.name,
+            method: currentTabData.requestDetails.method,
+            url: currentTabData.requestDetails.url,
+            headers: currentTabData.requestDetails.headers,
+            body: currentTabData.requestDetails.body,
+            params: currentTabData.requestDetails.queryParams,
+          }); // Mark as saved
+          unmarkApiUnsaved(matchingApi.id);
+          lastUnsavedStateRef.current = { apiId: matchingApi.id, isUnsaved: false };
+        } catch (error) {
+          console.error('Auto-save failed:', error);
+        }
+      }, 1000); // 1 second debounce
+    } else {
+      lastSavedRef.current = currentStateKey; // Mark as saved
+    }
+    
+    return () => {
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current);
+      }
+    };
+  }, [activeTabId, markApiUnsaved, unmarkApiUnsaved, updateApi]); // Removed 'tabs' and 'apis' from dependencies to prevent infinite loop
 
   return (
     <ThemeProvider theme={muiTheme}>
       <div className="h-screen flex bg-white dark:bg-gray-900">
         <div className={`flex-1 min-w-0 flex flex-col transition-all duration-300`} style={{ marginBottom: response && isResponsePanelVisible ? responsePanelHeight : 0 }}>
           {/* Tab Bar */}
-          <div className="flex items-center gap-1 px-2 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 overflow-x-auto">
+          <div className="flex items-center gap-0.5 px-1 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 overflow-x-auto">
             {tabs.map((tab) => (
               <div
                 key={tab.id}
-                className={`group flex items-center gap-2 px-3 py-2 border-b-2 transition-colors duration-200 ${
+                className={`group flex items-center gap-1 px-2 py-2 border-b-2 transition-colors duration-200 ${
                   tab.id === activeTabId
                     ? 'border-orange-500 bg-white dark:bg-gray-900 text-orange-600 dark:text-orange-400'
                     : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700'
@@ -1530,8 +1713,40 @@ const ApiTesting: React.FC = () => {
                       switchTab(tab.id);
                     }
                   }}
-                  className="flex items-center gap-2 min-w-0 flex-1"
+                  className="flex items-center gap-1 min-w-0 flex-1"
                 >
+                  {/* Check if this tab corresponds to an unsaved API */}
+                  {(() => {
+                    const tabApi = apis.find(a => 
+                      a.name === tab.requestDetails.name && 
+                      a.method === tab.requestDetails.method && 
+                      a.url === tab.requestDetails.url
+                    );
+                    const isUnsaved = tabApi && unsavedApiIds.has(tabApi.id!);
+                    return isUnsaved ? (
+                      <div
+                        className="w-2 h-2 rounded-full bg-orange-500 flex-shrink-0"
+                        style={{ boxShadow: '0 0 2px 0.5px #fb923c' }}
+                        title="Unsaved changes"
+                      />
+                    ) : null;
+                  })()}
+                  {/* Method badge with same color palette as collections sidebar */}
+                  {(() => {
+                    const methodColors: Record<string, { bg: string; text: string; border: string }> = {
+                      GET: { bg: 'bg-emerald-50 dark:bg-emerald-900/20', text: 'text-emerald-600 dark:text-emerald-400', border: 'border-emerald-200 dark:border-emerald-700' },
+                      POST: { bg: 'bg-amber-50 dark:bg-amber-900/20', text: 'text-amber-600 dark:text-amber-400', border: 'border-amber-200 dark:border-amber-700' },
+                      PUT: { bg: 'bg-blue-50 dark:bg-blue-900/20', text: 'text-blue-600 dark:text-blue-400', border: 'border-blue-200 dark:border-blue-700' },
+                      DELETE: { bg: 'bg-red-50 dark:bg-red-900/20', text: 'text-red-600 dark:text-red-400', border: 'border-red-200 dark:border-red-700' },
+                      PATCH: { bg: 'bg-purple-50 dark:bg-purple-900/20', text: 'text-purple-600 dark:text-purple-400', border: 'border-purple-200 dark:border-purple-700' },
+                    };
+                    const methodStyle = methodColors[tab.requestDetails.method] || methodColors.GET;
+                    return (
+                      <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium transition-all duration-200 ${methodStyle.bg} ${methodStyle.text} border ${methodStyle.border} flex-shrink-0`}>
+                        {tab.requestDetails.method}
+                      </span>
+                    );
+                  })()}
                   {editingTabId === tab.id ? (
                     <input
                       type="text"
@@ -1551,12 +1766,12 @@ const ApiTesting: React.FC = () => {
                         }
                       }}
                       autoFocus
-                      className="bg-transparent border border-orange-500 rounded px-1 py-0 text-sm font-medium min-w-[100px] max-w-[200px] outline-none focus:outline-none focus:ring-1 focus:ring-orange-500"
-                      style={{ width: `${Math.max(100, tab.name.length * 8)}px` }}
+                      className="bg-transparent border border-orange-500 rounded px-1 py-0 text-xs font-medium min-w-[80px] max-w-[150px] outline-none focus:outline-none focus:ring-1 focus:ring-orange-500"
+                      style={{ width: `${Math.max(80, tab.name.length * 7)}px` }}
                       onClick={(e) => e.stopPropagation()}
                     />
                   ) : (
-                    <span className="text-sm font-medium min-w-[100px] max-w-[200px] truncate px-1">
+                    <span className="text-xs font-medium min-w-[80px] max-w-[150px] truncate">
                       {tab.name}
                     </span>
                   )}
@@ -1566,9 +1781,7 @@ const ApiTesting: React.FC = () => {
                     e.stopPropagation();
                     setEditingTabId(tab.id);
                   }}
-                  className={`p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded transition-all duration-200 ${
-                    editingTabId === tab.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
-                  }`}
+                  className="p-0.5 hover:bg-gray-200 dark:hover:bg-gray-600 rounded transition-all duration-200 opacity-100"
                   title="Edit tab name"
                 >
                   <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1581,41 +1794,25 @@ const ApiTesting: React.FC = () => {
                       e.stopPropagation();
                       closeTab(tab.id);
                     }}
-                    className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded transition-colors duration-200"
+                    className="p-0.5 hover:bg-gray-200 dark:hover:bg-gray-600 rounded transition-colors duration-200"
                     title="Close tab"
                   >
-                    <X className="w-4 h-4" />
+                    <X className="w-3 h-3" />
                   </button>
                 )}
               </div>
             ))}
             <button
               onClick={createTab}
-              className="flex items-center justify-center px-3 py-2 text-gray-600 dark:text-gray-400 hover:text-orange-500 dark:hover:text-orange-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors duration-200"
+              className="flex items-center justify-center px-2 py-1 text-gray-600 dark:text-gray-400 hover:text-orange-500 dark:hover:text-orange-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors duration-200"
               title="New tab"
             >
-              <Plus className="w-4 h-4" />
+              <Plus className="w-3 h-3" />
             </button>
           </div>
           
           {/* Top Bar */}
       <div className="flex items-center gap-2 p-4 border-b border-gray-200 dark:border-gray-700">
-        {selectedApiId && (
-          <input
-            type="text"
-            value={requestDetails.name || ''}
-            onChange={e => {
-              const newName = e.target.value;
-              updateActiveTab(tab => ({
-                ...tab,
-                name: newName,
-                requestDetails: { ...tab.requestDetails, name: newName }
-              }));
-            }}
-            placeholder="API Name"
-            className="px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white font-semibold w-48"
-          />
-        )}
         <select
           value={requestDetails.method}
           onChange={(e) => handleMethodChange(e.target.value)}
@@ -1643,15 +1840,15 @@ const ApiTesting: React.FC = () => {
           Send
         </button>
         <button
-              onClick={() => setIsImportCurlOpen(true)}
+          onClick={() => setIsAddToCollectionOpen(true)}
           className="flex items-center gap-1.5 px-3 py-2 text-gray-600 dark:text-gray-400 hover:text-orange-500 dark:hover:text-orange-400 transition-colors duration-200"
-              title="Import cURL"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-              </svg>
-              <span className="text-sm font-medium">Import cURL</span>
-            </button>
+          title="Add to Collection"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          </svg>
+          <span className="text-sm font-medium">Add to Collection</span>
+        </button>
             <button
               onClick={() => setIsCurlDrawerOpen(true)}
               className="flex items-center gap-1.5 px-3 py-2 text-gray-600 dark:text-gray-400 hover:text-orange-500 dark:hover:text-orange-400 transition-colors duration-200"
@@ -1660,43 +1857,30 @@ const ApiTesting: React.FC = () => {
           <Terminal className="w-4 h-4" />
               <span className="text-sm font-medium">Show cURL</span>
         </button>
-        {selectedApiId && (
-          <button
-            onClick={async () => {
-              if (!requestDetails.name) { alert('API name is required'); return; }
-              // If updateApi is available, use it, else fallback to addApi
-              if (typeof updateApi === 'function') {
-                await updateApi({
-                  id: selectedApiId,
-                  collectionId: apis.find(a => a.id === selectedApiId)?.collectionId || 0,
-                  name: requestDetails.name,
-                  method: requestDetails.method,
-                  url: requestDetails.url,
-                  headers: requestDetails.headers,
-                  body: requestDetails.body,
-                  params: requestDetails.queryParams,
-                });
-                unmarkApiUnsaved(selectedApiId);
-              } else {
-                // fallback: remove and re-add
-                await addApi({
-                  collectionId: apis.find(a => a.id === selectedApiId)?.collectionId || 0,
-                  name: requestDetails.name,
-                  method: requestDetails.method,
-                  url: requestDetails.url,
-                  headers: requestDetails.headers,
-                  body: requestDetails.body,
-                  params: requestDetails.queryParams,
-                });
-                unmarkApiUnsaved(selectedApiId);
-              }
-              alert('API updated!');
-            }}
-            className="px-3 py-2 bg-orange-500 text-white rounded hover:bg-orange-600"
-          >
-            Save
-          </button>
-        )}
+        {(() => {
+          // Find the API that matches the current tab using stored API ID
+          const activeTabData = tabs.find(t => t.id === activeTabId);
+          if (!activeTabData || !activeTabData.apiId) return null;
+          
+          // Find API by ID (not by matching name/url which can change)
+          const matchingApi = apis.find(a => a.id === activeTabData.apiId);
+          if (!matchingApi || !matchingApi.id) return null;
+          
+          const currentApiId = matchingApi.id;
+          const hasUnsavedChanges = unsavedApiIds.has(currentApiId);
+          
+          return (
+            <>
+              {hasUnsavedChanges && (
+                <div
+                  className="w-2.5 h-2.5 rounded-full bg-orange-500 flex-shrink-0"
+                  style={{ boxShadow: '0 0 2px 0.5px #fb923c' }}
+                  title="Unsaved changes"
+                />
+              )}
+            </>
+          );
+        })()}
         {response && (
           <div className="relative">
             <button
@@ -2105,8 +2289,8 @@ const ApiTesting: React.FC = () => {
         {/* Resizable Response Panel */}
         {response && isResponsePanelVisible && (
           <div 
-            className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 shadow-lg flex flex-col z-40"
-            style={{ height: responsePanelHeight }}
+            className="fixed bottom-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 shadow-lg flex flex-col z-40"
+            style={{ height: responsePanelHeight, left: '16rem', right: 0 }}
           >
             {/* Resize Handle */}
             <div
@@ -2436,6 +2620,76 @@ const ApiTesting: React.FC = () => {
               color="primary"
             >
               Import
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Add to Collection Dialog */}
+        <Dialog
+          open={isAddToCollectionOpen}
+          onClose={() => {
+            setIsAddToCollectionOpen(false);
+            setSelectedCollectionIdForAdd('');
+          }}
+          maxWidth="sm"
+          fullWidth
+        >
+          <DialogTitle>Add to Collection</DialogTitle>
+          <DialogContent>
+            <div className="mb-4">
+              <label htmlFor="api-name-input" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                API Name
+              </label>
+              <TextField
+                id="api-name-input"
+                fullWidth
+                value={requestDetails.name || ''}
+                onChange={(e) => {
+                  const newName = e.target.value;
+                  updateActiveTab(tab => ({
+                    ...tab,
+                    name: newName,
+                    requestDetails: { ...tab.requestDetails, name: newName }
+                  }));
+                }}
+                placeholder="Enter API name"
+                variant="outlined"
+                margin="dense"
+              />
+            </div>
+            <div>
+              <label htmlFor="collection-select" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Select Collection
+              </label>
+              <select
+                id="collection-select"
+                value={selectedCollectionIdForAdd}
+                onChange={(e) => setSelectedCollectionIdForAdd(Number(e.target.value))}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 dark:bg-gray-700 dark:text-white transition-all duration-200"
+              >
+                <option value="">Select a collection...</option>
+                {collections.map(col => (
+                  <option key={col.id} value={col.id!}>{col.name}</option>
+                ))}
+              </select>
+            </div>
+          </DialogContent>
+          <DialogActions>
+            <Button
+              onClick={() => {
+                setIsAddToCollectionOpen(false);
+                setSelectedCollectionIdForAdd('');
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleAddToCollection}
+              variant="contained"
+              color="primary"
+              disabled={!selectedCollectionIdForAdd || !requestDetails.name}
+            >
+              Add
             </Button>
           </DialogActions>
         </Dialog>
