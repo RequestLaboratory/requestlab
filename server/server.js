@@ -230,6 +230,19 @@ app.get('/api/interceptors/:id/logs', async (req, res) => {
   }
 });
 
+// Delete all logs for an interceptor
+app.delete('/api/interceptors/:id/logs', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { error } = await supabase.from('logs').delete().eq('interceptor_id', id);
+    if (error) throw error;
+    res.status(204).end();
+  } catch (error) {
+    console.error('Database error:', error);
+    res.status(500).json({ error: 'Database error', message: error.message });
+  }
+});
+
 // Dynamic proxy middleware - handle all other requests
 app.use(async (req, res, next) => {
   // Extract interceptor ID from path

@@ -276,6 +276,56 @@ export default function RequestLogViewer({ interceptorId, onSelectLog, selectedL
     );
   });
 
+  const [isClearing, setIsClearing] = useState(false);
+
+  const clearAllLogs = async () => {
+    if (!confirm(`Are you sure you want to delete all ${logs.length} request${logs.length === 1 ? '' : 's'}? This action cannot be undone.`)) {
+      return;
+    }
+
+    setIsClearing(true);
+    try {
+      // Try bulk delete first (DELETE /api/interceptors/:id/logs)
+      // If the backend doesn't support this, it will fail and we'll fall back to individual deletes
+      try {
+        await apiClient.delete(API_ENDPOINTS.LOGS(interceptorId));
+        // Bulk delete succeeded
+        setLogs([]);
+      } catch (bulkError: any) {
+        // If bulk delete is not supported (404 or 405), fall back to individual deletes
+        if (bulkError.response?.status === 404 || bulkError.response?.status === 405) {
+          console.log('Bulk delete not supported, using individual deletes');
+          // Delete all logs by deleting each one individually in parallel
+          const deletePromises = logs.map(log => 
+            apiClient.delete(`${API_ENDPOINTS.LOGS(interceptorId)}/${log.id}`).catch(err => {
+              console.error(`Failed to delete log ${log.id}:`, err);
+              return null; // Continue with other deletions even if one fails
+            })
+          );
+          
+          await Promise.all(deletePromises);
+          setLogs([]);
+        } else {
+          // Re-throw if it's a different error
+          throw bulkError;
+        }
+      }
+      
+      // If using API mode, refetch to confirm all logs are deleted
+      if (workerMode === 'api' || !useSSE) {
+        // Small delay to ensure backend has processed deletions
+        setTimeout(async () => {
+          await fetchLogs();
+        }, 500);
+      }
+    } catch (err: any) {
+      console.error('Error clearing logs:', err);
+      alert('Failed to clear all requests. Please try again.');
+    } finally {
+      setIsClearing(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="p-4 flex items-center justify-center">
@@ -330,8 +380,49 @@ export default function RequestLogViewer({ interceptorId, onSelectLog, selectedL
               <span className="text-sm text-gray-500 dark:text-gray-400">SSE Mode</span>
             </div>
           )}
-          <div className="text-sm text-gray-500 dark:text-gray-400">
-            {filteredLogs.length} {filteredLogs.length === 1 ? 'request' : 'requests'}
+          <div className="flex items-center space-x-3">
+            <div className="text-sm text-gray-500 dark:text-gray-400">
+              {filteredLogs.length} {filteredLogs.length === 1 ? 'request' : 'requests'}
+            </div>
+            {logs.length > 0 && (
+              <button
+                onClick={clearAllLogs}
+                disabled={isClearing}
+                className={`inline-flex items-center px-3 py-1.5 text-sm font-medium rounded-md text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors duration-200 ${
+                  isClearing 
+                    ? 'bg-red-400 cursor-not-allowed' 
+                    : 'bg-red-600 hover:bg-red-700'
+                }`}
+                title="Delete all requests"
+              >
+                {isClearing ? (
+                  <>
+                    <svg className="animate-spin mr-1.5 h-4 w-4" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Clearing...
+                  </>
+                ) : (
+                  <>
+                    <svg
+                      className="mr-1.5 h-4 w-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                      />
+                    </svg>
+                    Clear All
+                  </>
+                )}
+              </button>
+            )}
           </div>
         </div>
       </div>
