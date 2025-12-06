@@ -92,6 +92,14 @@ const Documentation: React.FC = () => {
                       <strong>IndexDB: &nbsp;</strong> All APIs and collections are automatically saved in your browser's IndexDB for persistent storage.
                     </li>
                     <li className="flex items-center">
+                      <FileText className="w-4 h-4 mr-2 flex-shrink-0" />
+                      <strong>Multi-Tab Interface: &nbsp;</strong> Work on multiple API requests simultaneously with Postman-like tabbed interface
+                    </li>
+                    <li className="flex items-center">
+                      <CheckCircle className="w-4 h-4 mr-2 flex-shrink-0" />
+                      <strong>Auto-Save: &nbsp;</strong> Changes are automatically saved after 1 second of inactivity - no manual saving required
+                    </li>
+                    <li className="flex items-center">
                       <BarChart2 className="w-4 h-4 mr-2 flex-shrink-0" />
                       <strong>Load Testing: &nbsp;</strong> Built-in load testing capabilities to test API performance under various load conditions
                     </li>
@@ -109,8 +117,35 @@ const Documentation: React.FC = () => {
               <li>Navigate to the API Testing page from the sidebar</li>
               <li>Configure your request method, URL, headers, and body</li>
               <li>Execute the request and analyze the response</li>
-              <li>Save requests to collections for future use</li>
+              <li>Use "Add to Collection" button to save requests for future use</li>
             </ol>
+
+            <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Multi-Tab Interface</h3>
+            <p className="text-gray-600 dark:text-gray-300 mb-4">
+              Work on multiple API requests simultaneously with our Postman-like tabbed interface:
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+              <FeatureCard
+                title="Open APIs in Tabs"
+                description="Click any API from the Collections sidebar to open it in a new tab. Each tab maintains its own state independently."
+                icon={<FileText className="w-5 h-5 text-orange-500" />}
+              />
+              <FeatureCard
+                title="Create New Requests"
+                description="Click the + button to create a fresh request tab. New tabs start with an empty URL ready for configuration."
+                icon={<Code className="w-5 h-5 text-orange-500" />}
+              />
+              <FeatureCard
+                title="Unsaved Indicators"
+                description="An orange circle appears next to tabs and APIs with unsaved changes, helping you track what needs attention."
+                icon={<Eye className="w-5 h-5 text-orange-500" />}
+              />
+              <FeatureCard
+                title="Auto-Save"
+                description="Changes are automatically saved after 1 second of inactivity. The orange indicator disappears once saved."
+                icon={<CheckCircle className="w-5 h-5 text-orange-500" />}
+              />
+            </div>
 
             <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Request Configuration</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
@@ -396,10 +431,126 @@ curl 'https://api.github.com/repos/vuejs/vue' \\
           </div>
         )
       },
-      {
-        id: 'api-interceptor',
-        title: 'API Interceptor',
-        icon: <Zap className="w-5 h-5" />,
+    {
+      id: 'json-formatter',
+      title: 'JSON Formatter',
+      icon: <FileText className="w-5 h-5" />,
+      content: (
+        <div className="space-y-8">
+          <div className="prose dark:prose-invert max-w-none">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">JSON Formatter</h2>
+            <p className="text-gray-600 dark:text-gray-300 mb-6">
+              Format, validate, and beautify your JSON data with our powerful frontend-only JSON formatter. Minify for production or prettify for readability.
+            </p>
+
+            <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg p-6 mb-6">
+              <div className="flex items-start">
+                <div className="p-2 bg-orange-100 dark:bg-orange-900/40 rounded-lg mr-4">
+                  <Zap className="w-6 h-6 text-orange-600 dark:text-orange-400" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-orange-900 dark:text-orange-100 mb-2">Key Features</h3>
+                  <ul className="space-y-2 text-orange-800 dark:text-orange-200">
+                    <li className="flex items-center">
+                      <Code className="w-4 h-4 mr-2 flex-shrink-0" />
+                      <strong>Format & Beautify:</strong>&nbsp; Convert minified JSON to readable, indented format
+                    </li>
+                    <li className="flex items-center">
+                      <FileText className="w-4 h-4 mr-2 flex-shrink-0" />
+                      <strong>Minify:</strong>&nbsp; Compress JSON to a single line for production use
+                    </li>
+                    <li className="flex items-center">
+                      <CheckCircle className="w-4 h-4 mr-2 flex-shrink-0" />
+                      <strong>Validation:</strong>&nbsp; Instant error detection with line and column information
+                    </li>
+                    <li className="flex items-center">
+                      <Download className="w-4 h-4 mr-2 flex-shrink-0" />
+                      <strong>Export:</strong>&nbsp; Download formatted JSON or copy to clipboard
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">How to Use</h3>
+            <ol className="list-decimal list-inside space-y-2 text-gray-600 dark:text-gray-300 mb-6">
+              <li>Navigate to the JSON Formatter page from the sidebar</li>
+              <li>Paste your JSON in the left input panel</li>
+              <li>Click "Format" to beautify or "Minify" to compress</li>
+              <li>Copy the result or download as a file</li>
+            </ol>
+
+            <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Features</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+              <FeatureCard
+                title="Configurable Indentation"
+                description="Choose between 2 spaces, 4 spaces, or tab indentation for formatted output."
+                icon={<Settings className="w-5 h-5 text-orange-500" />}
+              />
+              <FeatureCard
+                title="Error Detection"
+                description="Detailed error messages with exact line and column numbers for invalid JSON."
+                icon={<AlertTriangle className="w-5 h-5 text-orange-500" />}
+              />
+              <FeatureCard
+                title="One-Click Copy"
+                description="Instantly copy formatted output to clipboard with visual confirmation."
+                icon={<Copy className="w-5 h-5 text-orange-500" />}
+              />
+              <FeatureCard
+                title="Download Support"
+                description="Download your formatted JSON as a .json file for easy sharing."
+                icon={<Download className="w-5 h-5 text-orange-500" />}
+              />
+            </div>
+
+            <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Example Usage</h3>
+            
+            <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Before (Minified)</h4>
+            <CodeBlock
+              code={`{"name":"RequestLab","version":"1.0.0","features":["API Testing","JSON Compare","JSON Formatter"],"settings":{"theme":"dark","autoFormat":true}}`}
+              language="json"
+              label="minified-json"
+            />
+
+            <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">After (Formatted)</h4>
+            <CodeBlock
+              code={`{
+  "name": "RequestLab",
+  "version": "1.0.0",
+  "features": [
+    "API Testing",
+    "JSON Compare",
+    "JSON Formatter"
+  ],
+  "settings": {
+    "theme": "dark",
+    "autoFormat": true
+  }
+}`}
+              language="json"
+              label="formatted-json"
+            />
+
+            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-6">
+              <div className="flex items-start">
+                <Globe className="w-5 h-5 text-blue-500 mt-0.5 mr-3 flex-shrink-0" />
+                <div>
+                  <h4 className="font-semibold text-blue-900 dark:text-blue-100 mb-2">100% Client-Side</h4>
+                  <p className="text-sm text-blue-800 dark:text-blue-200">
+                    All JSON processing happens in your browser. Your data never leaves your computer, ensuring complete privacy and security.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )
+    },
+    {
+      id: 'api-interceptor',
+      title: 'API Interceptor',
+      icon: <Zap className="w-5 h-5" />,
         content: (
           <div className="space-y-8">
             <div className="prose dark:prose-invert max-w-none">

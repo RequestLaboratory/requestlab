@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowRight, Zap, Shield, Gauge, Play, CheckCircle, Terminal, GitCompare, Network, Database } from 'lucide-react';
+import { ArrowRight, Zap, Shield, Gauge, Play, CheckCircle, Terminal, GitCompare, Network, Database, Wand2 } from 'lucide-react';
 
 interface HeroProps {
   onGetStartedClick: () => void;
@@ -38,6 +38,10 @@ export default function Hero({ onGetStartedClick }: HeroProps) {
             <div className="flex items-center space-x-2 bg-orange-50 dark:bg-orange-900/20 px-3 py-1.5 rounded-full">
               <GitCompare className="h-4 w-4 text-orange-600 dark:text-orange-400" />
               <span className="text-sm font-medium text-orange-600 dark:text-orange-400">JSON Comparison</span>
+            </div>
+            <div className="flex items-center space-x-2 bg-orange-50 dark:bg-orange-900/20 px-3 py-1.5 rounded-full">
+              <Wand2 className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+              <span className="text-sm font-medium text-orange-600 dark:text-orange-400">JSON Formatter</span>
             </div>
             <div className="flex items-center space-x-2 bg-orange-50 dark:bg-orange-900/20 px-3 py-1.5 rounded-full">
               <Terminal className="h-4 w-4 text-orange-600 dark:text-orange-400" />

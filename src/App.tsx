@@ -28,6 +28,7 @@ import FloatingButton from './components/FloatingButton';
 import Head from './components/Head';
 import Documentation from './components/Documentation';
 import DocumentationPage from './pages/Documentation';
+import JsonFormatter from './pages/JsonFormatter';
 
 const leftExample = JSON.stringify({
   name: "Ford Mustang GT",
@@ -490,6 +491,29 @@ function AppContent() {
               </Link>
 
               <Link
+                to="/json-formatter"
+                className={`group relative flex items-center rounded-lg p-2.5 ${
+                  location.pathname === '/json-formatter'
+                    ? 'bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400'
+                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50'
+                } transition-colors duration-200`}
+              >
+                <div className="flex items-center w-full">
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16m-7 6h7" />
+                  </svg>
+                  <span className="ml-3 font-medium">
+                    JSON Formatter
+                  </span>
+                </div>
+              </Link>
+
+              <Link
                 to="/api-interceptor"
                 className={`group relative flex items-center rounded-lg p-2.5 ${
                   location.pathname === '/api-interceptor'
@@ -670,6 +694,7 @@ function AppContent() {
             <Route path="/api-interceptor" element={<ApiInterceptor />} />
             <Route path="/interceptors/:id/logs" element={<InterceptorLogs />} />
             <Route path="/sql-compare" element={<SQLCompare />} />
+            <Route path="/json-formatter" element={<JsonFormatter />} />
             <Route path="/documentation" element={<DocumentationPage />} />
           </Routes>
         </div>

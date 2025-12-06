@@ -1,0 +1,16 @@
+# robots.txt for RequestLab
+# https://requestlab.io
+
+User-agent: *
+Allow: /
+
+# Sitemap location
+Sitemap: https://requestlab.io/sitemap.xml
+
+# Crawl-delay for politeness (optional)
+Crawl-delay: 1
+
+# Disallow admin or private paths (if any)
+Disallow: /api/
+Disallow: /interceptors/
+

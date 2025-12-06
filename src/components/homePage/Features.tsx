@@ -1,5 +1,5 @@
 import React from 'react';
-import { FileJson, Terminal, TestTube, Gauge, Shield, Database, ArrowRight } from 'lucide-react';
+import { FileJson, Terminal, TestTube, Gauge, Shield, Database, ArrowRight, Wand2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import FeatureCard from './FeatureCard';
 
@@ -7,45 +7,6 @@ export default function Features() {
   const navigate = useNavigate();
 
   const features = [
-    {
-      icon: FileJson,
-      title: 'JSON Compare',
-      description: 'Compare and share JSON objects with visual diff highlighting and intelligent formatting.',
-      features: [
-        'Visual diff highlighting',
-        'Deep object comparison',
-        'Share results via link',
-        'Format and validate JSON'
-      ],
-      capabilities: [
-        'Export comparison reports',
-        'API response validation',
-        'Schema validation',
-        'Custom comparison rules'
-      ],
-      color: 'from-orange-500 to-orange-600',
-      isPopular: true,
-      path: '/json-compare'
-    },
-    {
-      icon: Terminal,
-      title: 'cURL Testing',
-      description: 'Test and compare API endpoints with cURL commands, analyze responses, and share results.',
-      features: [
-        'Execute cURL commands',
-        'Compare API responses',
-        'Analyze HTTP headers',
-        'Share test results'
-      ],
-      capabilities: [
-        'Save test collections',
-        'Generate test cases',
-        'Performance metrics',
-        'Response validation'
-      ],
-      color: 'from-orange-500 to-red-500',
-      path: '/api-testing'
-    },
     {
       icon: TestTube,
       title: 'API Testing',
@@ -61,6 +22,7 @@ export default function Features() {
         'Continuous testing'
       ],
       color: 'from-red-500 to-pink-500',
+      isPopular: true,
       path: '/api-testing'
     },
     {
@@ -99,6 +61,7 @@ export default function Features() {
         'Performance monitoring'
       ],
       color: 'from-purple-500 to-indigo-500',
+      isPopular: true,
       path: '/api-interceptor'
     },
     {
@@ -119,6 +82,64 @@ export default function Features() {
       ],
       color: 'from-indigo-500 to-blue-500',
       path: '/sql-compare'
+    },
+    {
+      icon: FileJson,
+      title: 'JSON Compare',
+      description: 'Compare and share JSON objects with visual diff highlighting and intelligent formatting.',
+      features: [
+        'Visual diff highlighting',
+        'Deep object comparison',
+        'Share results via link',
+        'Format and validate JSON'
+      ],
+      capabilities: [
+        'Export comparison reports',
+        'API response validation',
+        'Schema validation',
+        'Custom comparison rules'
+      ],
+      color: 'from-orange-500 to-orange-600',
+      isPopular: true,
+      path: '/json-compare'
+    },
+    {
+      icon: Wand2,
+      title: 'JSON Formatter',
+      description: 'Format, validate, and beautify JSON data. Minify for production or prettify for readability.',
+      features: [
+        'Format & beautify JSON',
+        'Minify for production',
+        'Validate JSON syntax',
+        'One-click copy'
+      ],
+      capabilities: [
+        'Configurable indentation',
+        'Error line detection',
+        'Download as file',
+        '100% client-side'
+      ],
+      color: 'from-orange-400 to-orange-600',
+      path: '/json-formatter'
+    },
+    {
+      icon: Terminal,
+      title: 'cURL Testing',
+      description: 'Test and compare API endpoints with cURL commands, analyze responses, and share results.',
+      features: [
+        'Execute cURL commands',
+        'Compare API responses',
+        'Analyze HTTP headers',
+        'Share test results'
+      ],
+      capabilities: [
+        'Save test collections',
+        'Generate test cases',
+        'Performance metrics',
+        'Response validation'
+      ],
+      color: 'from-orange-500 to-red-500',
+      path: '/api-testing'
     }
   ];
 

@@ -50,6 +50,15 @@ export default function Header({ onSignInClick }: HeaderProps) {
               {isDarkMode ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
             </button>
 
+            {/* DevKit Button - Always visible */}
+            <button
+              onClick={handleDevKitClick}
+              className="flex items-center space-x-2 bg-gradient-to-r from-orange-500 to-orange-600 text-white px-4 py-2 rounded-lg hover:from-orange-600 hover:to-orange-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+            >
+              <Terminal className="h-4 w-4" />
+              <span>DevKit</span>
+            </button>
+
             {/* User Menu or Sign In */}
             {user ? (
               <div className="relative">
@@ -93,22 +102,12 @@ export default function Header({ onSignInClick }: HeaderProps) {
                 )}
               </div>
             ) : (
-              <>
-                {/* DevKit Button */}
-                <button
-                  onClick={handleDevKitClick}
-                  className="flex items-center space-x-2 bg-gradient-to-r from-orange-500 to-orange-600 text-white px-4 py-2 rounded-lg hover:from-orange-600 hover:to-orange-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
-                >
-                  <Terminal className="h-4 w-4" />
-                  <span>DevKit</span>
-                </button>
-                <button
-                  onClick={onSignInClick}
-                  className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-6 py-2 rounded-lg hover:from-orange-600 hover:to-orange-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
-                >
-                  Sign In
-                </button>
-              </>
+              <button
+                onClick={onSignInClick}
+                className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-6 py-2 rounded-lg hover:from-orange-600 hover:to-orange-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+              >
+                Sign In
+              </button>
             )}
           </nav>
 
@@ -137,8 +136,17 @@ export default function Header({ onSignInClick }: HeaderProps) {
                 Features
               </a>
               
+              {/* DevKit Button in Mobile Menu - Always visible */}
+              <button
+                onClick={handleDevKitClick}
+                className="mx-4 flex items-center justify-center space-x-2 bg-gradient-to-r from-orange-500 to-orange-600 text-white px-4 py-2 rounded-lg hover:from-orange-600 hover:to-orange-700 transition-all duration-200"
+              >
+                <Terminal className="h-4 w-4" />
+                <span>DevKit</span>
+              </button>
+
               {user ? (
-                <div className="px-4 py-2 border-t border-gray-200 dark:border-gray-700">
+                <div className="px-4 py-2 border-t border-gray-200 dark:border-gray-700 mt-2">
                   <div className="flex items-center space-x-2 mb-3">
                     {user.picture ? (
                       <img 
@@ -164,22 +172,12 @@ export default function Header({ onSignInClick }: HeaderProps) {
                   </button>
                 </div>
               ) : (
-                <>
-                  {/* DevKit Button in Mobile Menu */}
-                  <button
-                    onClick={handleDevKitClick}
-                    className="mx-4 flex items-center justify-center space-x-2 bg-gradient-to-r from-orange-500 to-orange-600 text-white px-4 py-2 rounded-lg hover:from-orange-600 hover:to-orange-700 transition-all duration-200"
-                  >
-                    <Terminal className="h-4 w-4" />
-                    <span>DevKit</span>
-                  </button>
-                  <button
-                    onClick={onSignInClick}
-                    className="mx-4 bg-gradient-to-r from-orange-500 to-orange-600 text-white px-6 py-2 rounded-lg hover:from-orange-600 hover:to-orange-700 transition-all duration-200"
-                  >
-                    Sign In
-                  </button>
-                </>
+                <button
+                  onClick={onSignInClick}
+                  className="mx-4 bg-gradient-to-r from-orange-500 to-orange-600 text-white px-6 py-2 rounded-lg hover:from-orange-600 hover:to-orange-700 transition-all duration-200"
+                >
+                  Sign In
+                </button>
               )}
             </div>
           </div>

@@ -37,6 +37,7 @@ export default function Footer() {
             <h3 className="text-lg font-semibold mb-4">Development Tools</h3>
             <ul className="space-y-2">
               <li><a href="/json-compare" className="text-gray-400 hover:text-white transition-colors duration-200 flex items-center">JSON Compare <ExternalLink className="h-3 w-3 ml-1" /></a></li>
+              <li><a href="/json-formatter" className="text-gray-400 hover:text-white transition-colors duration-200 flex items-center">JSON Formatter <ExternalLink className="h-3 w-3 ml-1" /></a></li>
               <li><a href="/api-testing" className="text-gray-400 hover:text-white transition-colors duration-200 flex items-center">cURL Testing <ExternalLink className="h-3 w-3 ml-1" /></a></li>
               <li><a href="/api-testing" className="text-gray-400 hover:text-white transition-colors duration-200 flex items-center">API Testing <ExternalLink className="h-3 w-3 ml-1" /></a></li>
               <li><a href="/api-testing" className="text-gray-400 hover:text-white transition-colors duration-200 flex items-center">Load Testing <ExternalLink className="h-3 w-3 ml-1" /></a></li>
