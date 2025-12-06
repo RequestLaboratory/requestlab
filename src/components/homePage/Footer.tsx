@@ -43,6 +43,7 @@ export default function Footer() {
               <li><a href="/api-testing" className="text-gray-400 hover:text-white transition-colors duration-200 flex items-center">Load Testing <ExternalLink className="h-3 w-3 ml-1" /></a></li>
               <li><a href="/api-interceptor" className="text-gray-400 hover:text-white transition-colors duration-200 flex items-center">API Interceptor <ExternalLink className="h-3 w-3 ml-1" /></a></li>
               <li><a href="/sql-compare" className="text-gray-400 hover:text-white transition-colors duration-200 flex items-center">MySQL Schema Compare <ExternalLink className="h-3 w-3 ml-1" /></a></li>
+              <li><a href="/npm-analyzer" className="text-gray-400 hover:text-white transition-colors duration-200 flex items-center">NPM Analyzer <ExternalLink className="h-3 w-3 ml-1" /></a></li>
             </ul>
           </div>
         </div>

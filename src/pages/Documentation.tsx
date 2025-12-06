@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BookOpen, Code, Terminal, Database, Zap, Play, BarChart2, Users, Settings, FileText, Globe, Shield, Download, Upload, Share2, Eye, EyeOff, Clock, TrendingUp, AlertTriangle, CheckCircle, XCircle, ExternalLink, Copy, Check } from 'lucide-react';
+import { BookOpen, Code, Terminal, Database, Zap, Play, BarChart2, Users, Settings, FileText, Globe, Shield, Download, Upload, Share2, Eye, EyeOff, Clock, TrendingUp, AlertTriangle, CheckCircle, XCircle, ExternalLink, Copy, Check, Package } from 'lucide-react';
 
 interface DocumentationSection {
   id: string;
@@ -795,6 +795,126 @@ Here is the schema diff:`}
                   <li>• Use the provided prompt to generate SQL migration scripts</li>
                   <li>• Review and execute the generated SQL in your database</li>
                 </ul>
+              </div>
+            </div>
+          </div>
+        )
+      },
+      {
+        id: 'npm-analyzer',
+        title: 'NPM Package Analyzer',
+        icon: <Package className="w-5 h-5" />,
+        content: (
+          <div className="space-y-6">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 p-6">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 flex items-center">
+                <Package className="w-6 h-6 text-orange-500 mr-2" />
+                NPM Package Analyzer
+              </h2>
+              
+              <p className="text-gray-600 dark:text-gray-300 mb-6">
+                Analyze your npm dependencies for security vulnerabilities, maintenance status, and overall package health. 
+                Powered by <strong>Snyk Advisor</strong>, this tool helps you make informed decisions about your project's dependencies.
+              </p>
+
+              <div className="bg-gradient-to-br from-purple-900 to-indigo-900 rounded-lg p-4 mb-6">
+                <div className="flex items-center gap-3 mb-2">
+                  <img src="/synk.png" alt="Snyk" className="w-8 h-8 object-contain" />
+                  <div>
+                    <h4 className="font-semibold text-white">Powered by Snyk</h4>
+                    <p className="text-xs text-purple-200">Industry-leading security intelligence</p>
+                  </div>
+                </div>
+              </div>
+
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Key Features</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                <FeatureCard
+                  title="Security Vulnerability Detection"
+                  description="Identify known security vulnerabilities in your dependencies with Snyk's comprehensive database."
+                  icon={<Shield className="w-5 h-5 text-red-500" />}
+                />
+                <FeatureCard
+                  title="Package Health Scoring"
+                  description="Get an overall health score for each package based on multiple quality metrics."
+                  icon={<TrendingUp className="w-5 h-5 text-green-500" />}
+                />
+                <FeatureCard
+                  title="Maintenance Status"
+                  description="Check if packages are actively maintained, last update dates, and commit frequency."
+                  icon={<Clock className="w-5 h-5 text-blue-500" />}
+                />
+                <FeatureCard
+                  title="Community Activity"
+                  description="Analyze community engagement, download trends, and ecosystem popularity."
+                  icon={<Users className="w-5 h-5 text-purple-500" />}
+                />
+              </div>
+
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">How to Use</h3>
+              <ol className="list-decimal list-inside space-y-3 text-gray-600 dark:text-gray-300 mb-6">
+                <li className="flex items-start gap-2">
+                  <span className="font-bold text-orange-500 min-w-[24px]">1.</span>
+                  <span><strong>Upload or Paste:</strong> Upload your <code className="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-sm">package.json</code> file or paste its contents directly into the editor.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="font-bold text-orange-500 min-w-[24px]">2.</span>
+                  <span><strong>Preview Dependencies:</strong> Review the parsed dependencies list showing all packages to be analyzed.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="font-bold text-orange-500 min-w-[24px]">3.</span>
+                  <span><strong>Analyze:</strong> Click "Analyze Packages" to send your dependencies to Snyk Advisor.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="font-bold text-orange-500 min-w-[24px]">4.</span>
+                  <span><strong>View Report:</strong> A detailed analysis report opens in a new tab with comprehensive security and health information.</span>
+                </li>
+              </ol>
+
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Example package.json</h3>
+              <CodeBlock
+                code={`{
+  "name": "my-project",
+  "dependencies": {
+    "express": "^4.18.2",
+    "axios": "^1.6.0",
+    "lodash": "^4.17.21"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.0",
+    "jest": "^29.7.0"
+  }
+}`}
+                language="json"
+                label="package.json"
+              />
+
+              <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                <div className="flex items-start">
+                  <div className="p-2 bg-blue-100 dark:bg-blue-900/40 rounded-lg mr-4">
+                    <Shield className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-blue-900 dark:text-blue-100 mb-2">What Gets Analyzed?</h4>
+                    <ul className="text-sm text-blue-800 dark:text-blue-200 space-y-1">
+                      <li>• <strong>dependencies</strong> - Production packages your app needs to run</li>
+                      <li>• <strong>devDependencies</strong> - Development tools like testing frameworks and bundlers</li>
+                      <li>• Each package is checked against Snyk's vulnerability database</li>
+                      <li>• Results include health scores, security issues, and maintenance status</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-4 p-3 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg">
+                <div className="flex items-center mb-2">
+                  <AlertTriangle className="w-4 h-4 text-orange-500 mr-2" />
+                  <span className="font-semibold text-orange-900 dark:text-orange-100 text-sm">Pro Tip</span>
+                </div>
+                <p className="text-sm text-orange-800 dark:text-orange-200">
+                  Run the NPM Package Analyzer regularly, especially before deploying to production, 
+                  to catch any newly discovered vulnerabilities in your dependencies.
+                </p>
               </div>
             </div>
           </div>

@@ -65,8 +65,8 @@ export default function InterceptorList({ onSelectInterceptor, onCreateIntercept
                          error.message?.toLowerCase().includes('network error');
         if (isTimeout) {
           setError('TIMEOUT'); // Special marker for timeout errors
-        } else {
-          setError(error.response?.data?.message || error.message || 'Failed to fetch interceptors');
+      } else {
+        setError(error.response?.data?.message || error.message || 'Failed to fetch interceptors');
         }
       }
     } finally {
