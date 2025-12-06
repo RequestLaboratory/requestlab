@@ -1,10 +1,13 @@
 import React from 'react';
 import { FileJson, Terminal, TestTube, Gauge, Shield, Database, ArrowRight, Wand2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useContext } from 'react';
+import { ThemeContext } from '../../contexts/ThemeContext';
 import FeatureCard from './FeatureCard';
 
 export default function Features() {
   const navigate = useNavigate();
+  const { isDarkMode } = useContext(ThemeContext);
 
   const features = [
     {
@@ -144,17 +147,23 @@ export default function Features() {
   ];
 
   return (
-    <section id="features" className="py-24 bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <section id="features" className={`py-24 relative overflow-hidden transition-colors duration-300 bg-gradient-to-br ${isDarkMode ? 'from-black via-gray-900 to-gray-950' : 'from-gray-50 via-white to-gray-100'
+      }`}>
+      {/* Subtle gradient overlay */}
+      <div className={`absolute inset-0 bg-gradient-to-br ${isDarkMode ? 'from-orange-950/10 via-transparent to-orange-950/5' : 'from-orange-100/30 via-transparent to-orange-50/20'}`}></div>
+
+      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
         <div className="text-center mb-20">
-          <h2 className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-white mb-6">
+          <h2 className={`text-4xl md:text-5xl font-bold mb-6 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
             Complete API Development
-            <span className="block bg-gradient-to-r from-orange-500 to-orange-600 bg-clip-text text-transparent">
+            <span className="block bg-gradient-to-r from-orange-500 via-orange-600 to-orange-700 bg-clip-text text-transparent" style={{
+              textShadow: isDarkMode ? '0 0 30px rgba(249, 115, 22, 0.3)' : '0 0 20px rgba(234, 88, 12, 0.2)',
+            }}>
               Toolkit
             </span>
           </h2>
-          <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto leading-relaxed">
+          <p className={`text-xl max-w-3xl mx-auto leading-relaxed ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
             Born from JSON comparison, evolved into a complete platform. All your development tools in one place.
           </p>
         </div>
@@ -162,9 +171,9 @@ export default function Features() {
         {/* Features Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {features.map((feature, index) => (
-            <FeatureCard 
-              key={index} 
-              {...feature} 
+            <FeatureCard
+              key={index}
+              {...feature}
               onTryNow={() => navigate(feature.path)}
             />
           ))}
@@ -172,17 +181,21 @@ export default function Features() {
 
         {/* Bottom CTA */}
         <div className="text-center mt-20">
-          <div className="bg-gradient-to-r from-orange-500 to-orange-600 rounded-2xl p-12 text-white relative overflow-hidden">
-            <div className="absolute inset-0 bg-black/10"></div>
+          <div className="bg-gradient-to-r from-orange-600 via-orange-500 to-orange-600 rounded-2xl p-12 text-white relative overflow-hidden shadow-2xl"
+            style={{
+              boxShadow: '0 0 40px rgba(249, 115, 22, 0.3), 0 20px 60px rgba(0, 0, 0, 0.4)',
+            }}
+          >
+            <div className="absolute inset-0 bg-white/5"></div>
             <div className="relative z-10">
               <h3 className="text-3xl font-bold mb-4">Ready to Simplify Your Development Workflow?</h3>
               <p className="text-xl mb-8 text-orange-100">
                 Join developers who've eliminated the need for multiple tools. Everything you need, in one place.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <button 
+                <button
                   onClick={() => navigate('/api-testing')}
-                  className="bg-white text-orange-600 px-8 py-4 rounded-xl font-semibold text-lg hover:bg-gray-50 transition-colors duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-1 flex items-center justify-center"
+                  className="bg-white text-orange-600 px-8 py-4 rounded-xl font-semibold text-lg hover:bg-orange-50 transition-colors duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-1 flex items-center justify-center"
                 >
                   Start Building Now
                   <ArrowRight className="ml-2 h-5 w-5" />
