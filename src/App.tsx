@@ -29,6 +29,7 @@ import Head from './components/Head';
 import Documentation from './components/Documentation';
 import DocumentationPage from './pages/Documentation';
 import JsonFormatter from './pages/JsonFormatter';
+import { EncryptionProvider } from './contexts/EncryptionContext';
 
 const leftExample = JSON.stringify({
   name: "Ford Mustang GT",
@@ -711,13 +712,15 @@ function App() {
     <Router>
       <Head />
       <AuthProvider>
-        <ApiCollectionsProvider>
-          <LoaderProvider>
-            <WelcomePopupProvider>
-              <AppContent />
-            </WelcomePopupProvider>
-          </LoaderProvider>
-        </ApiCollectionsProvider>
+        <EncryptionProvider>
+          <ApiCollectionsProvider>
+            <LoaderProvider>
+              <WelcomePopupProvider>
+                <AppContent />
+              </WelcomePopupProvider>
+            </LoaderProvider>
+          </ApiCollectionsProvider>
+        </EncryptionProvider>
       </AuthProvider>
     </Router>
   );

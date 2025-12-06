@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import apiClient from '../utils/apiClient';
 import InterceptorList from '../components/ApiInterceptor/InterceptorList';
 import InterceptorModal from '../components/ApiInterceptor/InterceptorModal';
+import EncryptionKeyManager from '../components/ApiInterceptor/EncryptionKeyManager';
 import { useAuth } from '../contexts/AuthContext';
 import { API_ENDPOINTS } from '../config';
 
@@ -116,7 +117,11 @@ export default function ApiInterceptor() {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div className="px-4 py-6 sm:px-0">
+        <div className="px-4 py-6 sm:px-0 space-y-6">
+          {/* Encryption Key Manager */}
+          <EncryptionKeyManager />
+          
+          {/* Interceptor List */}
           <InterceptorList
             onSelectInterceptor={handleSelectInterceptor}
             onCreateInterceptor={() => {

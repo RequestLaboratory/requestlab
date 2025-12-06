@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeftIcon, ClipboardIcon, CheckIcon, XMarkIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
+import { ArrowLeftIcon, ClipboardIcon, CheckIcon, XMarkIcon, MagnifyingGlassIcon, ShieldCheckIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline';
 import apiClient from '../utils/apiClient';
 import RequestLogViewer from '../components/ApiInterceptor/RequestLogViewer';
 import LogDetails from '../components/ApiInterceptor/LogDetails';
 import { useAuth } from '../contexts/AuthContext';
+import { useEncryption } from '../contexts/EncryptionContext';
 import { API_BASE_URL, API_ENDPOINTS } from '../config';
+import { toast } from 'react-toastify';
 
 interface Interceptor {
   id: string;
@@ -44,9 +46,63 @@ export default function InterceptorLogs() {
   const [selectedLog, setSelectedLog] = useState<Log | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const { user, login } = useAuth();
+  const { isEncryptionEnabled, encrypt } = useEncryption();
   const [drawerWidth, setDrawerWidth] = useState(896); // 4xl = 896px
   const [isResizing, setIsResizing] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const drawerRef = useRef<HTMLDivElement>(null);
+
+  // Export logs with encryption
+  const handleExportLogs = async (encrypted: boolean) => {
+    try {
+      setIsExporting(true);
+      
+      // Fetch all logs
+      const response = await apiClient.get(`${API_ENDPOINTS.LOGS(id!)}?limit=1000&offset=0`);
+      const logs = response.data;
+      
+      let exportData;
+      let filename;
+      
+      if (encrypted && isEncryptionEnabled) {
+        // Encrypt the entire log data
+        const encryptedContent = await encrypt(JSON.stringify(logs, null, 2));
+        exportData = JSON.stringify({
+          encrypted: true,
+          timestamp: new Date().toISOString(),
+          interceptor: interceptor?.name,
+          data: encryptedContent
+        }, null, 2);
+        filename = `logs-${interceptor?.name || id}-encrypted-${Date.now()}.json`;
+        toast.success('Logs exported with encryption!');
+      } else {
+        exportData = JSON.stringify({
+          encrypted: false,
+          timestamp: new Date().toISOString(),
+          interceptor: interceptor?.name,
+          data: logs
+        }, null, 2);
+        filename = `logs-${interceptor?.name || id}-${Date.now()}.json`;
+        toast.success('Logs exported!');
+      }
+      
+      // Download the file
+      const blob = new Blob([exportData], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Export failed:', error);
+      toast.error('Failed to export logs');
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   const handleMouseDown = (e: React.MouseEvent) => {
     setIsResizing(true);
@@ -212,9 +268,17 @@ export default function InterceptorLogs() {
                 <ArrowLeftIcon className="h-5 w-5" />
               </button>
               <div>
-                <h2 className="text-lg font-medium text-gray-900 dark:text-white">
-                  {interceptor.name}
-                </h2>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-lg font-medium text-gray-900 dark:text-white">
+                    {interceptor.name}
+                  </h2>
+                  {isEncryptionEnabled && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
+                      <ShieldCheckIcon className="w-3 h-3" />
+                      Encrypted
+                    </span>
+                  )}
+                </div>
                 <div className="mt-1 space-y-1">
                   <p className="text-sm text-gray-500 dark:text-gray-400">
                     {interceptor.base_url}
@@ -240,6 +304,30 @@ export default function InterceptorLogs() {
                   </div>
                 </div>
               </div>
+            </div>
+            
+            {/* Export Buttons */}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => handleExportLogs(false)}
+                disabled={isExporting}
+                className="inline-flex items-center px-3 py-1.5 text-sm font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+                title="Export logs as JSON"
+              >
+                <ArrowDownTrayIcon className="h-4 w-4 mr-1.5" />
+                Export
+              </button>
+              {isEncryptionEnabled && (
+                <button
+                  onClick={() => handleExportLogs(true)}
+                  disabled={isExporting}
+                  className="inline-flex items-center px-3 py-1.5 text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50"
+                  title="Export logs with encryption"
+                >
+                  <ShieldCheckIcon className="h-4 w-4 mr-1.5" />
+                  Export Encrypted
+                </button>
+              )}
             </div>
           </div>
 
