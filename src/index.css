@@ -6,6 +6,10 @@
   body {
     @apply antialiased;
   }
+  
+  html {
+    scroll-behavior: smooth;
+  }
 }
 
 @layer components {
@@ -22,5 +26,117 @@
       opacity: 1;
       transform: translateY(0);
     }
+  }
+  
+  /* Floating animation */
+  .animate-float {
+    animation: float 6s ease-in-out infinite;
+  }
+  
+  @keyframes float {
+    0%, 100% {
+      transform: translateY(0px);
+    }
+    50% {
+      transform: translateY(-20px);
+    }
+  }
+  
+  /* Floating slow animation */
+  .animate-float-slow {
+    animation: float 8s ease-in-out infinite;
+  }
+  
+  /* Rotating animation */
+  .animate-rotate {
+    animation: rotate 20s linear infinite;
+  }
+  
+  @keyframes rotate {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
+  
+  /* Glow pulse animation */
+  .animate-glow-pulse {
+    animation: glowPulse 2s ease-in-out infinite;
+  }
+  
+  @keyframes glowPulse {
+    0%, 100% {
+      opacity: 1;
+      filter: brightness(1);
+    }
+    50% {
+      opacity: 0.8;
+      filter: brightness(1.2);
+    }
+  }
+  
+  /* Particle movement */
+  .animate-particle {
+    animation: particle 10s linear infinite;
+  }
+  
+  @keyframes particle {
+    0% {
+      transform: translate(0, 0);
+      opacity: 0;
+    }
+    10% {
+      opacity: 1;
+    }
+    90% {
+      opacity: 1;
+    }
+    100% {
+      transform: translate(100px, -100px);
+      opacity: 0;
+    }
+  }
+  
+  /* Gradient mesh background */
+  .gradient-mesh {
+    background: 
+      radial-gradient(at 0% 0%, rgba(59, 130, 246, 0.3) 0px, transparent 50%),
+      radial-gradient(at 100% 0%, rgba(147, 51, 234, 0.3) 0px, transparent 50%),
+      radial-gradient(at 100% 100%, rgba(99, 102, 241, 0.3) 0px, transparent 50%),
+      radial-gradient(at 0% 100%, rgba(59, 130, 246, 0.3) 0px, transparent 50%);
+  }
+  
+  /* Text glow effect */
+  .text-glow {
+    text-shadow: 0 0 20px rgba(147, 197, 253, 0.5),
+                 0 0 40px rgba(147, 197, 253, 0.3),
+                 0 0 60px rgba(147, 197, 253, 0.2);
+  }
+  
+  .text-glow-purple {
+    text-shadow: 0 0 20px rgba(192, 132, 252, 0.5),
+                 0 0 40px rgba(192, 132, 252, 0.3),
+                 0 0 60px rgba(192, 132, 252, 0.2);
+  }
+  
+  /* Glassmorphism effect */
+  .glass {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+  
+  /* Button glow */
+  .btn-glow {
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.5),
+                0 0 40px rgba(59, 130, 246, 0.3);
+  }
+  
+  .btn-glow:hover {
+    box-shadow: 0 0 30px rgba(59, 130, 246, 0.7),
+                0 0 60px rgba(59, 130, 246, 0.4);
   }
 }
