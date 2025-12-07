@@ -2,6 +2,7 @@ import { useState, useCallback, useRef } from 'react';
 import { Upload, FileJson, Search, AlertCircle, CheckCircle, Loader2, ExternalLink, Trash2, Package } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { API_BASE_URL } from '../config';
+import snykLogo from '../assets/snyk-logo.png';
 
 interface AnalysisResult {
   reportId: string;
@@ -207,7 +208,7 @@ export default function NpmPackageAnalyzer() {
             </h1>
             <div className="flex items-center gap-1.5 px-2.5 py-1 bg-purple-100 dark:bg-purple-900/30 rounded-full">
               <img 
-                src="/snyk-logo.png" 
+                src={snykLogo} 
                 alt="Snyk" 
                 className="w-5 h-5 object-contain"
               />
@@ -369,7 +370,7 @@ export default function NpmPackageAnalyzer() {
             <div className="bg-gradient-to-br from-purple-900 to-indigo-900 border border-purple-700 rounded-lg p-4 text-white">
               <div className="flex items-center gap-3 mb-3">
                 <img 
-                  src="/snyk-logo.png" 
+                  src={snykLogo} 
                   alt="Snyk Logo" 
                   className="w-10 h-10 object-contain"
                 />

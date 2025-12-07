@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { BookOpen, Code, Terminal, Database, Zap, Play, BarChart2, Users, Settings, FileText, Globe, Shield, Download, Upload, Share2, Eye, EyeOff, Clock, TrendingUp, AlertTriangle, CheckCircle, XCircle, ExternalLink, Copy, Check, Package } from 'lucide-react';
+import snykLogo from '../assets/snyk-logo.png';
 
 interface DocumentationSection {
   id: string;
@@ -819,7 +820,7 @@ Here is the schema diff:`}
 
               <div className="bg-gradient-to-br from-purple-900 to-indigo-900 rounded-lg p-4 mb-6">
                 <div className="flex items-center gap-3 mb-2">
-                  <img src="/snyk-logo.png" alt="Snyk" className="w-8 h-8 object-contain" />
+                  <img src={snykLogo} alt="Snyk" className="w-8 h-8 object-contain" />
                   <div>
                     <h4 className="font-semibold text-white">Powered by Snyk</h4>
                     <p className="text-xs text-purple-200">Industry-leading security intelligence</p>
