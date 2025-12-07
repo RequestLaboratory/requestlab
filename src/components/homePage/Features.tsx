@@ -1,5 +1,4 @@
-import React from 'react';
-import { FileJson, Terminal, TestTube, Gauge, Shield, Database, ArrowRight, Wand2 } from 'lucide-react';
+import { FileJson, Terminal, TestTube, Gauge, Shield, Database, ArrowRight, Wand2, Package } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useContext } from 'react';
 import { ThemeContext } from '../../contexts/ThemeContext';
@@ -143,6 +142,25 @@ export default function Features() {
       ],
       color: 'from-orange-500 to-red-500',
       path: '/api-testing'
+    },
+    {
+      icon: Package,
+      title: 'NPM Package Analyzer',
+      description: 'Analyze npm dependencies for security vulnerabilities, maintenance status, and package health.',
+      features: [
+        'Security scanning',
+        'Dependency health check',
+        'Maintenance status',
+        'Snyk Advisor integration'
+      ],
+      capabilities: [
+        'Vulnerability detection',
+        'Package scoring',
+        'Community analysis',
+        'Instant reports'
+      ],
+      color: 'from-blue-500 to-cyan-500',
+      path: '/npm-analyzer'
     }
   ];
 

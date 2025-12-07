@@ -43,6 +43,11 @@ const pageSEOData: Record<string, PageSEO> = {
     title: 'Documentation - RequestLab API Testing Tool',
     description: 'Complete documentation for RequestLab API testing tool. Learn how to use API testing, JSON formatter, JSON compare, API interceptor, and MySQL schema compare features.',
     keywords: 'RequestLab documentation, API testing guide, JSON formatter help, developer tool docs'
+  },
+  '/npm-analyzer': {
+    title: 'NPM Package Analyzer - Check Dependencies Security | RequestLab',
+    description: 'Analyze your npm dependencies for security vulnerabilities, maintenance status, and package health using Snyk Advisor. Free npm security scanner.',
+    keywords: 'npm package analyzer, npm security check, dependency scanner, snyk advisor, npm vulnerability scanner, package health check'
   }
 };
 

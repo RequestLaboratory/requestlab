@@ -29,6 +29,7 @@ import Head from './components/Head';
 import Documentation from './components/Documentation';
 import DocumentationPage from './pages/Documentation';
 import JsonFormatter from './pages/JsonFormatter';
+import NpmPackageAnalyzer from './pages/NpmPackageAnalyzer';
 
 const leftExample = JSON.stringify({
   name: "Ford Mustang GT",
@@ -560,6 +561,29 @@ function AppContent() {
                 </div>
               </Link>
 
+              <Link
+                to="/npm-analyzer"
+                className={`group relative flex items-center rounded-lg p-2.5 ${
+                  location.pathname === '/npm-analyzer'
+                    ? 'bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400'
+                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50'
+                } transition-colors duration-200`}
+              >
+                <div className="flex items-center w-full">
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                  </svg>
+                  <span className="ml-3 font-medium">
+                    NPM Analyzer
+                  </span>
+                </div>
+              </Link>
+
               <Documentation />
             </nav>
 
@@ -695,6 +719,7 @@ function AppContent() {
             <Route path="/interceptors/:id/logs" element={<InterceptorLogs />} />
             <Route path="/sql-compare" element={<SQLCompare />} />
             <Route path="/json-formatter" element={<JsonFormatter />} />
+            <Route path="/npm-analyzer" element={<NpmPackageAnalyzer />} />
             <Route path="/documentation" element={<DocumentationPage />} />
           </Routes>
         </div>

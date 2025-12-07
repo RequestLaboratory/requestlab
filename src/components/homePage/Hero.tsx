@@ -1,4 +1,4 @@
-import { ArrowRight, Zap, Shield, Gauge, CheckCircle, Terminal, GitCompare, Network, Database, Wand2, Sparkles } from 'lucide-react';
+import { ArrowRight, Zap, Shield, Gauge, CheckCircle, Terminal, GitCompare, Network, Database, Wand2, Package, Sparkles } from 'lucide-react';
 import { useState, useEffect, useRef, useContext } from 'react';
 import { ThemeContext } from '../../contexts/ThemeContext';
 
@@ -163,7 +163,8 @@ export default function Hero({ onGetStartedClick }: HeroProps) {
               { icon: Terminal, text: 'cURL Testing' },
               { icon: Zap, text: 'Load Testing' },
               { icon: Network, text: 'API Interception' },
-              { icon: Database, text: 'MySQL Schema Comparison' }
+              { icon: Database, text: 'MySQL Schema Comparison' },
+              { icon: Package, text: 'NPM Analyzer' }
             ].map((item, index) => {
               const Icon = item.icon;
               return (
@@ -182,7 +183,7 @@ export default function Hero({ onGetStartedClick }: HeroProps) {
             })}
           </div>
 
-                    {/* CTA Button */}
+          {/* CTA Button */}
           <div className="flex flex-col sm:flex-row gap-6 justify-center items-center mb-20">
             <button
               onClick={onGetStartedClick}
@@ -218,8 +219,6 @@ export default function Hero({ onGetStartedClick }: HeroProps) {
               </div>
             ))}
           </div>
-
-
 
           {/* Feature highlights with glassmorphism */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto">

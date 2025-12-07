@@ -1509,19 +1509,19 @@ const ApiTesting: React.FC = () => {
           const newTab = createNewTab(
             api.name || 'Untitled API',
             {
-              name: api.name || '',
-              method: api.method || 'GET',
-              url: api.url || '',
-              headers: api.headers || {},
-              body: api.body || '',
-              queryParams: api.params || {},
+            name: api.name || '',
+            method: api.method || 'GET',
+            url: api.url || '',
+            headers: api.headers || {},
+            body: api.body || '',
+            queryParams: api.params || {},
               formData: api.formData ? api.formData.map(fd => ({ 
                 key: fd.key, 
                 value: fd.value || '',
                 type: (fd.type === 'file' ? 'file' : 'text') as 'text' | 'file',
                 src: fd.src
               })) : [{ key: '', value: '' }],
-            },
+          },
             false
           );
           
@@ -1536,11 +1536,11 @@ const ApiTesting: React.FC = () => {
           }
           
           setActiveTabId(newTab.id);
-          setIsResponsePanelVisible(false);
-          setShouldStopLoadTest(false);
+      setIsResponsePanelVisible(false);
+      setShouldStopLoadTest(false);
           return [...prevTabs, newTab];
         });
-      }
+    }
     }
   }, [selectedApiId]); // Removed 'apis' from dependencies to prevent re-running when apis array updates
 
@@ -1628,7 +1628,7 @@ const ApiTesting: React.FC = () => {
       if (hasChanges) {
         markApiUnsaved(matchingApi.id);
         lastUnsavedStateRef.current = { apiId: matchingApi.id, isUnsaved: true };
-      } else {
+    } else {
         unmarkApiUnsaved(matchingApi.id);
         lastUnsavedStateRef.current = { apiId: matchingApi.id, isUnsaved: false };
       }
@@ -1843,12 +1843,12 @@ const ApiTesting: React.FC = () => {
           onClick={() => setIsAddToCollectionOpen(true)}
           className="flex items-center gap-1.5 px-3 py-2 text-gray-600 dark:text-gray-400 hover:text-orange-500 dark:hover:text-orange-400 transition-colors duration-200"
           title="Add to Collection"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
+              </svg>
           <span className="text-sm font-medium">Add to Collection</span>
-        </button>
+            </button>
             <button
               onClick={() => setIsCurlDrawerOpen(true)}
               className="flex items-center gap-1.5 px-3 py-2 text-gray-600 dark:text-gray-400 hover:text-orange-500 dark:hover:text-orange-400 transition-colors duration-200"
