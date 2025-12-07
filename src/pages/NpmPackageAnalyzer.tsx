@@ -207,7 +207,7 @@ export default function NpmPackageAnalyzer() {
             </h1>
             <div className="flex items-center gap-1.5 px-2.5 py-1 bg-purple-100 dark:bg-purple-900/30 rounded-full">
               <img 
-                src="/synk.png" 
+                src="/snyk-logo.png" 
                 alt="Snyk" 
                 className="w-5 h-5 object-contain"
               />
@@ -369,7 +369,7 @@ export default function NpmPackageAnalyzer() {
             <div className="bg-gradient-to-br from-purple-900 to-indigo-900 border border-purple-700 rounded-lg p-4 text-white">
               <div className="flex items-center gap-3 mb-3">
                 <img 
-                  src="/synk.png" 
+                  src="/snyk-logo.png" 
                   alt="Snyk Logo" 
                   className="w-10 h-10 object-contain"
                 />

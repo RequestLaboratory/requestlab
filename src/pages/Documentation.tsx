@@ -819,7 +819,7 @@ Here is the schema diff:`}
 
               <div className="bg-gradient-to-br from-purple-900 to-indigo-900 rounded-lg p-4 mb-6">
                 <div className="flex items-center gap-3 mb-2">
-                  <img src="/synk.png" alt="Snyk" className="w-8 h-8 object-contain" />
+                  <img src="/snyk-logo.png" alt="Snyk" className="w-8 h-8 object-contain" />
                   <div>
                     <h4 className="font-semibold text-white">Powered by Snyk</h4>
                     <p className="text-xs text-purple-200">Industry-leading security intelligence</p>
